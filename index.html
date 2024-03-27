@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WinMa</title>
+    <link rel="stylesheet" href="./assets/css/allstyles.css">
+    <link rel="icon" type="image/png" href="./images/favicon/logo-luma.png" />
+    <script src="./assets/javascripts/jquery/jquery-3.6.4.js"></script>
+    <script src="./assets/javascripts/all.js"></script>
+</head>
+
+<body style="background-image: url(./images/locked/locked-01.png);">
+
+    <div id="desktop-apps"></div>
+
+
+    <!-- Windows bottom bar Z-INDEX *100* -->
+    <link rel="stylesheet" href="./assets/css/start-menu.css">
+    <div class="start-menu" data-locked-session="true">
+        <div class="default-block">
+            <img class="default-block start-button" src="images/menu-btn/menu-btn-01.png">
+        </div>
+        <div class="default-block apps-start-menu">
+            <img class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png">
+            <img class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
+            <img class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/verrouillage.png">
+        </div>
+        <div class="default-block notifications-horloge-date-start-menu">
+            <div class="block-notifications-horloge-date-start-menu">
+                <p id="horloge-notifications-horloge-date-start-menu"></p>
+                <p id="date-notifications-horloge-date-start-menu"></p>
+            </div>
+            <img id="notification-logo" src="./images/interface-logo/apps-menu/notification.png">
+        </div>
+    </div>
+    <script src="./assets/javascripts/notifications-horloge-date-start-menu/date-time.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'Open Sans - Regular';
+    src: url('../fonts/open_sans/OpenSans-Regular.ttf') format('truetype');
+}
+
+body {
+    margin: 0px;
+    font-family: 'Open Sans - Regular', sans-serif; /* Utilisation de la police définie */
+}
