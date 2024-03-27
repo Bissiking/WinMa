@@ -5,27 +5,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WinMa</title>
+    <!-- LINK -->
     <link rel="stylesheet" href="./assets/css/allstyles.css">
     <link rel="icon" type="image/png" href="./images/favicon/logo-luma.png" />
+    <!-- SCRIPT LOCAL -->
     <script src="./assets/javascripts/jquery/jquery-3.6.4.js"></script>
-    <script src="./assets/javascripts/all.js"></script>
+    <!-- SCRIPT CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 
-<body style="background-image: url(./images/locked/locked-01.png);">
+<body>
 
     <div id="desktop-apps"></div>
 
 
     <!-- Windows bottom bar Z-INDEX *100* -->
     <link rel="stylesheet" href="./assets/css/start-menu.css">
-    <div class="start-menu" data-locked-session="true">
-        <div class="default-block">
-            <img class="default-block start-button" src="images/menu-btn/menu-btn-01.png">
+    <div class="start-menu hidden" data-locked-session="true">
+        <div class="default-block block-start-menu">
+            <img id="open-start-button" class="default-block start-button" src="images/menu-btn/menu-btn-01.png">
         </div>
         <div class="default-block apps-start-menu">
-            <img class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png">
-            <img class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
-            <img class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/verrouillage.png">
+            <img id="navigateur" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png">
+            <img id="parametres" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
+            <img id="locked" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/verrouillage.png">
         </div>
         <div class="default-block notifications-horloge-date-start-menu">
             <div class="block-notifications-horloge-date-start-menu">
@@ -36,6 +39,49 @@
         </div>
     </div>
     <script src="./assets/javascripts/notifications-horloge-date-start-menu/date-time.js"></script>
+    
+    <!-- Menu démarré / z-index *99* -->
+    <div class="menu-start" data-menu-open="false">
+        <div class="menu-start-search-bar">
+            <input type="text" placeholder="Rechercher une application">
+        </div>
+        <div class="menu-start-result-bar">
+            <div class="menu-start-result-option">
+                <img class="menu-start-ico-user" src="./images/interface-logo/desktop/corbeille.png">
+                <p>Corbeille</p>
+            </div>
+            <div class="menu-start-result-option">
+                <img class="menu-start-ico-user" src="./images/interface-logo/desktop/documents.png">
+                <p>Documents</p>
+            </div>
+            <div class="menu-start-result-option">
+                <img class="menu-start-ico-user" src="./images/interface-logo/apps-menu/reglage.png">
+                <p>Paramètres</p>
+            </div>
+            <div class="menu-start-result-option">
+                <img class="menu-start-ico-user" src="./images/interface-logo/apps-menu/LumaNav.png">
+                <p>Navigateur</p>
+            </div>
+        </div>
+        <div class="menu-start-bottom-bar">
+            <!-- LOGO PROV -->
+            <div class="menu-start-ico-user-name">
+                <img class="menu-start-ico-user" src="images/menu-btn/menu-btn-01.png">
+                <p>HEMERY Mathéo</p>
+            </div>
+            
+            <div class="menu-start-ico-user-name">
+                <div id="menu-menu-start-power-option" class="menu-start-option-system hidden">
+                    <p>Verrouiller</p>
+                    <p>Changer d'utilisateur</p>
+                </div>
+                <img id="btn-menu-start-power-option" class="menu-start-power-option" src="images/interface-logo/menu-start/power.png">
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="./assets/javascripts/all.js"></script>
 </body>
 
 </html>

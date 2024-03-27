@@ -6,4 +6,17 @@
 body {
     margin: 0px;
     font-family: 'Open Sans - Regular', sans-serif; /* Utilisation de la police définie */
+    background-image: url(../../images/loading/load-01.gif);
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+}
+
+#desktop-apps{
+    width: 100%;
+    height: 100vh;
+}
+
+.hidden{
+    display: none !important;
 }

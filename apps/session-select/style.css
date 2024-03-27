@@ -1,0 +1,56 @@
+#desktop-apps{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+section{
+    width: 100%;
+    display: flex;
+    margin-bottom: 20px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.logo-locked{
+    width: 128px;
+    padding: 15px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 1);
+    margin-bottom: 30px;
+}
+
+input {
+    width: 300px;
+    padding: 5px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border: 1px solid #c4c4c4;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+input:focus {
+    border-color: #0078d4;
+}
+
+#Infoconnexion{
+    color: #fff;
+}
+
+.windows-button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    background-color: #0078d4;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.windows-button:hover {
+    background-color: #005a9e;
+}
