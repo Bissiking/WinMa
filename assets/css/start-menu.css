@@ -102,8 +102,8 @@
     background-color: #f4dad8;
     position: fixed;
     left: 10px;
-    /* bottom: -1000px; */
-    bottom: 60px;
+    bottom: -1000px;
+    /* bottom: 60px; */
     z-index: 99;
 }
 

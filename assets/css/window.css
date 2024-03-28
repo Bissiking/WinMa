@@ -1,0 +1,35 @@
+.window {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 200px;
+    background-color: #f1f1f1;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.window-header {
+    background-color: #ccc;
+    padding: 8px;
+    border-bottom: 1px solid #999;
+    border-radius: 5px 5px 0 0;
+}
+
+.window-title {
+    font-weight: bold;
+}
+
+.close-btn {
+    float: right;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.window-content {
+    padding: 20px;
+}

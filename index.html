@@ -7,6 +7,7 @@
     <title>WinMa</title>
     <!-- LINK -->
     <link rel="stylesheet" href="./assets/css/allstyles.css">
+    <link rel="stylesheet" href="./assets/css/window.css">
     <link rel="icon" type="image/png" href="./images/favicon/logo-luma.png" />
     <!-- SCRIPT LOCAL -->
     <script src="./assets/javascripts/jquery/jquery-3.6.4.js"></script>
@@ -17,7 +18,15 @@
 <body>
 
     <div id="desktop-apps"></div>
-
+    <div class="window" id="window1">
+        <div class="window-header">
+            <span class="window-title">Fenêtre 1</span>
+            <button class="close-btn" onclick="closeWindow('window1')">X</button>
+        </div>
+        <div class="window-content">
+            Contenu de la fenêtre 1
+        </div>
+    </div>
 
     <!-- Windows bottom bar Z-INDEX *100* -->
     <link rel="stylesheet" href="./assets/css/start-menu.css">
@@ -26,9 +35,9 @@
             <img id="open-start-button" class="default-block start-button" src="images/menu-btn/menu-btn-01.png">
         </div>
         <div class="default-block apps-start-menu">
-            <img id="navigateur" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png">
-            <img id="parametres" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
-            <img id="locked" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/verrouillage.png">
+            <img id="navigateur-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png">
+            <img id="parametres-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
+            <img id="locked-apps-start-menu" class="logo-apps-start-menu locked-session" src="./images/interface-logo/apps-menu/verrouillage.png">
         </div>
         <div class="default-block notifications-horloge-date-start-menu">
             <div class="block-notifications-horloge-date-start-menu">
@@ -67,13 +76,13 @@
             <!-- LOGO PROV -->
             <div class="menu-start-ico-user-name">
                 <img class="menu-start-ico-user" src="images/menu-btn/menu-btn-01.png">
-                <p>HEMERY Mathéo</p>
+                <p id="nameuser-menu-start-ico-user-name">Unknown</p>
             </div>
             
             <div class="menu-start-ico-user-name">
                 <div id="menu-menu-start-power-option" class="menu-start-option-system hidden">
-                    <p>Verrouiller</p>
-                    <p>Changer d'utilisateur</p>
+                    <p class="locked-session">Verrouiller</p>
+                    <p class="locked-session">Changer d'utilisateur</p>
                 </div>
                 <img id="btn-menu-start-power-option" class="menu-start-power-option" src="images/interface-logo/menu-start/power.png">
             </div>
