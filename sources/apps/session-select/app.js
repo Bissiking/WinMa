@@ -43,7 +43,7 @@ $('#BtnConnexionWinMa').click(function () {
 
                                         setTimeout(() => {
                                             // Stockage des infos dans le localStorage
-                                            localStorage.setItem('UserData', JSON.stringify());
+                                            localStorage.setItem('UserData', JSON.stringify(DataUser));
 
                                             // Récupération des paramètres
                                             axios.post('/data/user/params', DataUser).then(function (response) {

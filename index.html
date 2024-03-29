@@ -18,15 +18,6 @@
 <body>
 
     <div id="desktop-apps"></div>
-    <div class="window" id="window1">
-        <div class="window-header">
-            <span class="window-title">Fenêtre 1</span>
-            <button class="close-btn" onclick="closeWindow('window1')">X</button>
-        </div>
-        <div class="window-content">
-            Contenu de la fenêtre 1
-        </div>
-    </div>
 
     <!-- Windows bottom bar Z-INDEX *100* -->
     <link rel="stylesheet" href="./assets/css/start-menu.css">
@@ -35,7 +26,7 @@
             <img id="open-start-button" class="default-block start-button" src="images/menu-btn/menu-btn-01.png">
         </div>
         <div class="default-block apps-start-menu">
-            <img id="navigateur-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png">
+            <img id="navigateur-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png" onclick="openWindow('parametres')">
             <img id="parametres-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
             <img id="locked-apps-start-menu" class="logo-apps-start-menu locked-session" src="./images/interface-logo/apps-menu/verrouillage.png">
         </div>
@@ -91,6 +82,8 @@
 
     <!-- SCRIPTS -->
     <script src="./assets/javascripts/all.js"></script>
+    <script src="./assets/javascripts/window/open-close.js"></script>
+    <script src="./assets/javascripts/window/move.js"></script>
 </body>
 
 </html>
