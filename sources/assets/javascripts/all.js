@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => {
             document.body.style.background = "url(./images/locked/locked-01.png)";
             CallPage('session-select');
-        }, 10000);
+        }, 3000);
     }
 });
 
