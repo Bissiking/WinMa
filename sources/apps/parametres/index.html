@@ -1,1 +1,45 @@
-<h1>TEST</h1>
+<link rel="stylesheet" href="./apps/parametres/style.css">
+
+<section class="parametres">
+    <h1>Changement image</h1>
+    <div class="imageActuel">
+        <img class="parametres-previewImg" src="./images/backgrounds/background-01.jpg" alt="">
+    </div>
+
+    <div class="parametres-image-selector">
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-01.jpg">
+            <img src="./images/backgrounds/background-01.jpg" alt="Image 1">
+        </label>
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-04.jpg">
+            <img src="./images/backgrounds/background-04.jpg" alt="Image 2">
+        </label>
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-08.jpg">
+            <img src="./images/backgrounds/background-08.jpg" alt="Image 3">
+        </label>
+        <label>
+    </div>
+</section>
+
+<script>
+    var userData = JSON.parse(localStorage.getItem('UserData'));
+
+    const imageInputs = document.querySelectorAll('.parametres-image-selector input[type="radio"]');
+    imageInputs.forEach(input => {
+        input.addEventListener('change', function () {
+            const selectedImage = this.value;
+            console.log('Image sélectionnée:', selectedImage);
+            // Ici, vous pouvez effectuer des actions en fonction de l'image sélectionnée
+            axios.post('/data/user/params/write', {
+                "id": userData.id,
+                "background": selectedImage
+            })
+                .then(function (response) {
+                    console.log(response);
+                    $('.parametres-previewImg').attr('src', selectedImage);
+                })
+        });
+    });
+</script>

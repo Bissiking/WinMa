@@ -11,6 +11,7 @@
     <link rel="icon" type="image/png" href="./images/favicon/logo-luma.png" />
     <!-- SCRIPT LOCAL -->
     <script src="./assets/javascripts/jquery/jquery-3.6.4.js"></script>
+    <script src="./assets/javascripts/window/uuid.js"></script>
     <!-- SCRIPT CDN -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
@@ -26,8 +27,8 @@
             <img id="open-start-button" class="default-block start-button" src="images/menu-btn/menu-btn-01.png">
         </div>
         <div class="default-block apps-start-menu">
-            <img id="navigateur-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png" onclick="openWindow('parametres')">
-            <img id="parametres-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png">
+            <img id="navigateur-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png" onclick="openWindow('navigateur', 'LumaVigateur')">
+            <img id="parametres-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png" onclick="openWindow('parametres', 'Paramètres')">
             <img id="locked-apps-start-menu" class="logo-apps-start-menu locked-session" src="./images/interface-logo/apps-menu/verrouillage.png">
         </div>
         <div class="default-block notifications-horloge-date-start-menu">
@@ -82,6 +83,8 @@
 
     <!-- SCRIPTS -->
     <script src="./assets/javascripts/all.js"></script>
+    <script src="./assets/javascripts/window/agrandirImage.js"></script>
+    <!-- <script src="./assets/javascripts/window/agrandirImageManuel.js"></script> -->
     <script src="./assets/javascripts/window/open-close.js"></script>
     <script src="./assets/javascripts/window/move.js"></script>
 </body>

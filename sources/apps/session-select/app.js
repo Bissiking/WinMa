@@ -49,12 +49,9 @@ $('#BtnConnexionWinMa').click(function () {
                                             axios.post('/data/user/params', DataUser).then(function (response) {
                                                 let params = response.data.params
                                                 if (params !== null) {
-                                                    console.log(params);
                                                     document.body.style.background = "url(" + params.background + ")";
                                                 } else {
-                                                    console.log(params.background);
                                                     document.body.style.background = "url(./images/backgrounds/background-01.jpg)";
-                                                    
                                                 }
 
                                                 // Démasquage de la barre des tâches

@@ -14,22 +14,45 @@ function CallPage(LinkPage) {
 // Changer le fond en utilisant une image
 document.addEventListener('DOMContentLoaded', function () {
     if (localStorage.getItem('UserData') !== null) {
-        $('.start-menu').removeClass('hidden');
-        document.body.style.background = "url(./images/backgrounds/background-01.jpg)";
+        // Récupération des paramètres
+        setTimeout(() => {
+            // Récupération du nom dans la session
+            var userData = JSON.parse(localStorage.getItem('UserData'));
 
-        // Récupération du nom dans la session
-        var userData = JSON.parse(localStorage.getItem('UserData'));
+            var UsersDataNameAll = "NoData";
+            // Enregistrement du nom du users dans le menu démarré
+            if (userData.nomComplet == "" || userData.nomComplet == null) {
+                UsersDataNameAll = userData.identifiant
+            } else {
+                UsersDataNameAll = userData.nomComplet
+            }
+            $('#nameuser-menu-start-ico-user-name').text(UsersDataNameAll);
 
-        var UsersDataNameAll = "NoData";
-        // Enregistrement du nom du users dans le menu démarré
-        if (userData.nomComplet == "" || userData.nomComplet == null) {
-            UsersDataNameAll = userData.identifiant
-        } else {
-            UsersDataNameAll = userData.nomComplet
-        }
-        $('#nameuser-menu-start-ico-user-name').text(UsersDataNameAll);
+            axios.post('/data/user/params', userData).then(function (response) {
+                let params = response.data.params
+                if (params !== null) {
+                    document.body.style.background = "url(" + params.background + ")";
+                } else {
+                    document.body.style.background = "url(./images/backgrounds/background-01.jpg)";
+                }
 
-        CallPage('desktop');
+                // Démasquage de la barre des tâches
+                $('.start-menu').removeClass('hidden');
+
+                let UsersDataName = "NoData";
+                // Enregistrement du nom du users dans le menu démarré
+                if (userData.nomComplet == "" || userData.nomComplet == null) {
+                    UsersDataName = userData.identifiant
+                } else {
+                    UsersDataName = userData.nomComplet
+                }
+
+                $('#nameuser-menu-start-ico-user-name').text(UsersDataName);
+
+                // // Appel du bureau
+                CallPage('desktop');
+            });
+        }, 100);
     } else {
         setTimeout(() => {
             document.body.style.background = "url(./images/locked/locked-01.png)";

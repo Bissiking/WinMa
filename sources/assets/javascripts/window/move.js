@@ -30,7 +30,7 @@ function dragWindow(event, initialMouseX, initialMouseY, initialWindowX, initial
     var newWindowY = initialWindowY + deltaY;
 
     // Limiter les positions de la fenêtre pour qu'elle reste à l'intérieur de l'élément "desktop-apps"
-    var desktopAppsElement = $('#desktop-apps');
+    var desktopAppsElement = $('section');
     var desktopAppsOffset = desktopAppsElement.offset();
     var desktopAppsWidth = desktopAppsElement.width();
     var desktopAppsHeight = desktopAppsElement.height();
