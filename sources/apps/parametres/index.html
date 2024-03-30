@@ -11,35 +11,62 @@
             <input type="radio" name="image" value="./images/backgrounds/background-01.jpg">
             <img src="./images/backgrounds/background-01.jpg" alt="Image 1">
         </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-02.jpg">
+            <img src="./images/backgrounds/background-02.jpg" alt="Image 2">
+        </label>
+        
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-03.jpg">
+            <img src="./images/backgrounds/background-03.jpg" alt="Image 3">
+        </label>
+
         <label>
             <input type="radio" name="image" value="./images/backgrounds/background-04.jpg">
-            <img src="./images/backgrounds/background-04.jpg" alt="Image 2">
+            <img src="./images/backgrounds/background-04.jpg" alt="Image 4">
         </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-05.jpg">
+            <img src="./images/backgrounds/background-05.jpg" alt="Image 5">
+        </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-06.jpg">
+            <img src="./images/backgrounds/background-06.jpg" alt="Image 6">
+        </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-07.jpg">
+            <img src="./images/backgrounds/background-07.jpg" alt="Image 7">
+        </label>
+
         <label>
             <input type="radio" name="image" value="./images/backgrounds/background-08.jpg">
-            <img src="./images/backgrounds/background-08.jpg" alt="Image 3">
+            <img src="./images/backgrounds/background-08.jpg" alt="Image 8">
         </label>
+
         <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-09.jpg">
+            <img src="./images/backgrounds/background-09.jpg" alt="Image 9">
+        </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-10.jpg">
+            <img src="./images/backgrounds/background-10.jpg" alt="Image 10">
+        </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-11.jpg">
+            <img src="./images/backgrounds/background-11.jpg" alt="Image 11">
+        </label>
+
+        <label>
+            <input type="radio" name="image" value="./images/backgrounds/background-12.jpg">
+            <img src="./images/backgrounds/background-12.jpg" alt="Image 12">
+        </label>
     </div>
 </section>
 
-<script>
-    var userData = JSON.parse(localStorage.getItem('UserData'));
-
-    const imageInputs = document.querySelectorAll('.parametres-image-selector input[type="radio"]');
-    imageInputs.forEach(input => {
-        input.addEventListener('change', function () {
-            const selectedImage = this.value;
-            console.log('Image sélectionnée:', selectedImage);
-            // Ici, vous pouvez effectuer des actions en fonction de l'image sélectionnée
-            axios.post('/data/user/params/write', {
-                "id": userData.id,
-                "background": selectedImage
-            })
-                .then(function (response) {
-                    console.log(response);
-                    $('.parametres-previewImg').attr('src', selectedImage);
-                })
-        });
-    });
-</script>
+<script src="./apps/parametres/app.js"></script>

@@ -22,15 +22,15 @@
     font-weight: bold;
 }
 
+.window-content{
+    height: 100%;
+}
+
 .close-btn {
     float: right;
     border: none;
     background: none;
     cursor: pointer;
-}
-
-.window-content {
-    padding: 20px;
 }
 
 /* .window-resize-handle {

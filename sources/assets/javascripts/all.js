@@ -31,9 +31,9 @@ document.addEventListener('DOMContentLoaded', function () {
             axios.post('/data/user/params', userData).then(function (response) {
                 let params = response.data.params
                 if (params !== null) {
-                    document.body.style.background = "url(" + params.background + ")";
+                    $('body').css("background-image","url(" + params.background + ")");
                 } else {
-                    document.body.style.background = "url(./images/backgrounds/background-01.jpg)";
+                    $('body').css("background-image","url(./images/backgrounds/background-01.jpg)");
                 }
 
                 // Démasquage de la barre des tâches

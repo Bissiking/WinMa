@@ -1,5 +1,5 @@
 function CallApps(LinkPage) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve) {
         $.ajax({
             type: 'GET',
             url: './apps/' + LinkPage + '/index.html',
@@ -14,68 +14,61 @@ function CallApps(LinkPage) {
     });
 }
 
-async function openWindow(apps, nameApps,  callback) {
+async function openWindow(apps, nameApps, callback) {
     try {
         var windowId = generateUniqueId();
         // Créer la fenêtre
-        var windowElement = document.createElement('div');
-        windowElement.classList.add('window');
-        windowElement.id = windowId; // Définir l'identifiant de la fenêtre
-        windowElement.style.width = '800px'; // Définir la largeur de la fenêtre
-        windowElement.style.height = '600px'; // Définir la hauteur de la fenêtre
+        var windowElement = $('<div></div>').addClass('window').attr('id', windowId);
+        windowElement.css({ width: '800px', height: '600px' });
 
         // Ajouter le contenu de l'en-tête
-        var headerElement = document.createElement('div');
-        headerElement.classList.add('window-header');
-        var titleElement = document.createElement('span');
-        titleElement.classList.add('window-title');
-        titleElement.textContent = nameApps;
+        var headerElement = $('<div></div>').addClass('window-header');
+        var titleElement = $('<span></span>').addClass('window-title').text(nameApps);
 
         // Création du bouton fermé
-        var closeButton = document.createElement('button');
-        closeButton.classList.add('close-btn');
-        closeButton.textContent = 'X';
-        closeButton.addEventListener('click', function() {
+        var closeButton = $('<button></button>').addClass('close-btn').text('X');
+        closeButton.on('click', function() {
             closeWindow(windowId); // Appeler la fonction closeWindow avec l'ID de la fenêtre
         });
 
-        headerElement.appendChild(titleElement);
-        headerElement.appendChild(closeButton);
+        headerElement.append(titleElement, closeButton);
 
         // Ajouter le bouton agrandir
-        var maximizeButton = document.createElement('button');
-        maximizeButton.classList.add('maximize-btn');
-        maximizeButton.textContent = '⬜'; // Remplacez ce texte par l'icône souhaitée
-        maximizeButton.addEventListener('click', function() {
+        var maximizeButton = $('<button></button>').addClass('maximize-btn').text('⬜');
+        maximizeButton.on('click', function() {
             MaxWindow();
-            callback(); // Appel du callback après avoir agrandi l'image
+            // callback(); // Appel du callback après avoir agrandi l'image
         });
-        headerElement.appendChild(maximizeButton);
+        headerElement.append(maximizeButton);
 
         // Ajouter les poignées de redimensionnement
-        var resizeHandle = document.createElement('div');
-        resizeHandle.classList.add('window-resize-handle', 'bottom-right'); // Ajouter les classes à la poignée de redimensionnement
-        headerElement.appendChild(resizeHandle); // Ajouter la poignée de redimensionnement à l'en-tête de la fenêtre
-
+        var resizeHandle = $('<div></div>').addClass('window-resize-handle bottom-right');
+        headerElement.append(resizeHandle);
 
         // Ajouter le contenu de la fenêtre
-        var contentElement = document.createElement('div');
-        contentElement.classList.add('window-content');
+        var contentElement = $('<div></div>').addClass('window-content');
 
         // Charger le contenu de la fenêtre
-        let contentApps = await CallApps(apps);
-        contentElement.innerHTML = contentApps;
-
-        // Ajouter les éléments à la fenêtre
-        windowElement.appendChild(headerElement);
-        windowElement.appendChild(contentElement);
+        $.ajax({
+            url: './apps/' + apps + '/index.html', // L'url de la page à charger
+            type: 'GET',
+            success: function(response) {
+                // Ajouter le contenu à la fenêtre
+                contentElement.html(response);
+                windowElement.append(headerElement, contentElement);
+            },
+            error: function(error) {
+                console.error('Erreur lors du chargement du contenu:', error);
+            }
+        });
 
         // Ajouter la fenêtre au corps du document
-        document.body.appendChild(windowElement);
+        $('body').append(windowElement);
     } catch (error) {
         console.error('Erreur lors de l\'ouverture de la fenêtre:', error);
     }
 }
+
 
 function MaxWindow() {
     ajusterTailleImage();

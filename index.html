@@ -29,7 +29,6 @@
         <div class="default-block apps-start-menu">
             <img id="navigateur-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/LumaNav.png" onclick="openWindow('navigateur', 'LumaVigateur')">
             <img id="parametres-apps-start-menu" class="logo-apps-start-menu" src="./images/interface-logo/apps-menu/reglage.png" onclick="openWindow('parametres', 'Paramètres')">
-            <img id="locked-apps-start-menu" class="logo-apps-start-menu locked-session" src="./images/interface-logo/apps-menu/verrouillage.png">
         </div>
         <div class="default-block notifications-horloge-date-start-menu">
             <div class="block-notifications-horloge-date-start-menu">
@@ -44,24 +43,28 @@
     <!-- Menu démarré / z-index *99* -->
     <div class="menu-start" data-menu-open="false">
         <div class="menu-start-search-bar">
-            <input type="text" placeholder="Rechercher une application">
+            <input type="text" placeholder="Rechercher une application (Non disponible)" style="background-color: grey; cursor: not-allowed;" disabled>
         </div>
         <div class="menu-start-result-bar">
             <div class="menu-start-result-option">
                 <img class="menu-start-ico-user" src="./images/interface-logo/desktop/corbeille.png">
-                <p>Corbeille</p>
+                <p>Corbeille (Non disponible)</p>
             </div>
             <div class="menu-start-result-option">
                 <img class="menu-start-ico-user" src="./images/interface-logo/desktop/documents.png">
-                <p>Documents</p>
+                <p>Documents (Non disponible)</p>
             </div>
-            <div class="menu-start-result-option">
+            <div class="menu-start-result-option" onclick="openWindow('parametres', 'Paramètres')">
                 <img class="menu-start-ico-user" src="./images/interface-logo/apps-menu/reglage.png">
                 <p>Paramètres</p>
             </div>
-            <div class="menu-start-result-option">
+            <div class="menu-start-result-option" onclick="openWindow('navigateur', 'LumaVigateur')">
                 <img class="menu-start-ico-user" src="./images/interface-logo/apps-menu/LumaNav.png">
                 <p>Navigateur</p>
+            </div>
+            <div class="menu-start-result-option" onclick="openWindow('jellyfin', 'JellyFin')">
+                <img class="menu-start-ico-user" src="./images/interface-logo/applications/jellyfin.png">
+                <p>JellyFin</p>
             </div>
         </div>
         <div class="menu-start-bottom-bar">
