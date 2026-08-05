@@ -1,0 +1,1086 @@
+
+==================================================
+FILE: src/server/services/kyros-service.js
+==================================================
+
+// src/server/services/kyros-service.js
+const jwt = require('jsonwebtoken');
+const { HttpError } = require('../utils/http-error');
+
+function assertTokenResponse(payload) {
+    if (
+        !payload ||
+        typeof payload.access_token !== 'string' ||
+        typeof payload.refresh_token !== 'string'
+    ) {
+        throw new HttpError(502, 'KYROS_INVALID_RESPONSE', 'Réponse Kyros invalide.');
+    }
+}
+
+function createKyrosService(config, fetchImplementation = globalThis.fetch) {
+    if (typeof fetchImplementation !== 'function') {
+        throw new Error('Une implémentation de fetch est requise.');
+    }
+
+    function requireConfiguration() {
+        if (!config.enabled) {
+            throw new HttpError(
+                503,
+                'KYROS_NOT_CONFIGURED',
+                "L'authentification Kyros de Luma OS n'est pas encore configurée."
+            );
+        }
+    }
+
+    function buildAuthorizeUrl(state) {
+        requireConfiguration();
+        const authorizeUrl = new URL(config.authorizeUrl);
+        authorizeUrl.searchParams.set('client_id', config.clientId);
+        authorizeUrl.searchParams.set('redirect_uri', config.callbackUrl);
+        authorizeUrl.searchParams.set('scope', config.requestedScopes.join(' '));
+        authorizeUrl.searchParams.set('state', state);
+        return authorizeUrl.toString();
+    }
+
+    async function postJson(url, body) {
+        requireConfiguration();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+        try {
+            const response = await fetchImplementation(url, {
+                method: 'POST',
+                headers: {
+                    accept: 'application/json',
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify(body),
+                signal: controller.signal
+            });
+            const payload = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                const providerCode = payload?.error || 'kyros_request_failed';
+                throw new HttpError(401, 'KYROS_AUTH_FAILED', `Kyros a refusé la requête (${providerCode}).`);
+            }
+
+            return payload;
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new HttpError(504, 'KYROS_TIMEOUT', 'Kyros ne répond pas dans le délai attendu.');
+            }
+
+            if (error instanceof HttpError) {
+                throw error;
+            }
+
+            throw new HttpError(502, 'KYROS_UNAVAILABLE', 'Kyros est temporairement indisponible.');
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    function verifyAccessToken(accessToken) {
+        requireConfiguration();
+        let claims;
+
+        try {
+            claims = jwt.verify(accessToken, config.jwtSecret, {
+                algorithms: ['HS256'],
+                issuer: config.issuer,
+                audience: config.audience,
+                clockTolerance: 5
+            });
+        } catch {
+            throw new HttpError(401, 'KYROS_INVALID_TOKEN', 'Le jeton Kyros est invalide.');
+        }
+
+        if (claims.resource_aud !== config.resourceAudience) {
+            throw new HttpError(401, 'KYROS_WRONG_RESOURCE', "Le jeton Kyros n'est pas destiné à Luma OS.");
+        }
+
+        if (claims.client_id !== config.clientId) {
+            throw new HttpError(401, 'KYROS_WRONG_CLIENT', 'Le client Kyros du jeton est invalide.');
+        }
+
+        const grantedScopes = new Set(String(claims.scope || '').split(/\s+/).filter(Boolean));
+        const missingScope = config.requiredScopes.find((scope) => !grantedScopes.has(scope));
+
+        if (missingScope) {
+            throw new HttpError(403, 'KYROS_SCOPE_MISSING', `Le scope Kyros ${missingScope} est requis.`);
+        }
+
+        return claims;
+    }
+
+    async function exchangeAuthorizationCode(code) {
+        const tokens = await postJson(config.tokenUrl, {
+            grant_type: 'authorization_code',
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
+            code,
+            redirect_uri: config.callbackUrl
+        });
+        assertTokenResponse(tokens);
+        return { tokens, claims: verifyAccessToken(tokens.access_token) };
+    }
+
+    async function refresh(refreshToken) {
+        const tokens = await postJson(config.tokenUrl, {
+            grant_type: 'refresh_token',
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
+            refresh_token: refreshToken
+        });
+        assertTokenResponse(tokens);
+        return { tokens, claims: verifyAccessToken(tokens.access_token) };
+    }
+
+    async function revoke(refreshToken) {
+        if (!refreshToken || !config.enabled) {
+            return;
+        }
+
+        await postJson(config.revokeUrl, {
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
+            refresh_token: refreshToken
+        });
+    }
+
+    return {
+        buildAuthorizeUrl,
+        exchangeAuthorizationCode,
+        refresh,
+        revoke,
+        verifyAccessToken
+    };
+}
+
+module.exports = { createKyrosService };
+
+==================================================
+FILE: src/server/controllers/auth-controller.js
+==================================================
+
+// src/server/controllers/auth-controller.js
+const crypto = require('node:crypto');
+const { HttpError } = require('../utils/http-error');
+const { sendSuccess } = require('../utils/api-response');
+
+const AUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+function statesMatch(expected, received) {
+    if (!expected || !received) {
+        return false;
+    }
+
+    const expectedBuffer = Buffer.from(expected);
+    const receivedBuffer = Buffer.from(received);
+    return expectedBuffer.length === receivedBuffer.length && crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
+function createAuthController({ config, kyrosService, sessionService }) {
+    async function login(req, res) {
+        const state = crypto.randomBytes(32).toString('base64url');
+        req.session.kyrosAuthorization = { state, createdAt: Date.now() };
+        await sessionService.saveSession(req);
+        return res.redirect(302, kyrosService.buildAuthorizeUrl(state));
+    }
+
+    async function callback(req, res) {
+        const pending = req.session?.kyrosAuthorization;
+        delete req.session.kyrosAuthorization;
+
+        if (req.query.error) {
+            throw new HttpError(401, 'KYROS_AUTH_CANCELLED', 'La connexion Kyros a été annulée ou refusée.');
+        }
+
+        if (
+            !pending ||
+            Date.now() - pending.createdAt > AUTH_STATE_TTL_MS ||
+            !statesMatch(pending.state, req.query.state)
+        ) {
+            throw new HttpError(400, 'KYROS_STATE_INVALID', 'La demande de connexion a expiré ou est invalide.');
+        }
+
+        if (typeof req.query.code !== 'string' || !req.query.code) {
+            throw new HttpError(400, 'KYROS_CODE_MISSING', 'Le code de connexion Kyros est absent.');
+        }
+
+        const { tokens, claims } = await kyrosService.exchangeAuthorizationCode(req.query.code);
+        await sessionService.establish(req, tokens, claims);
+        return res.redirect(303, config.appBaseUrl);
+    }
+
+    async function logout(req, res) {
+        await sessionService.logout(req);
+        res.clearCookie('luma.sid', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: config.isProduction,
+            path: '/'
+        });
+        return sendSuccess(res, null, 'Session terminée.');
+    }
+
+    return { login, callback, logout };
+}
+
+module.exports = { createAuthController };
+
+==================================================
+FILE: src/server/routes/auth-routes.js
+==================================================
+
+// src/server/routes/auth-routes.js
+const express = require('express');
+const { rateLimit } = require('express-rate-limit');
+const { asyncHandler } = require('../utils/async-handler');
+
+function createAuthRoutes(authController, requireSameOrigin) {
+    const router = express.Router();
+    const authLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        limit: 30,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        message: {
+            success: false,
+            data: null,
+            message: 'Trop de tentatives. Réessayez dans quelques minutes.',
+            code: 'RATE_LIMITED'
+        }
+    });
+
+    router.get('/auth/login', authLimiter, asyncHandler(authController.login));
+    router.get('/auth/callback', authLimiter, asyncHandler(authController.callback));
+    router.post('/api/auth/logout', requireSameOrigin, asyncHandler(authController.logout));
+    return router;
+}
+
+module.exports = { createAuthRoutes };
+
+==================================================
+FILE: src/server/services/session-service.js
+==================================================
+
+// src/server/services/session-service.js
+const { HttpError } = require('../utils/http-error');
+
+function regenerateSession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.regenerate((error) => (error ? reject(error) : resolve()));
+    });
+}
+
+function saveSession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.save((error) => (error ? reject(error) : resolve()));
+    });
+}
+
+function destroySession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.destroy((error) => (error ? reject(error) : resolve()));
+    });
+}
+
+function toMinimalUser(tokens, claims) {
+    const providerUser = tokens.user || {};
+    const id = claims.sub || providerUser.id;
+    const username = providerUser.username || claims.username;
+
+    if (!id || !username) {
+        throw new HttpError(502, 'KYROS_PROFILE_INVALID', 'Le profil Kyros est incomplet.');
+    }
+
+    return {
+        id: String(id),
+        username: String(username),
+        displayName: String(providerUser.displayName || claims.display_name || username),
+        avatar: 'default'
+    };
+}
+
+function createSessionService(kyrosService) {
+    async function establish(req, tokens, claims) {
+        const user = toMinimalUser(tokens, claims);
+        await regenerateSession(req);
+        req.session.user = user;
+        req.session.kyros = {
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            accessTokenExpiresAt: Number(claims.exp) * 1000,
+            refreshTokenExpiresAt: tokens.refresh_token_expires_at || null
+        };
+        await saveSession(req);
+        return user;
+    }
+
+    async function refreshIfNeeded(req) {
+        if (!req.session?.user || !req.session.kyros) {
+            return null;
+        }
+
+        if (req.session.kyros.accessTokenExpiresAt > Date.now() + 30_000) {
+            return req.session.user;
+        }
+
+        try {
+            const { tokens, claims } = await kyrosService.refresh(req.session.kyros.refreshToken);
+            req.session.user = toMinimalUser(tokens, claims);
+            req.session.kyros = {
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                accessTokenExpiresAt: Number(claims.exp) * 1000,
+                refreshTokenExpiresAt: tokens.refresh_token_expires_at || null
+            };
+            await saveSession(req);
+            return req.session.user;
+        } catch (error) {
+            await destroySession(req).catch(() => undefined);
+            throw error;
+        }
+    }
+
+    async function logout(req) {
+        const refreshToken = req.session?.kyros?.refreshToken;
+
+        try {
+            await kyrosService.revoke(refreshToken);
+        } finally {
+            if (req.session) {
+                await destroySession(req);
+            }
+        }
+    }
+
+    return { establish, refreshIfNeeded, logout, saveSession };
+}
+
+module.exports = { createSessionService };
+
+==================================================
+FILE: src/server/controllers/session-controller.js
+==================================================
+
+// src/server/controllers/session-controller.js
+const { sendSuccess } = require('../utils/api-response');
+
+function createSessionController(sessionService, config) {
+    async function show(req, res) {
+        if (!req.session?.user) {
+            return sendSuccess(res, {
+                authenticated: false,
+                user: null,
+                authentication: { provider: 'kyros', available: config.kyros.enabled }
+            });
+        }
+
+        const user = await sessionService.refreshIfNeeded(req);
+        return sendSuccess(res, {
+            authenticated: true,
+            user,
+            authentication: { provider: 'kyros', available: config.kyros.enabled }
+        });
+    }
+
+    return { show };
+}
+
+module.exports = { createSessionController };
+
+==================================================
+FILE: src/server/routes/session-routes.js
+==================================================
+
+// src/server/routes/session-routes.js
+const express = require('express');
+const { asyncHandler } = require('../utils/async-handler');
+
+function createSessionRoutes(sessionController) {
+    const router = express.Router();
+    router.get('/api/session', asyncHandler(sessionController.show));
+    return router;
+}
+
+module.exports = { createSessionRoutes };
+
+==================================================
+FILE: src/server/middlewares/require-session.js
+==================================================
+
+// src/server/middlewares/require-session.js
+const { HttpError } = require('../utils/http-error');
+
+function createRequireSession(sessionService) {
+    return async function requireSession(req, res, next) {
+        try {
+            const user = await sessionService.refreshIfNeeded(req);
+
+            if (!user) {
+                return next(new HttpError(401, 'SESSION_REQUIRED', 'Une connexion Kyros est requise.'));
+            }
+
+            req.user = user;
+            return next();
+        } catch (error) {
+            return next(error);
+        }
+    };
+}
+
+module.exports = { createRequireSession };
+
+==================================================
+FILE: src/server/config/env.js
+==================================================
+
+// src/server/config/env.js
+const crypto = require('node:crypto');
+const dotenv = require('dotenv');
+
+dotenv.config({ quiet: true });
+
+function parseInteger(value, fallback, name) {
+    const parsed = Number.parseInt(value ?? fallback, 10);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new Error(`${name} doit être un entier positif.`);
+    }
+
+    return parsed;
+}
+
+function parseUrl(value, name, { required = true } = {}) {
+    if (!value && !required) {
+        return null;
+    }
+
+    try {
+        return new URL(value).toString().replace(/\/$/, '');
+    } catch {
+        throw new Error(`${name} doit être une URL valide.`);
+    }
+}
+
+function splitScopes(value) {
+    return String(value || '')
+        .split(/\s+/)
+        .map((scope) => scope.trim())
+        .filter(Boolean);
+}
+
+function loadConfig(environment = process.env) {
+    const nodeEnv = environment.NODE_ENV || 'development';
+    const isProduction = nodeEnv === 'production';
+    const port = parseInteger(environment.PORT, 3000, 'PORT');
+    const appBaseUrl = parseUrl(environment.APP_BASE_URL || `http://localhost:${port}`, 'APP_BASE_URL');
+    const kyrosBaseUrl = parseUrl(environment.LUMA_KYROS_BASE_URL, 'LUMA_KYROS_BASE_URL', { required: false });
+    const sessionSecret = environment.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+    if (isProduction && !environment.SESSION_SECRET) {
+        throw new Error('SESSION_SECRET est obligatoire en production.');
+    }
+
+    if (isProduction && !appBaseUrl.startsWith('https://')) {
+        throw new Error('APP_BASE_URL doit utiliser HTTPS en production.');
+    }
+
+    const kyros = {
+        baseUrl: kyrosBaseUrl,
+        authorizeUrl: kyrosBaseUrl ? `${kyrosBaseUrl}/authorize` : null,
+        tokenUrl: parseUrl(environment.LUMA_KYROS_TOKEN_URL, 'LUMA_KYROS_TOKEN_URL', { required: false }) || (kyrosBaseUrl ? `${kyrosBaseUrl}/token` : null),
+        revokeUrl: parseUrl(environment.LUMA_KYROS_REVOKE_URL, 'LUMA_KYROS_REVOKE_URL', { required: false }) || (kyrosBaseUrl ? `${kyrosBaseUrl}/revoke` : null),
+        clientId: environment.LUMA_KYROS_CLIENT_ID || '',
+        clientSecret: environment.LUMA_KYROS_CLIENT_SECRET || '',
+        jwtSecret: environment.LUMA_KYROS_JWT_SECRET || '',
+        issuer: environment.LUMA_KYROS_ISSUER || 'kyros',
+        audience: environment.LUMA_KYROS_AUDIENCE || 'kyros-modules',
+        resourceAudience: environment.LUMA_KYROS_RESOURCE_AUDIENCE || '',
+        requestedScopes: splitScopes(environment.LUMA_KYROS_REQUESTED_SCOPES || 'profile email'),
+        requiredScopes: splitScopes(environment.LUMA_KYROS_REQUIRED_SCOPES || 'profile email'),
+        callbackUrl: parseUrl(environment.LUMA_KYROS_CALLBACK_URL || `${appBaseUrl}/auth/callback`, 'LUMA_KYROS_CALLBACK_URL'),
+        timeoutMs: parseInteger(environment.LUMA_KYROS_TIMEOUT_MS, 5000, 'LUMA_KYROS_TIMEOUT_MS')
+    };
+
+    kyros.enabled = Boolean(
+        kyros.authorizeUrl &&
+        kyros.tokenUrl &&
+        kyros.clientId &&
+        kyros.clientSecret &&
+        kyros.jwtSecret &&
+        kyros.resourceAudience
+    );
+
+    if (isProduction && !kyros.enabled) {
+        throw new Error('La configuration Kyros Luma OS est incomplète en production.');
+    }
+
+    return {
+        nodeEnv,
+        isProduction,
+        host: environment.HOST || '127.0.0.1',
+        port,
+        appBaseUrl,
+        sessionSecret,
+        sessionMaxAgeMs: 7 * 24 * 60 * 60 * 1000,
+        kyros
+    };
+}
+
+module.exports = { loadConfig };
+
+==================================================
+FILE: src/server/config/security.js
+==================================================
+
+// src/server/config/security.js
+const helmet = require('helmet');
+
+function createSecurityMiddleware(config) {
+    return helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+                scriptSrcAttr: ["'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", 'data:'],
+                fontSrc: ["'self'"],
+                connectSrc: ["'self'"],
+                frameSrc: ["'self'", 'https://mhemery.fr', 'https://jelly.mhemery.fr'],
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+                formAction: ["'self'"],
+                frameAncestors: ["'self'"],
+                upgradeInsecureRequests: config.isProduction ? [] : null
+            }
+        },
+        crossOriginEmbedderPolicy: false,
+        hsts: config.isProduction
+            ? { maxAge: 31536000, includeSubDomains: true }
+            : false,
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+    });
+}
+
+module.exports = { createSecurityMiddleware };
+
+==================================================
+FILE: src/server/app.js
+==================================================
+
+// src/server/app.js
+const path = require('node:path');
+const express = require('express');
+const session = require('express-session');
+const createMemoryStore = require('memorystore');
+const { createSecurityMiddleware } = require('./config/security');
+const { createKyrosService } = require('./services/kyros-service');
+const { createSessionService } = require('./services/session-service');
+const { createAppRegistryService } = require('./services/app-registry-service');
+const { createSettingsService } = require('./services/settings-service');
+const { createAccountService } = require('./services/account-service');
+const { createSqliteDocumentRepository } = require('./repositories/sqlite-document-repository');
+const { createDocumentService } = require('./services/document-service');
+const { createAuthController } = require('./controllers/auth-controller');
+const { createSessionController } = require('./controllers/session-controller');
+const { createAppsController } = require('./controllers/apps-controller');
+const { createSettingsController } = require('./controllers/settings-controller');
+const { createAccountController } = require('./controllers/account-controller');
+const { createDocumentsController } = require('./controllers/documents-controller');
+const { createAuthRoutes } = require('./routes/auth-routes');
+const { createSessionRoutes } = require('./routes/session-routes');
+const { createAppsRoutes } = require('./routes/apps-routes');
+const { createSettingsRoutes } = require('./routes/settings-routes');
+const { createAccountRoutes } = require('./routes/account-routes');
+const { createDocumentsRoutes } = require('./routes/documents-routes');
+const { createApiRoutes } = require('./routes/api');
+const { createRequireSameOrigin } = require('./middlewares/require-same-origin');
+const { createRequireSession } = require('./middlewares/require-session');
+const { requestContext } = require('./middlewares/request-context');
+const { notFound } = require('./middlewares/not-found');
+const { errorHandler } = require('./middlewares/error-handler');
+
+function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
+    if (!config) {
+        throw new Error('La configuration serveur est requise.');
+    }
+
+    const app = express();
+    const MemoryStore = createMemoryStore(session);
+    const projectRoot = path.resolve(__dirname, '../..');
+    const legacyPublicRoot = path.join(projectRoot, 'sources');
+    const appRegistryService = createAppRegistryService(path.join(projectRoot, 'data/apps.json'));
+    const settingsService = createSettingsService(path.join(projectRoot, 'data/settings'));
+    const accountService = createAccountService(path.join(projectRoot, 'data/accounts'));
+    const documentRepository = createSqliteDocumentRepository(path.join(projectRoot, 'data/luma.sqlite'));
+    const documentService = createDocumentService({
+        repository: documentRepository,
+        storageRoot: path.join(projectRoot, 'storage/documents')
+    });
+    const kyrosService = createKyrosService(config.kyros, fetchImplementation);
+    const sessionService = createSessionService(kyrosService);
+    const authController = createAuthController({ config, kyrosService, sessionService });
+    const sessionController = createSessionController(sessionService, config);
+    const appsController = createAppsController(appRegistryService);
+    const settingsController = createSettingsController(settingsService);
+    const accountController = createAccountController({
+        accountService,
+        settingsService,
+        documentService,
+        appRegistryService
+    });
+    const documentsController = createDocumentsController(documentService);
+    const requireSameOrigin = createRequireSameOrigin(config.appBaseUrl);
+    const requireSession = createRequireSession(sessionService);
+
+    app.disable('x-powered-by');
+    if (config.isProduction) {
+        app.set('trust proxy', 1);
+    }
+
+    app.use(requestContext);
+    app.use(createSecurityMiddleware(config));
+    app.use(express.json({ limit: '32kb', strict: true }));
+    app.use(session({
+        name: 'luma.sid',
+        secret: config.sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        rolling: true,
+        store: new MemoryStore({ checkPeriod: 60 * 60 * 1000 }),
+        cookie: {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: config.isProduction,
+            maxAge: config.sessionMaxAgeMs
+        }
+    }));
+
+    app.use(createAuthRoutes(authController, requireSameOrigin));
+    app.use(createSessionRoutes(sessionController));
+    app.use(createAppsRoutes(appsController, requireSession));
+    app.use(createSettingsRoutes(settingsController, requireSession, requireSameOrigin));
+    app.use(createAccountRoutes(accountController, requireSession, requireSameOrigin));
+    app.use(createDocumentsRoutes(documentsController, requireSession, requireSameOrigin));
+    app.use(createApiRoutes());
+    app.use(express.static(legacyPublicRoot, { index: false }));
+    app.get('/', (req, res) => res.sendFile(path.join(projectRoot, 'index.html')));
+    app.use(notFound);
+    app.use(errorHandler);
+
+    return app;
+}
+
+module.exports = { createApp };
+
+==================================================
+FILE: sources/assets/javascripts/luma-api.js
+==================================================
+
+export async function requestJson(url, options = {}) {
+    const response = await fetch(url, {
+        credentials: "same-origin",
+        headers: { accept: "application/json", ...(options.headers || {}) },
+        ...options
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || payload.success === false) {
+        throw new Error(payload.message || "La requête n’a pas abouti.");
+    }
+
+    return payload.data;
+}
+
+export function patchJson(url, body) {
+    return requestJson(url, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+    });
+}
+
+export function postJson(url, body = {}) {
+    return requestJson(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+    });
+}
+
+==================================================
+FILE: sources/assets/javascripts/luma-shell.js
+==================================================
+
+import { requestJson, postJson } from "./luma-api.js";
+import { createWindowManager } from "./luma-window-manager.js";
+
+const apps = [
+    { id: "documents", name: "Documents", icon: "documents", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
+    { id: "settings", name: "Paramètres", icon: "settings", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
+    { id: "trash", name: "Corbeille", icon: "trash", module: "/apps/documents/app.js", width: 980, height: 660, minWidth: 620, minHeight: 400 },
+    { id: "browser", name: "Navigateur LUMA", icon: "browser", module: "/apps/web-frame/app.js", url: "https://mhemery.fr", width: 1080, height: 720 },
+    { id: "jellyfin", name: "Jellyfin", icon: "jellyfin", module: "/apps/web-frame/app.js", url: "https://jelly.mhemery.fr", width: 1100, height: 740 }
+];
+
+const desktop = document.getElementById("luma-desktop");
+const sessionRoot = document.getElementById("session-root");
+const startPanel = document.getElementById("start-panel");
+const launcher = document.getElementById("luma-launcher");
+const startApps = document.getElementById("start-apps");
+const toastRegion = document.getElementById("toast-region");
+let windowManager;
+let currentUser;
+
+function iconFor(app) {
+    const symbol = app.icon === "settings" ? "settings" : app.icon === "trash" ? "trash" : "folder";
+    return `<span class="app-icon app-icon--${app.icon}"><svg class="icon" aria-hidden="true"><use href="#icon-${symbol}"></use></svg></span>`;
+}
+
+function toast(message) {
+    const element = document.createElement("div");
+    element.className = "toast";
+    element.textContent = message;
+    toastRegion.append(element);
+    window.setTimeout(() => element.remove(), 3800);
+}
+
+function hexToRgb(hex) {
+    const value = hex.replace("#", "");
+    return [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16)).join(", ");
+}
+
+function resolveTheme(theme) {
+    if (theme !== "system") return theme;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+export function applySettings(settings) {
+    const theme = resolveTheme(settings.theme || "luma");
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.density = settings.density || "comfortable";
+    document.documentElement.dataset.motion = settings.motion === "system"
+        ? (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "reduced" : "full")
+        : (settings.motion || "full");
+    document.documentElement.style.setProperty("--luma-accent", settings.accentColor || "#6d5ee8");
+    document.documentElement.style.setProperty("--luma-accent-rgb", hexToRgb(settings.accentColor || "#6d5ee8"));
+    if (settings.wallpaper) document.body.style.backgroundImage = `url("${settings.wallpaper}")`;
+}
+
+function setStartPanel(open) {
+    startPanel.hidden = !open;
+    launcher.setAttribute("aria-expanded", String(open));
+    launcher.setAttribute("aria-pressed", String(open));
+    if (open) window.setTimeout(() => document.getElementById("app-search").focus(), 0);
+}
+
+function renderStartApps(filter = "") {
+    const normalized = filter.trim().toLocaleLowerCase("fr");
+    const visible = apps.filter((app) => app.name.toLocaleLowerCase("fr").includes(normalized));
+    startApps.innerHTML = visible.length ? visible.map((app) => `
+        <button class="start-app" type="button" data-open-app="${app.id}">
+            ${iconFor(app)}<span>${app.name}</span>
+        </button>`).join("") : '<p class="start-empty">Aucune application trouvée.</p>';
+}
+
+function renderSessionScreen({ authenticated = false, authentication = {}, user = null, message = "" } = {}) {
+    desktop.hidden = true;
+    sessionRoot.hidden = false;
+    const available = authenticated || authentication.available;
+    sessionRoot.innerHTML = `
+        <section class="session-select" aria-labelledby="session-title">
+            <span class="session-logo"><svg class="icon" aria-hidden="true"><use href="#icon-luma"></use></svg></span>
+            <h1 id="session-title">Luma OS</h1>
+            <p class="session-select__intro">Retrouvez votre espace LUMA avec votre identité Kyros.</p>
+            <p class="session-select__status" role="status" aria-live="polite">${message || (available ? "Votre espace est prêt." : "Luma OS doit encore être déclaré dans Kyros.")}</p>
+            <button id="session-connect" class="luma-primary-button" type="button" ${available ? "" : "disabled"}>${authenticated ? "Reprendre la session" : "Se connecter avec Kyros"}</button>
+        </section>`;
+    document.getElementById("session-connect").addEventListener("click", async (event) => {
+        event.currentTarget.disabled = true;
+        if (authenticated) return loadDesktopSession(user);
+        window.location.assign("/auth/login");
+    });
+}
+
+async function loadDesktopSession(user) {
+    currentUser = user;
+    sessionRoot.hidden = true;
+    desktop.hidden = false;
+    const name = user?.displayName || user?.username || "Utilisateur Luma";
+    document.getElementById("account-name").textContent = name;
+    document.getElementById("account-avatar").textContent = name.trim().charAt(0).toLocaleUpperCase("fr") || "L";
+    try {
+        applySettings(await requestJson("/api/users/me/settings"));
+    } catch {
+        applySettings({ theme: "luma", accentColor: "#6d5ee8", wallpaper: "./images/backgrounds/luma-aurora.webp", density: "comfortable", motion: "system" });
+        toast("Les préférences n’ont pas pu être chargées.");
+    }
+    if (!windowManager) {
+        windowManager = createWindowManager({
+            layer: document.getElementById("window-layer"),
+            taskbar: document.getElementById("taskbar-apps"),
+            apps,
+            onToast: toast
+        });
+        window.LumaOS = Object.freeze({
+            openApp: windowManager.openApp,
+            setWindowState: windowManager.setAppState
+        });
+    }
+}
+
+async function bootstrap() {
+    renderStartApps();
+    try {
+        const session = await requestJson("/api/session");
+        if (session.authenticated) await loadDesktopSession(session.user);
+        else renderSessionScreen(session);
+    } catch {
+        renderSessionScreen({ message: "Le service de session est indisponible. Rechargez la page pour réessayer." });
+    }
+}
+
+launcher.addEventListener("click", () => setStartPanel(startPanel.hidden));
+document.getElementById("app-search").addEventListener("input", (event) => renderStartApps(event.target.value));
+document.addEventListener("click", (event) => {
+    const appButton = event.target.closest("[data-open-app]");
+    if (appButton && windowManager) {
+        windowManager.openApp(appButton.dataset.openApp);
+        setStartPanel(false);
+    }
+    if (!startPanel.hidden && !startPanel.contains(event.target) && !launcher.contains(event.target)) setStartPanel(false);
+});
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !startPanel.hidden) setStartPanel(false);
+    if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k" && !desktop.hidden) {
+        event.preventDefault();
+        setStartPanel(true);
+    }
+});
+
+document.addEventListener("click", async (event) => {
+    const action = event.target.closest("[data-session-action]")?.dataset.sessionAction;
+    if (!action) return;
+    setStartPanel(false);
+    if (action === "logout") {
+        try { await postJson("/api/auth/logout"); } catch { toast("La révocation Kyros n’a pas pu être confirmée."); }
+        currentUser = null;
+        renderSessionScreen({ authentication: { available: true }, message: "Vous êtes déconnecté." });
+    } else {
+        renderSessionScreen({ authenticated: true, user: currentUser, message: "Session verrouillée." });
+    }
+});
+
+function updateClock() {
+    const now = new Date();
+    const clock = document.getElementById("clock");
+    clock.querySelector("span").textContent = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(now);
+    clock.querySelector("small").textContent = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(now);
+}
+
+updateClock();
+window.setInterval(updateClock, 30_000);
+window.addEventListener("luma:settings", (event) => applySettings(event.detail));
+bootstrap();
+
+==================================================
+FILE: sources/apps/session-select/app.js
+==================================================
+
+// sources/apps/session-select/app.js
+(function initializeSessionScreen() {
+    const button = document.getElementById('BtnConnexionWinMa');
+    const status = document.getElementById('Infoconnexion');
+    const query = new URLSearchParams(window.location.search);
+
+    function setStatus(message) {
+        status.textContent = message;
+    }
+
+    async function readSession() {
+        try {
+            const response = await fetch('/api/session', {
+                headers: { accept: 'application/json' },
+                credentials: 'same-origin'
+            });
+            const payload = await response.json();
+
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || 'Session indisponible.');
+            }
+
+            if (payload.data.authenticated) {
+                button.textContent = 'Reprendre la session';
+                button.disabled = false;
+                button.addEventListener('click', function resumeSession() {
+                    button.disabled = true;
+                    button.classList.add('is-loading');
+                    setStatus('Ouverture de votre espace…');
+                    window.loadDesktopSession(payload.data.user);
+                }, { once: true });
+                return;
+            }
+
+            if (!payload.data.authentication.available) {
+                button.disabled = true;
+                setStatus("L'application Luma OS doit encore être déclarée dans Kyros.");
+                return;
+            }
+
+            button.disabled = false;
+            button.addEventListener('click', function beginLogin() {
+                button.disabled = true;
+                button.classList.add('is-loading');
+                button.textContent = 'Connexion à Kyros…';
+                setStatus('Redirection vers la connexion sécurisée.');
+                window.location.assign('/auth/login');
+            }, { once: true });
+        } catch {
+            button.disabled = true;
+            setStatus('Le service de session est indisponible. Rechargez la page pour réessayer.');
+        }
+    }
+
+    if (query.has('auth_error')) {
+        setStatus('La connexion Kyros n’a pas abouti. Vous pouvez réessayer.');
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    readSession();
+})();
+
+==================================================
+FILE: app.js
+==================================================
+
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const app = express();
+const port = 3000;
+
+if (!fs.existsSync('users')) {
+    fs.mkdirSync('users', {
+        recursive: true
+    });
+}
+
+// Middleware pour le corps de la demande
+app.use(express.json());
+app.use(express.urlencoded({
+    extended: true
+}));
+
+// Définir le répertoire des fichiers statiques (comme les fichiers HTML, CSS, etc.)
+app.use(express.static(path.join(__dirname, 'sources')));
+
+// Route pour la page d'accueil
+app.get('/', (req, res) => {
+    // Envoyer le fichier index.html
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.post('/data/write/user', (req, res) => {
+    const userData = req.body;
+    const userFolder = path.join(__dirname, 'users', JSON.stringify(userData.id));
+
+    // Créer un dossier avec l'ID de l'utilisateur
+    fs.mkdirSync(userFolder, {
+        recursive: true
+    });
+
+    // Chemin du fichier utilisateur
+    const userFilePath = path.join(userFolder, 'informations.json');
+
+    // Écrire les informations utilisateur dans un fichier
+    fs.writeFile(userFilePath, JSON.stringify(userData), (err) => {
+        if (err) {
+            console.error('Erreur lors de l\'écriture du fichier :', err);
+            res.status(500).json({
+                success: false,
+                message: 'Erreur lors de la sauvegarde des informations utilisateur.'
+            });
+        } else {
+            console.log('Informations utilisateur enregistrées avec succès.');
+            res.status(200).json({
+                success: true,
+                message: 'Informations utilisateur enregistrées avec succès.'
+            });
+        }
+    });
+});
+
+app.post('/data/user/params', (req, res) => {
+    const userDataID = req.body.id;
+    const filePath = './users/' + userDataID + '/parametres.json';
+
+    if (fs.existsSync(filePath)) {
+        // Lecture du fichier JSON
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+                console.error('Erreur lors de la lecture du fichier:', err);
+                res.status(500).json({
+                    success: false,
+                    message: 'Erreur lors de la lecture du fichier'
+                });
+            } else {
+                const params = JSON.parse(data);
+                console.log(params); // Utilisation des données lues depuis le fichier JSON
+                res.status(200).json({
+                    success: true,
+                    message: 'Data found',
+                    params: params
+                });
+            }
+        });
+    } else {
+        res.status(200).json({
+            success: true,
+            message: 'Data not found',
+            params: null
+        });
+    }
+});
+
+app.post('/data/user/params/write', (req, res) => {
+
+    const userDataID = req.body.id;
+    const userDataBG = req.body.background;
+
+    console.log(userDataID);
+    console.log(userDataBG);
+
+    var parametresJSON = {
+        "background": userDataBG
+    }
+    const userFolder = path.join(__dirname, 'users', JSON.stringify(userDataID));
+    const userFilePath = path.join(userFolder, 'parametres.json');
+
+    // Écrire les informations utilisateur dans un fichier
+    fs.writeFile(userFilePath, JSON.stringify(parametresJSON), (err) => {
+        if (err) {
+            console.error('Erreur lors de l\'écriture du fichier :', err);
+            res.status(500).json({
+                success: false,
+                message: 'Erreur lors de la sauvegarde des paramètres utilisateur.'
+            });
+        } else {
+            console.log('Paramètres utilisateur enregistrées avec succès.');
+            res.status(200).json({
+                success: true,
+                message: 'Paramètres utilisateur enregistrées avec succès.'
+            });
+        }
+    });
+});
+
+
+// Écouter le port spécifié
+app.listen(port, () => {
+    console.log(`Serveur démarré sur le port ${port}`);
+});
