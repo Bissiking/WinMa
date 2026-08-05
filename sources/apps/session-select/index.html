@@ -1,11 +1,11 @@
 <link rel="stylesheet" href="./apps/session-select/style.css">
 
-<section>
-    <img class="logo-locked" src="./images/locked/no-icons.png">
-    <input id="idUser" type="text" placeholder="Nom d'utilisateur">
-    <input id="mdpUser" type="password" placeholder="Mot de passe">
-    <p id="Infoconnexion"></p>
-    <button id="BtnConnexionWinMa" class="windows-button">Se connecter</button>
+<section class="session-select" aria-labelledby="session-title">
+    <img class="logo-locked" src="./images/locked/no-icons.png" alt="">
+    <h1 id="session-title">Luma OS</h1>
+    <p class="session-select__intro">Retrouvez votre espace LUMA en vous connectant avec Kyros.</p>
+    <p id="Infoconnexion" class="session-select__status" role="status" aria-live="polite">Vérification de la session…</p>
+    <button id="BtnConnexionWinMa" class="windows-button" type="button" disabled>Se connecter avec Kyros</button>
 </section>
 
 <script src="./apps/session-select/app.js"></script>

@@ -1,0 +1,79 @@
+[
+  {
+    "id": "documents",
+    "name": "Documents",
+    "icon": "/images/interface-logo/desktop/documents.png",
+    "entry": "/apps/documents/index.html",
+    "type": "system",
+    "enabled": true,
+    "pinned": true,
+    "window": {
+      "width": 980,
+      "height": 700,
+      "minWidth": 640,
+      "minHeight": 420
+    }
+  },
+  {
+    "id": "trash",
+    "name": "Corbeille",
+    "icon": "/images/interface-logo/desktop/corbeille.png",
+    "entry": "/apps/documents/index.html",
+    "type": "system",
+    "enabled": true,
+    "pinned": false,
+    "window": {
+      "width": 980,
+      "height": 660,
+      "minWidth": 620,
+      "minHeight": 400
+    }
+  },
+  {
+    "id": "settings",
+    "name": "Paramètres",
+    "icon": "/images/interface-logo/apps-menu/reglage.png",
+    "entry": "/apps/parametres/index.html",
+    "type": "internal",
+    "enabled": true,
+    "pinned": true,
+    "window": {
+      "width": 920,
+      "height": 680,
+      "minWidth": 360,
+      "minHeight": 300
+    }
+  },
+  {
+    "id": "browser",
+    "name": "Navigateur LUMA",
+    "icon": "/images/interface-logo/apps-menu/LumaNav.png",
+    "entry": "/apps/navigateur/index.html",
+    "type": "iframe",
+    "enabled": true,
+    "pinned": true,
+    "allowedOrigin": "https://mhemery.fr",
+    "window": {
+      "width": 1040,
+      "height": 720,
+      "minWidth": 480,
+      "minHeight": 360
+    }
+  },
+  {
+    "id": "jellyfin",
+    "name": "Jellyfin",
+    "icon": "/images/interface-logo/applications/jellyfin.png",
+    "entry": "/apps/jellyfin/index.html",
+    "type": "iframe",
+    "enabled": true,
+    "pinned": false,
+    "allowedOrigin": "https://jelly.mhemery.fr",
+    "window": {
+      "width": 1100,
+      "height": 740,
+      "minWidth": 480,
+      "minHeight": 360
+    }
+  }
+]

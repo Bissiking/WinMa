@@ -1,0 +1,76 @@
+{
+  "title": "Choisir le monde visuel de Luma OS",
+  "question": "Quelle direction doit gouverner Paramètres, Documents, les fenêtres et la barre des tâches ?",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Archive lumineuse",
+      "kicker": "DIRECTION PROPOSÉE",
+      "lineage": "catalogues d’archives, pochettes de film translucides et tables lumineuses",
+      "thesis": "Chaque application et chaque fichier devient une pièce lumineuse classée dans un bureau vivant.",
+      "palette": ["#17172A", "#7C5CFF", "#FF6F91", "#F7F4FF", "#7EE8C7"],
+      "materials": ["film d’archive translucide", "onglets chromatiques lumineux", "encre indigo mate"],
+      "viewport": "Un bureau nocturne accueille deux fenêtres superposées comme des pochettes de film, Documents au premier plan et Paramètres indexé sur le côté, reliées à une taskbar-rail lumineuse.",
+      "risk": "La transparence doit rester strictement hiérarchisée pour ne jamais brouiller les informations denses.",
+      "sketch": ".impeccable/sketches/archive-lumineuse.webp"
+    },
+    {
+      "id": "challenger-gravity",
+      "label": "Jardin gravitationnel",
+      "kicker": "ALTERNATIVE",
+      "lineage": "jardin nocturne dont chaque couleur possède sa propre gravité",
+      "thesis": "Les fichiers orbitent, s’ancrent ou dérivent selon leur état, et Luma OS devient un paysage réactif.",
+      "palette": ["#19302D", "#7DB8E6", "#E0645B", "#E7E8E4", "#A6B49C"],
+      "materials": ["pierre humide mate", "papier nuage", "gouttes orbitales"],
+      "viewport": "Documents occupe une fenêtre-jardin lisible où dossiers et sélection suivent des trajectoires discrètes, au-dessus d’une taskbar ancrée comme une rive.",
+      "risk": "Identité LUMA très forte, mais les métaphores de mouvement peuvent ralentir les tâches de gestion intensive.",
+      "case": "Gagne en émerveillement et en singularité ; perd face à Archive lumineuse sur la clarté des réglages et des listes denses.",
+      "sketch": ".impeccable/sketches/gravity-garden.webp",
+      "hero": ".impeccable/quality-bar/gravity-hero.webp",
+      "board": ".impeccable/quality-bar/gravity-board.webp"
+    },
+    {
+      "id": "challenger-boxes",
+      "label": "Index des boîtes",
+      "kicker": "ALTERNATIVE",
+      "lineage": "mur d’archives en boîtes, étiquettes de tranche et papier de protection",
+      "thesis": "Chaque dossier est une boîte LUMA que l’on extrait, ouvre, classe et remet en rayon.",
+      "palette": ["#6F55D9", "#14131A", "#F6F2FF", "#88B6A0", "#F0C85A"],
+      "materials": ["carton violet teinté", "papier de protection", "étiquettes sérigraphiées"],
+      "viewport": "Documents présente un mur de dossiers-boîtes dont l’élément actif coulisse, pendant que Paramètres reprend le même système d’étiquettes verticales.",
+      "risk": "Excellent pour Documents, mais son vocabulaire physique devient plus rigide lorsqu’il s’étend aux fenêtres et aux réglages système.",
+      "case": "Très clair pour classer et manipuler les fichiers ; moins naturel qu’Archive lumineuse pour un système d’exploitation complet.",
+      "sketch": ".impeccable/sketches/box-index.webp",
+      "hero": ".impeccable/quality-bar/sneaker-hero.webp",
+      "board": ".impeccable/quality-bar/sneaker-board.webp"
+    },
+    {
+      "id": "challenger-starship",
+      "label": "Poste de navigation",
+      "kicker": "ALTERNATIVE",
+      "lineage": "terminal d’équipage robuste, panneaux codés et écrans de contrôle",
+      "thesis": "Luma OS devient le poste de navigation personnel qui rend chaque état immédiatement opérationnel.",
+      "palette": ["#0A0D0B", "#33FF9A", "#FFB000", "#E7E3D4", "#2B3D33"],
+      "materials": ["verre phosphore", "panneau ivoire patiné", "pictogrammes de sécurité"],
+      "viewport": "Des fenêtres-instruments structurent Documents, quota et réglages autour d’un écran central sombre, avec une taskbar de commandes persistantes.",
+      "risk": "La lisibilité opérationnelle est forte, mais l’imaginaire de terminal spatial est trop générique pour porter seul l’identité LUMA.",
+      "case": "Clarté de système convaincante ; perd sur l’identification personnelle et l’originalité demandée.",
+      "sketch": ".impeccable/sketches/starship-console.webp",
+      "hero": ".impeccable/quality-bar/starship-hero.webp",
+      "board": ".impeccable/quality-bar/starship-board.webp"
+    }
+  ],
+  "reroll": true,
+  "canon": true,
+  "canonCard": {
+    "label": "LUMA Fluent",
+    "lineage": "Paramètres et Explorateur Windows 11, exécutés fidèlement avec la marque LUMA",
+    "thesis": "La structure familière de Windows 11, avec une palette et des actifs LUMA appliqués sans détour.",
+    "palette": ["#F4F2FA", "#20202B", "#6C5CE7", "#FFFFFF", "#B8B4C8"],
+    "materials": ["surfaces acryliques sobres", "panneaux arrondis", "accent violet"],
+    "viewport": "Un bureau familier avec fenêtres arrondies, Paramètres à navigation latérale et Explorateur en grille, taskbar centrée.",
+    "risk": "Très facile à prendre en main, mais nettement moins singulier que l’interprétation LUMA demandée.",
+    "sketch": ".impeccable/sketches/canon-fluent.webp"
+  },
+  "steer": true
+}

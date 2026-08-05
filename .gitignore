@@ -1,2 +1,13 @@
 node_modules/
 users/
+.env
+.env.*
+!.env.example
+data/sessions/
+data/settings/
+data/accounts/
+data/*.sqlite
+data/*.sqlite-*
+storage/documents/
+coverage/
+*.log
