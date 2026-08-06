@@ -7,7 +7,19 @@ const themes = [
     { id: "system", name: "Automatique", description: "Suit le thème de votre appareil." }
 ];
 const accents = ["#6d5ee8", "#4776e6", "#20a9ca", "#2eab74", "#e6962f", "#df5f5f", "#d64a9c"];
-const wallpapers = ["./images/backgrounds/luma-aurora.webp", "./images/backgrounds/background-04.jpg"];
+const wallpapers = [
+    { path: "./images/backgrounds/luma-aurora.webp", name: "Luma Aurora", collection: "Luma" },
+    ...Array.from({ length: 12 }, (_, index) => ({
+        path: `./images/backgrounds/background-${String(index + 1).padStart(2, "0")}.jpg`,
+        name: `Fond ${String(index + 1).padStart(2, "0")}`,
+        collection: "Full HD"
+    })),
+    ...Array.from({ length: 4 }, (_, index) => ({
+        path: `./images/backgrounds/4K/background-4k-${String(index + 1).padStart(2, "0")}.jpg`,
+        name: `Fond 4K ${String(index + 1).padStart(2, "0")}`,
+        collection: "4K"
+    }))
+];
 const views = [
     { id: "system", label: "Système", icon: "device", keywords: "appareil stockage version affichage" },
     { id: "personalization", label: "Personnalisation", icon: "luma", keywords: "thème couleur fond densité mouvement" },
@@ -79,7 +91,7 @@ function renderPersonalization(settings) {
         </section>
         <section class="settings-section" aria-labelledby="wallpaper-heading">
             <div class="settings-section__heading"><h2 id="wallpaper-heading">Arrière-plan</h2><p>Une scène LUMA pour donner sa lumière au bureau.</p></div>
-            <div class="wallpaper-options">${wallpapers.map((wallpaper, index) => `<button type="button" data-wallpaper-value="${wallpaper}" aria-label="Choisir l’arrière-plan ${index + 1}"><img src="${wallpaper}" alt=""></button>`).join("")}</div>
+            <div class="wallpaper-options">${wallpapers.map((wallpaper) => `<button type="button" data-wallpaper-value="${wallpaper.path}" aria-label="Choisir ${wallpaper.name}, collection ${wallpaper.collection}"><img src="${wallpaper.path}" alt="" loading="lazy" decoding="async"><span>${wallpaper.name}</span>${wallpaper.collection === "4K" ? "<small>4K</small>" : ""}</button>`).join("")}</div>
         </section>
         <section class="settings-section" aria-labelledby="comfort-heading">
             <div class="settings-section__heading"><h2 id="comfort-heading">Confort d’utilisation</h2><p>Ajustez la densité et le mouvement sans changer la structure du bureau.</p></div>
@@ -99,7 +111,7 @@ function browserName() {
     return "Navigateur web";
 }
 
-function renderSystem(account, settings) {
+function renderSystem(account, settings, systemInfo) {
     const platform = navigator.userAgentData?.platform || navigator.platform || "Plateforme web";
     const viewport = `${window.innerWidth} × ${window.innerHeight}`;
     return `${heading("Système", "État de votre environnement Luma OS.")}
@@ -111,7 +123,7 @@ function renderSystem(account, settings) {
         <section class="settings-section" aria-labelledby="system-info-heading">
             <div class="settings-section__heading"><h2 id="system-info-heading">Informations système</h2><p>Valeurs détectées localement dans ce navigateur.</p></div>
             <dl class="settings-property-list">
-                <div><dt>Version de Luma OS</dt><dd>2.0.0 alpha</dd></div>
+                <div><dt>Version de Luma OS</dt><dd>${escapeHtml(systemInfo?.version || "—")}</dd></div>
                 <div><dt>Zone d’affichage</dt><dd>${viewport}</dd></div>
                 <div><dt>Contexte sécurisé</dt><dd>${window.isSecureContext ? "Actif" : "Local non chiffré"}</dd></div>
                 <div><dt>Thème actif</dt><dd>${escapeHtml(themes.find((theme) => theme.id === settings.theme)?.name || settings.theme)}</dd></div>
@@ -204,10 +216,12 @@ export async function mount(root, { toast }) {
     let account;
     let session;
     let applications;
+    let systemInfo;
 
     async function getAccount() { return account || (account = await requestJson("/api/users/me/account")); }
     async function getSession() { return session || (session = await requestJson("/api/session")); }
     async function getApplications() { return applications || (applications = await requestJson("/api/apps")); }
+    async function getSystemInfo() { return systemInfo || (systemInfo = await requestJson("/api/health")); }
 
     function setStatus(message) {
         const status = viewRoot.querySelector(".settings-status");
@@ -230,7 +244,8 @@ export async function mount(root, { toast }) {
                 viewRoot.innerHTML = renderPersonalization(settings);
                 updateSelection(root, settings);
             } else if (view === "system") {
-                viewRoot.innerHTML = renderSystem(await getAccount(), settings);
+                const data = await Promise.all([getAccount(), getSystemInfo()]);
+                viewRoot.innerHTML = renderSystem(data[0], settings, data[1]);
             } else if (view === "network") {
                 const data = await Promise.all([getSession(), getAccount(), getApplications()]);
                 viewRoot.innerHTML = renderNetwork(...data);

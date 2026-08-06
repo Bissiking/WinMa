@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="fr" data-theme="luma">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,44 +12,151 @@
     <link rel="stylesheet" href="./apps/parametres/style.css">
     <link rel="stylesheet" href="./apps/documents/style.css">
     <link rel="stylesheet" href="./apps/web-frame/style.css">
+    <link rel="stylesheet" href="./apps/harmonix-player/style.css">
+    <link rel="stylesheet" href="./apps/notepad/style.css">
+    <link rel="stylesheet" href="./apps/image-viewer/style.css">
+    <link rel="stylesheet" href="./apps/task-manager/style.css">
+    <link rel="stylesheet" href="./apps/luma-orbit/style.css">
+    <link rel="stylesheet" href="./apps/matheo-systems/style.css">
 </head>
+
 <body>
     <!-- Direction contract: LUMA Fluent is calm, luminous and precise; one original desktop system supports overlapping, focused and snapped windows across Clair, Sombre and Luma themes. -->
     <svg class="icon-sprite" aria-hidden="true">
-        <symbol id="icon-luma" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/><circle cx="12" cy="12" r="3"/></symbol>
-        <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M3 7.5h7l2-2h9v14H3z"/><path d="M3 10h18"/></symbol>
-        <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 3h6l1 4H8zM6 7l1 14h10l1-14M10 11v6M14 11v6"/></symbol>
-        <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2.1-.7a7 7 0 0 0-.8-1.8l1-2-2.1-2.1-2 1a7 7 0 0 0-1.8-.8L10.5 2h-3l-.7 2.1A7 7 0 0 0 5 4.9l-2-1L.9 6l1 2a7 7 0 0 0-.8 1.8L-1 10.5v3l2.1.7A7 7 0 0 0 2 16l-1 2 2.1 2.1 2-1a7 7 0 0 0 1.8.8l.7 2.1h3l.7-2.1a7 7 0 0 0 1.8-.8l2 1 2.1-2.1-1-2a7 7 0 0 0 .8-1.8z" transform="translate(2) scale(.84)"/></symbol>
-        <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
-        <symbol id="icon-power" viewBox="0 0 24 24"><path d="M12 2v9M6.3 5.8a9 9 0 1 0 11.4 0"/></symbol>
-        <symbol id="icon-wifi" viewBox="0 0 24 24"><path d="M3 9a14 14 0 0 1 18 0M6 13a9.5 9.5 0 0 1 12 0M9.5 16.5a4 4 0 0 1 5 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></symbol>
-        <symbol id="icon-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
-        <symbol id="icon-maximize" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/></symbol>
-        <symbol id="icon-restore" viewBox="0 0 24 24"><rect x="7" y="5" width="12" height="12" rx="1"/><path d="M16 17v2H5V8h2"/></symbol>
-        <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
-        <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
-        <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
-        <symbol id="icon-device" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
-        <symbol id="icon-luma-network" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="12" cy="21" r="2"/><path d="m6 7 3.5 3M18 7l-3.5 3M12 15v4"/></symbol>
-        <symbol id="icon-sync" viewBox="0 0 24 24"><path d="M20 7h-5V2M4 17h5v5M19 12a7 7 0 0 0-12-5L4 10M5 12a7 7 0 0 0 12 5l3-3"/></symbol>
-        <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+        <symbol id="icon-luma" viewBox="0 0 24 24">
+            <path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19" />
+            <circle cx="12" cy="12" r="3" />
+        </symbol>
+        <symbol id="icon-folder" viewBox="0 0 24 24">
+            <path d="M3 7.5h7l2-2h9v14H3z" />
+            <path d="M3 10h18" />
+        </symbol>
+        <symbol id="icon-notepad" viewBox="0 0 24 24">
+            <path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4M9 3v3M15 3v3" />
+        </symbol>
+        <symbol id="icon-image" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <circle cx="9" cy="9" r="2" />
+            <path d="m4 17 5-5 4 4 3-3 5 5" />
+        </symbol>
+        <symbol id="icon-activity" viewBox="0 0 24 24">
+            <path d="M3 12h4l2.2-6 4.2 13 2.2-7H21" />
+        </symbol>
+        <symbol id="icon-orbit" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M4.5 8.2c3.7-3.8 10.4-5.4 13.7-2.1 3.2 3.3 1.6 10-2.2 13.7M19.5 15.8c-3.7 3.8-10.4 5.4-13.7 2.1-3.2-3.3-1.6-10 2.2-13.7" />
+            <circle cx="18.8" cy="5.8" r="1.2" fill="currentColor" stroke="none" />
+        </symbol>
+        <symbol id="icon-chip" viewBox="0 0 24 24">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+            <rect x="9" y="9" width="6" height="6" rx="1" />
+            <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
+        </symbol>
+        <symbol id="icon-trash" viewBox="0 0 24 24">
+            <path d="M4 7h16M9 3h6l1 4H8zM6 7l1 14h10l1-14M10 11v6M14 11v6" />
+        </symbol>
+        <symbol id="icon-settings" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" />
+            <path
+                d="M19 13.5v-3l-2.1-.7a7 7 0 0 0-.8-1.8l1-2-2.1-2.1-2 1a7 7 0 0 0-1.8-.8L10.5 2h-3l-.7 2.1A7 7 0 0 0 5 4.9l-2-1L.9 6l1 2a7 7 0 0 0-.8 1.8L-1 10.5v3l2.1.7A7 7 0 0 0 2 16l-1 2 2.1 2.1 2-1a7 7 0 0 0 1.8.8l.7 2.1h3l.7-2.1a7 7 0 0 0 1.8-.8l2 1 2.1-2.1-1-2a7 7 0 0 0 .8-1.8z"
+                transform="translate(2) scale(.84)" />
+        </symbol>
+        <symbol id="icon-search" viewBox="0 0 24 24">
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m15.5 15.5 5 5" />
+        </symbol>
+        <symbol id="icon-power" viewBox="0 0 24 24">
+            <path d="M12 2v9M6.3 5.8a9 9 0 1 0 11.4 0" />
+        </symbol>
+        <symbol id="icon-play" viewBox="0 0 24 24">
+            <path d="m8 5 11 7-11 7z" />
+        </symbol>
+        <symbol id="icon-pause" viewBox="0 0 24 24">
+            <path d="M8 5v14M16 5v14" />
+        </symbol>
+        <symbol id="icon-previous" viewBox="0 0 24 24">
+            <path d="M6 5v14M18 6l-9 6 9 6z" />
+        </symbol>
+        <symbol id="icon-next" viewBox="0 0 24 24">
+            <path d="M18 5v14M6 6l9 6-9 6z" />
+        </symbol>
+        <symbol id="icon-volume" viewBox="0 0 24 24">
+            <path d="M4 10v4h4l5 4V6l-5 4zM17 9a5 5 0 0 1 0 6M19.5 6.5a8.5 8.5 0 0 1 0 11" />
+        </symbol>
+        <symbol id="icon-expand" viewBox="0 0 24 24">
+            <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+        </symbol>
+        <symbol id="icon-collapse" viewBox="0 0 24 24">
+            <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5" />
+        </symbol>
+        <symbol id="icon-music" viewBox="0 0 24 24">
+            <path d="M9 18V5l10-2v13M9 9l10-2" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="16" cy="16" r="3" />
+        </symbol>
+        <symbol id="icon-minus" viewBox="0 0 24 24">
+            <path d="M5 12h14" />
+        </symbol>
+        <symbol id="icon-plus" viewBox="0 0 24 24">
+            <path d="M5 12h14M12 5v14" />
+        </symbol>
+        <symbol id="icon-maximize" viewBox="0 0 24 24">
+            <rect x="5" y="5" width="14" height="14" rx="1" />
+        </symbol>
+        <symbol id="icon-restore" viewBox="0 0 24 24">
+            <rect x="7" y="5" width="12" height="12" rx="1" />
+            <path d="M16 17v2H5V8h2" />
+        </symbol>
+        <symbol id="icon-close" viewBox="0 0 24 24">
+            <path d="m6 6 12 12M18 6 6 18" />
+        </symbol>
+        <symbol id="icon-chevron" viewBox="0 0 24 24">
+            <path d="m9 6 6 6-6 6" />
+        </symbol>
+        <symbol id="icon-user" viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0" />
+        </symbol>
+        <symbol id="icon-device" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="13" rx="2" />
+            <path d="M8 21h8M12 17v4" />
+        </symbol>
+        <symbol id="icon-luma-network" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="4" cy="6" r="2" />
+            <circle cx="20" cy="6" r="2" />
+            <circle cx="12" cy="21" r="2" />
+            <path d="m6 7 3.5 3M18 7l-3.5 3M12 15v4" />
+        </symbol>
+        <symbol id="icon-sync" viewBox="0 0 24 24">
+            <path d="M20 7h-5V2M4 17h5v5M19 12a7 7 0 0 0-12-5L4 10M5 12a7 7 0 0 0 12 5l3-3" />
+        </symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24">
+            <path d="m5 12 4 4L19 6" />
+        </symbol>
     </svg>
 
     <main id="session-root" class="session-root" aria-live="polite"></main>
 
     <main id="luma-desktop" class="desktop" hidden>
         <header class="desktop-brand" aria-label="Luma OS">
-            <svg class="icon"><use href="#icon-luma"/></svg>
+            <svg class="icon">
+                <use href="#icon-luma" />
+            </svg>
             <span>Luma OS</span>
         </header>
 
         <nav class="desktop-shortcuts" aria-label="Raccourcis du bureau">
             <button class="desktop-shortcut" type="button" data-open-app="documents">
-                <span class="app-icon app-icon--documents"><svg class="icon"><use href="#icon-folder"/></svg></span>
+                <span class="app-icon app-icon--documents"><svg class="icon">
+                        <use href="#icon-folder" />
+                    </svg></span>
                 <span>Documents</span>
             </button>
             <button class="desktop-shortcut" type="button" data-open-app="trash">
-                <span class="app-icon app-icon--trash"><svg class="icon"><use href="#icon-trash"/></svg></span>
+                <span class="app-icon app-icon--trash"><svg class="icon">
+                        <use href="#icon-trash" />
+                    </svg></span>
                 <span>Corbeille</span>
             </button>
         </nav>
@@ -57,7 +165,9 @@
 
         <section id="start-panel" class="start-panel" aria-label="Menu Luma" hidden>
             <label class="start-search">
-                <svg class="icon"><use href="#icon-search"/></svg>
+                <svg class="icon">
+                    <use href="#icon-search" />
+                </svg>
                 <span class="sr-only">Rechercher une application</span>
                 <input id="app-search" type="search" placeholder="Rechercher une application">
             </label>
@@ -73,24 +183,102 @@
                 </div>
                 <div class="session-actions">
                     <button type="button" data-session-action="lock">Verrouiller</button>
-                    <button class="icon-button" type="button" data-session-action="logout" aria-label="Se déconnecter"><svg class="icon"><use href="#icon-power"/></svg></button>
+                    <button class="icon-button" type="button" data-session-action="logout"
+                        aria-label="Se déconnecter"><svg class="icon">
+                            <use href="#icon-power" />
+                        </svg></button>
                 </div>
             </footer>
         </section>
 
+        <div id="harmonix-player-slot" class="harmonix-player-slot">
+        <section id="harmonix-player" class="harmonix-player" aria-label="Lecteur Harmonix"
+            data-connected="false" data-expanded="false">
+            <div class="harmonix-player__compact">
+                <div class="harmonix-player__cover" aria-hidden="true">
+                    <img id="harmonix-cover" src="./images/favicon/logo-luma.png" alt="" hidden>
+                    <svg class="icon harmonix-player__cover-placeholder"><use href="#icon-music" /></svg>
+                </div>
+
+                <div class="harmonix-player__track" aria-live="polite">
+                    <div class="harmonix-player__marquee"><strong id="harmonix-title">En attente d’Harmonix</strong></div>
+                    <span id="harmonix-artist">Aucun titre en lecture</span>
+                </div>
+
+                <button id="harmonix-play" class="harmonix-player__button harmonix-player__button--primary"
+                    type="button" aria-label="Lire" disabled>
+                    <svg class="icon"><use href="#icon-play" /></svg>
+                </button>
+
+                <button id="harmonix-expand" class="harmonix-player__button harmonix-player__expand"
+                    type="button" aria-label="Développer le lecteur" aria-expanded="false" aria-controls="harmonix-details">
+                    <svg class="icon"><use href="#icon-expand" /></svg>
+                </button>
+            </div>
+
+            <div id="harmonix-details" class="harmonix-player__details" hidden>
+                <div class="harmonix-player__now-playing">
+                    <div class="harmonix-player__hero-cover" aria-hidden="true">
+                        <img id="harmonix-hero-cover" src="./images/favicon/logo-luma.png" alt="" hidden>
+                        <svg class="icon harmonix-player__hero-placeholder"><use href="#icon-music" /></svg>
+                    </div>
+                    <div class="harmonix-player__hero-copy">
+                        <strong id="harmonix-hero-title">En attente d’Harmonix</strong>
+                        <span id="harmonix-hero-artist">Aucun titre en lecture</span>
+                    </div>
+                </div>
+
+                <div class="harmonix-player__timeline">
+                    <input id="harmonix-progress" type="range" min="0" max="100" value="0" step="0.1"
+                        aria-label="Position dans le titre" disabled>
+                    <div><span id="harmonix-current-time">0:00</span><span id="harmonix-duration">0:00</span></div>
+                </div>
+
+                <div class="harmonix-player__transport" aria-label="Commandes de lecture">
+                    <button id="harmonix-previous" class="harmonix-player__button" type="button"
+                        aria-label="Titre précédent" disabled><svg class="icon"><use href="#icon-previous" /></svg></button>
+                    <button id="harmonix-play-expanded"
+                        class="harmonix-player__button harmonix-player__button--primary harmonix-player__button--large"
+                        type="button" aria-label="Lire" disabled><svg class="icon"><use href="#icon-play" /></svg></button>
+                    <button id="harmonix-next" class="harmonix-player__button" type="button"
+                        aria-label="Titre suivant" disabled><svg class="icon"><use href="#icon-next" /></svg></button>
+                </div>
+
+                <label class="harmonix-player__volume">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-volume" /></svg>
+                    <span class="sr-only">Volume</span>
+                    <input id="harmonix-volume" type="range" min="0" max="1" value="0.8" step="0.05" disabled>
+                </label>
+
+                <div class="harmonix-player__queue-heading">
+                    <h2>À suivre</h2><span id="harmonix-queue-count">0 titre</span>
+                </div>
+                <ol id="harmonix-queue" class="harmonix-player__queue">
+                    <li class="harmonix-player__empty">La liste de lecture apparaîtra dès qu’Harmonix sera connecté.</li>
+                </ol>
+            </div>
+            <audio id="harmonix-audio" preload="metadata"></audio>
+        </section>
+        </div>
+
         <nav class="taskbar" aria-label="Barre des tâches">
-            <button id="luma-launcher" class="taskbar-button taskbar-launcher" type="button" aria-label="Ouvrir le menu Luma" aria-expanded="false">
-                <svg class="icon"><use href="#icon-luma"/></svg>
+            <button id="luma-launcher" class="taskbar-button taskbar-launcher" type="button"
+                aria-label="Ouvrir le menu Luma" aria-expanded="false">
+                <svg class="icon">
+                    <use href="#icon-luma" />
+                </svg>
             </button>
             <div id="taskbar-apps" class="taskbar-apps" aria-label="Applications ouvertes"></div>
             <div class="taskbar-status">
-                <button class="status-button" type="button" aria-label="État du réseau"><svg class="icon"><use href="#icon-wifi"/></svg></button>
-                <button id="clock" class="clock" type="button" aria-label="Date et heure"><span></span><small></small></button>
+                <button id="clock" class="clock" type="button"
+                    aria-label="Date et heure"><span></span><small></small></button>
             </div>
         </nav>
     </main>
 
     <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+    <script type="module" src="./apps/harmonix-player/app.js"></script>
     <script type="module" src="./assets/javascripts/luma-shell.js"></script>
 </body>
+
 </html>

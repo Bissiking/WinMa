@@ -22,6 +22,7 @@ function typeLabel(item) {
     const known = {
         "application/pdf": "Document PDF",
         "text/plain": "Document texte",
+        "text/markdown": "Document Markdown",
         "image/png": "Image PNG",
         "image/jpeg": "Image JPEG",
         "application/zip": "Archive ZIP",
@@ -56,6 +57,7 @@ function renderShell(root, trashMode) {
                         <input class="document-upload" type="file" hidden>
                     </div>
                     <div class="toolbar-context" aria-label="Actions sur la sélection">
+                        <button class="toolbar-button" type="button" data-action="open" disabled>Ouvrir</button>
                         <button class="toolbar-button" type="button" data-action="download" disabled>Télécharger</button>
                         <button class="toolbar-button" type="button" data-action="rename" disabled>Renommer</button>
                         <button class="toolbar-button" type="button" data-action="move" disabled>Déplacer</button>
@@ -97,7 +99,7 @@ function dialog(root, { title, description, field, options, confirm = "Valider",
     return new Promise((resolve) => element.addEventListener("close", () => resolve(element.returnValue === "confirm" ? (input?.value ?? true) : null), { once: true }));
 }
 
-export async function mount(root, { app, toast }) {
+export async function mount(root, { app, toast, open }) {
     const state = { trash: app.id === "trash", parentId: null, search: "", view: "list", selected: new Set(), data: null };
     renderShell(root, state.trash);
     const shell = root.querySelector(".documents-app");
@@ -114,6 +116,7 @@ export async function mount(root, { app, toast }) {
         root.querySelector(".documents-selection-bar").hidden = count === 0;
         root.querySelector(".documents-selection-bar span").textContent = `${count} élément${count > 1 ? "s" : ""} sélectionné${count > 1 ? "s" : ""}`;
         root.querySelector('[data-action="download"]').disabled = count !== 1 || selection[0]?.kind !== "file" || state.trash;
+        root.querySelector('[data-action="open"]').disabled = count !== 1 || selection[0]?.kind !== "file" || state.trash;
         root.querySelector('[data-action="rename"]').disabled = count !== 1 || state.trash;
         root.querySelector('[data-action="move"]').disabled = count < 1 || state.trash;
         root.querySelector('[data-action="trash"]').disabled = count < 1 || state.trash;
@@ -179,6 +182,16 @@ export async function mount(root, { app, toast }) {
         if (!response.ok || !payload.success) throw new Error(payload.message || "L’import a échoué.");
     }
 
+    function openItem(item) {
+        if (item.mimeType?.startsWith("image/")) {
+            open("image-viewer", { instanceKey: `image:${item.id}`, title: item.name, data: { document: item } });
+        } else if (item.mimeType?.startsWith("text/") || /\.(?:md|markdown|txt)$/i.test(item.name)) {
+            open("notepad", { instanceKey: `document:${item.id}`, title: item.name, data: { document: item } });
+        } else {
+            window.location.assign(`/api/documents/${item.id}/download`);
+        }
+    }
+
     async function perform(action) {
         const selection = selectedItems();
         if (action === "new-folder") {
@@ -186,6 +199,8 @@ export async function mount(root, { app, toast }) {
             if (name) await postJson("/api/documents/folders", { name, parentId: state.parentId });
         } else if (action === "upload") {
             root.querySelector(".document-upload").click(); return;
+        } else if (action === "open") {
+            openItem(selection[0]); return;
         } else if (action === "download") {
             window.location.assign(`/api/documents/${selection[0].id}/download`); return;
         } else if (action === "rename") {
@@ -235,7 +250,7 @@ export async function mount(root, { app, toast }) {
         if (!row || state.trash) return;
         const item = state.data.items.find((entry) => entry.id === row.dataset.itemId);
         if (item.kind === "folder") { state.parentId = item.id; await load(); }
-        else window.location.assign(`/api/documents/${item.id}/download`);
+        else openItem(item);
     };
     const uploadChange = async (event) => {
         const [file] = event.target.files;

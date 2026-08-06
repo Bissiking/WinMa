@@ -1,6 +1,7 @@
 // src/server/config/env.js
 const crypto = require('node:crypto');
 const dotenv = require('dotenv');
+const { version } = require('../../../package.json');
 
 dotenv.config({ quiet: true });
 
@@ -39,6 +40,10 @@ function loadConfig(environment = process.env) {
     const port = parseInteger(environment.PORT, 3000, 'PORT');
     const appBaseUrl = parseUrl(environment.APP_BASE_URL || `http://localhost:${port}`, 'APP_BASE_URL');
     const kyrosBaseUrl = parseUrl(environment.LUMA_KYROS_BASE_URL, 'LUMA_KYROS_BASE_URL', { required: false });
+    const harmonixBaseUrl = parseUrl(
+        environment.LUMA_HARMONIX_BASE_URL || 'https://mhemery.fr',
+        'LUMA_HARMONIX_BASE_URL'
+    );
     const sessionSecret = environment.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
     if (isProduction && !environment.SESSION_SECRET) {
@@ -85,8 +90,13 @@ function loadConfig(environment = process.env) {
         host: environment.HOST || '127.0.0.1',
         port,
         appBaseUrl,
+        version,
         sessionSecret,
         sessionMaxAgeMs: 7 * 24 * 60 * 60 * 1000,
+        harmonix: {
+            baseUrl: harmonixBaseUrl,
+            timeoutMs: parseInteger(environment.LUMA_HARMONIX_TIMEOUT_MS, 10000, 'LUMA_HARMONIX_TIMEOUT_MS')
+        },
         kyros
     };
 }

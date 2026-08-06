@@ -1,6 +1,6 @@
 {
   "name": "luma-os",
-  "version": "3.0.0-alpha.1",
+  "version": "3.0.0-alpha.2",
   "description": "Bureau web modulaire pour l'écosystème LUMA",
   "main": "src/server/server.js",
   "scripts": {

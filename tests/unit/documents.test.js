@@ -79,3 +79,34 @@ test('vider la Corbeille supprime tous les groupes appartenant à l’utilisateu
     assert.equal((await service.emptyTrash('usr_one')).count, 2);
     assert.equal((await service.list('usr_one', { trash: true })).items.length, 0);
 });
+
+test('un document Markdown peut être créé, relu et enregistré', async () => {
+    const service = await createService();
+    const item = await service.createText('usr_one', { name: 'journal.md', content: '# Bonjour' });
+
+    assert.equal(item.mimeType, 'text/markdown');
+    assert.equal(item.size, 9);
+    assert.equal((await service.readText('usr_one', item.id)).content, '# Bonjour');
+
+    const updated = await service.saveText('usr_one', item.id, { content: '# Bonjour Luma' });
+    assert.equal(updated.size, 14);
+    assert.equal((await service.readText('usr_one', item.id)).content, '# Bonjour Luma');
+});
+
+test('le Bloc-notes refuse de modifier un fichier binaire', async () => {
+    const service = await createService();
+    const directory = temporaryDirectories.at(-1);
+    const temporaryFile = path.join(directory, 'image.tmp');
+    await fs.writeFile(temporaryFile, Buffer.from([0, 1, 2]));
+    const item = await service.upload('usr_one', {}, {
+        path: temporaryFile,
+        originalname: 'image.png',
+        mimetype: 'image/png',
+        size: 3
+    });
+
+    await assert.rejects(
+        service.readText('usr_one', item.id),
+        (error) => error.code === 'DOCUMENT_NOT_TEXT'
+    );
+});

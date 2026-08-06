@@ -28,3 +28,11 @@ export function postJson(url, body = {}) {
         body: JSON.stringify(body)
     });
 }
+
+export function putJson(url, body = {}) {
+    return requestJson(url, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+    });
+}

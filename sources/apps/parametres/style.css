@@ -1,17 +1,21 @@
 .settings-app {
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
     display: grid;
     grid-template-columns: 248px minmax(0, 1fr);
+    overflow: hidden;
     background: var(--surface-solid);
 }
 
 .settings-sidebar {
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 15px;
     padding: 20px 14px;
     border-right: 1px solid var(--line);
     background: color-mix(in srgb, var(--surface-muted) 54%, transparent);
+    overflow-y: auto;
 }
 
 .settings-search {
@@ -69,6 +73,7 @@
 
 .settings-content {
     min-width: 0;
+    min-height: 0;
     padding: 30px clamp(22px, 4vw, 52px) 48px;
     overflow: auto;
 }
@@ -163,6 +168,8 @@
 .wallpaper-options button.is-selected::after { content: ""; position: absolute; right: 7px; bottom: 7px; width: 9px; height: 9px; border: 3px solid #fff; border-radius: 50%; background: var(--luma-accent); }
 .wallpaper-options img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform 280ms var(--ease-out); }
 .wallpaper-options button:hover img { transform: scale(1.04); }
+.wallpaper-options button > span { position: absolute; inset: auto 0 0; padding: 18px 9px 7px; color: #fff; text-align: left; background: linear-gradient(transparent, rgba(4, 8, 22, .76)); font-size: 11px; font-weight: 600; }
+.wallpaper-options button > small { position: absolute; top: 6px; right: 6px; padding: 3px 5px; border-radius: 5px; color: #fff; background: rgba(4, 8, 22, .72); backdrop-filter: blur(6px); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
 
 .comfort-settings { display: grid; gap: 14px; }
 .comfort-settings > div { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }

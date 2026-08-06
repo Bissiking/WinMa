@@ -27,8 +27,12 @@ function createDocumentsRoutes(controller, requireSession, requireSameOrigin) {
     router.get('/api/documents', requireSession, asyncHandler(controller.index));
     router.get('/api/documents/folders', requireSession, asyncHandler(controller.folders));
     router.get('/api/documents/:id/download', requireSession, asyncHandler(controller.download));
+    router.get('/api/documents/:id/preview', requireSession, asyncHandler(controller.preview));
+    router.get('/api/documents/:id/content', requireSession, asyncHandler(controller.readText));
     router.post('/api/documents/folders', requireSameOrigin, requireSession, asyncHandler(controller.createFolder));
     router.post('/api/documents/upload', requireSameOrigin, requireSession, uploadOne, asyncHandler(controller.upload));
+    router.post('/api/documents/text', requireSameOrigin, requireSession, asyncHandler(controller.createText));
+    router.put('/api/documents/:id/content', requireSameOrigin, requireSession, asyncHandler(controller.saveText));
     router.patch('/api/documents/:id', requireSameOrigin, requireSession, asyncHandler(controller.update));
     router.post('/api/documents/actions/trash', requireSameOrigin, requireSession, asyncHandler(controller.trash));
     router.post('/api/documents/actions/restore', requireSameOrigin, requireSession, asyncHandler(controller.restore));

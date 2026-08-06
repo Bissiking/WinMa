@@ -117,6 +117,12 @@ function createSqliteDocumentRepository(databasePath) {
         return findById(ownerKey, id);
     }
 
+    function updateFileMetadata(ownerKey, id, changes) {
+        database.prepare(`UPDATE document_items SET size = @size, updated_at = @updatedAt WHERE id = @id AND owner_key = @ownerKey AND kind = 'file' AND trashed_at IS NULL`)
+            .run({ ownerKey, id, ...changes });
+        return findById(ownerKey, id);
+    }
+
     function contains(ownerKey, rootId, possibleDescendantId) {
         return Boolean(database.prepare(`
             WITH RECURSIVE subtree(id) AS (
@@ -165,7 +171,7 @@ function createSqliteDocumentRepository(databasePath) {
         return database.prepare("SELECT COALESCE(SUM(size), 0) AS total FROM document_items WHERE owner_key = ? AND kind = 'file'").get(ownerKey).total;
     }
 
-    return { findById, list, ancestors, folders, hasNameConflict, insert, update, contains, trash, restore, filesForTrashRoots, permanentlyDelete, expiredTrash, usedBytes };
+    return { findById, list, ancestors, folders, hasNameConflict, insert, update, updateFileMetadata, contains, trash, restore, filesForTrashRoots, permanentlyDelete, expiredTrash, usedBytes };
 }
 
 module.exports = { createSqliteDocumentRepository };

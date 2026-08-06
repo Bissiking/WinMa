@@ -5,6 +5,7 @@ const { HttpError } = require('../utils/http-error');
 
 const QUOTA_BYTES = 1024 * 1024 * 1024;
 const TRASH_RETENTION_DAYS = 30;
+const MAX_TEXT_BYTES = 1024 * 1024;
 
 function ownerKey(subject) {
     return crypto.createHash('sha256').update(subject).digest('hex');
@@ -35,6 +36,16 @@ function validIds(value) {
 }
 
 function createDocumentService({ repository, storageRoot }) {
+    function validTextContent(value) {
+        if (typeof value !== 'string') throw new HttpError(400, 'DOCUMENT_CONTENT_INVALID', 'Le contenu texte est invalide.');
+        const size = Buffer.byteLength(value, 'utf8');
+        if (size > MAX_TEXT_BYTES) throw new HttpError(413, 'DOCUMENT_TEXT_TOO_LARGE', 'Un document texte ne peut pas dépasser 1 Mo.');
+        return { content: value, size };
+    }
+
+    function isTextItem(item) {
+        return item?.mimeType?.startsWith('text/') || /\.(?:md|markdown|txt)$/i.test(item?.name || '');
+    }
     async function ensureParent(key, parentId) {
         if (!parentId) return null;
         const parent = repository.findById(key, validId(parentId, 'identifiant du dossier'));
@@ -128,6 +139,56 @@ function createDocumentService({ repository, storageRoot }) {
         }
     }
 
+    async function createText(subject, input) {
+        const key = ownerKey(subject);
+        const name = validName(input?.name || 'Sans titre.md');
+        const parentId = validId(input?.parentId, 'identifiant du dossier');
+        const text = validTextContent(input?.content ?? '');
+        await ensureParent(key, parentId);
+        if (repository.hasNameConflict(key, parentId, name)) {
+            throw new HttpError(409, 'DOCUMENT_NAME_CONFLICT', 'Un élément porte déjà ce nom dans ce dossier.');
+        }
+        if (text.size > quota(key).availableBytes) throw new HttpError(413, 'DOCUMENT_QUOTA_EXCEEDED', 'Ce document dépasse votre espace disponible.');
+        const userDirectory = path.join(storageRoot, key);
+        const storageName = crypto.randomUUID();
+        const destination = path.join(userDirectory, storageName);
+        await fs.mkdir(userDirectory, { recursive: true, mode: 0o700 });
+        await fs.writeFile(destination, text.content, { encoding: 'utf8', mode: 0o600 });
+        const now = new Date().toISOString();
+        try {
+            return repository.insert(key, {
+                id: crypto.randomUUID(), parentId, kind: 'file', name,
+                mimeType: /\.(?:md|markdown)$/i.test(name) ? 'text/markdown' : 'text/plain',
+                size: text.size, storageName, createdAt: now, updatedAt: now
+            });
+        } catch (error) {
+            await fs.rm(destination, { force: true });
+            throw error;
+        }
+    }
+
+    async function readText(subject, id) {
+        const file = await download(subject, id);
+        if (!isTextItem(file.item)) throw new HttpError(415, 'DOCUMENT_NOT_TEXT', 'Ce fichier n’est pas un document texte.');
+        if (file.item.size > MAX_TEXT_BYTES) throw new HttpError(413, 'DOCUMENT_TEXT_TOO_LARGE', 'Ce document texte dépasse 1 Mo.');
+        return { item: file.item, content: await fs.readFile(file.path, 'utf8') };
+    }
+
+    async function saveText(subject, id, input) {
+        const key = ownerKey(subject);
+        const item = repository.findById(key, validId(id));
+        if (!item || item.kind !== 'file' || item.trashedAt) throw new HttpError(404, 'DOCUMENT_NOT_FOUND', 'Ce fichier est introuvable.');
+        if (!isTextItem(item)) throw new HttpError(415, 'DOCUMENT_NOT_TEXT', 'Ce fichier n’est pas modifiable dans le Bloc-notes.');
+        const text = validTextContent(input?.content);
+        const available = quota(key).availableBytes + item.size;
+        if (text.size > available) throw new HttpError(413, 'DOCUMENT_QUOTA_EXCEEDED', 'Ce document dépasse votre espace disponible.');
+        const destination = path.join(storageRoot, key, item.storageName);
+        const temporary = `${destination}.tmp`;
+        await fs.writeFile(temporary, text.content, { encoding: 'utf8', mode: 0o600 });
+        await fs.rename(temporary, destination);
+        return repository.updateFileMetadata(key, item.id, { size: text.size, updatedAt: new Date().toISOString() });
+    }
+
     async function update(subject, id, input) {
         const key = ownerKey(subject);
         const item = repository.findById(key, validId(id));
@@ -204,7 +265,7 @@ function createDocumentService({ repository, storageRoot }) {
         return count;
     }
 
-    return { list, listFolders, getQuota, createFolder, upload, update, trash, restore, permanentlyDelete, emptyTrash, download, purgeExpired, quotaBytes: QUOTA_BYTES };
+    return { list, listFolders, getQuota, createFolder, upload, createText, readText, saveText, update, trash, restore, permanentlyDelete, emptyTrash, download, purgeExpired, quotaBytes: QUOTA_BYTES };
 }
 
 module.exports = { createDocumentService, QUOTA_BYTES, TRASH_RETENTION_DAYS, ownerKey };

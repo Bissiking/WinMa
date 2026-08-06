@@ -26,6 +26,7 @@ test('le serveur expose sa santé avec les en-têtes de sécurité', async () =>
     assert.equal(response.status, 200);
     assert.equal(payload.success, true);
     assert.equal(payload.data.status, 'ok');
+    assert.equal(payload.data.version, '3.0.0-alpha.1');
     assert.equal(response.headers.get('x-powered-by'), null);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.ok(response.headers.get('x-request-id'));

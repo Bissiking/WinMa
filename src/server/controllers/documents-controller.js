@@ -1,4 +1,5 @@
 const { sendSuccess } = require('../utils/api-response');
+const { HttpError } = require('../utils/http-error');
 
 function createDocumentsController(documentService) {
     return {
@@ -13,6 +14,15 @@ function createDocumentsController(documentService) {
         },
         async upload(req, res) {
             return sendSuccess(res, await documentService.upload(req.user.id, req.body, req.file), 'Fichier importé.', 201);
+        },
+        async createText(req, res) {
+            return sendSuccess(res, await documentService.createText(req.user.id, req.body), 'Document créé.', 201);
+        },
+        async readText(req, res) {
+            return sendSuccess(res, await documentService.readText(req.user.id, req.params.id));
+        },
+        async saveText(req, res) {
+            return sendSuccess(res, await documentService.saveText(req.user.id, req.params.id, req.body), 'Document enregistré.');
         },
         async update(req, res) {
             return sendSuccess(res, await documentService.update(req.user.id, req.params.id, req.body), 'Élément modifié.');
@@ -32,6 +42,13 @@ function createDocumentsController(documentService) {
         async download(req, res) {
             const file = await documentService.download(req.user.id, req.params.id);
             return res.download(file.path, file.item.name);
+        },
+        async preview(req, res) {
+            const file = await documentService.download(req.user.id, req.params.id);
+            if (!file.item.mimeType?.startsWith('image/')) throw new HttpError(415, 'DOCUMENT_PREVIEW_UNSUPPORTED', 'Ce fichier ne peut pas être prévisualisé.');
+            res.type(file.item.mimeType);
+            res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.item.name)}`);
+            return res.sendFile(file.path);
         }
     };
 }

@@ -1,0 +1,436 @@
+.harmonix-player-slot {
+    width: 292px;
+    min-width: 220px;
+    height: 40px;
+    flex: 0 1 292px;
+    border-left: 1px solid color-mix(in srgb, var(--taskbar-ink) 12%, transparent);
+}
+
+.taskbar[data-app-layout="compact"] .harmonix-player-slot {
+    width: 244px;
+    flex-basis: 244px;
+}
+
+.taskbar[data-app-layout="icons"] .harmonix-player-slot {
+    width: 220px;
+    flex-basis: 220px;
+}
+
+.harmonix-player {
+    position: static;
+    width: 100%;
+    height: 40px;
+    overflow: visible;
+    color: var(--taskbar-ink);
+    border-radius: 0 11px 11px 0;
+    background: transparent;
+}
+
+.harmonix-player[data-expanded="true"] {
+    width: 100%;
+}
+
+.harmonix-player__compact {
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: 32px minmax(72px, 1fr) 36px 28px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 2px 0 7px;
+}
+
+.harmonix-player__cover,
+.harmonix-player__hero-cover,
+.harmonix-player__queue-cover {
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    flex: 0 0 auto;
+    color: var(--ink-muted);
+    background: var(--surface-muted);
+}
+
+.harmonix-player__cover {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+}
+
+.harmonix-player__cover img,
+.harmonix-player__hero-cover img,
+.harmonix-player__queue-cover img {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.harmonix-player__cover-placeholder { width: 16px; height: 16px; }
+
+.harmonix-player__track,
+.harmonix-player__marquee {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.harmonix-player__track {
+    display: grid;
+    gap: 2px;
+}
+
+.harmonix-player__marquee {
+    mask-image: linear-gradient(90deg, transparent 0, #000 6px, #000 calc(100% - 9px), transparent 100%);
+}
+
+.harmonix-player__track strong {
+    display: block;
+    width: max-content;
+    min-width: 100%;
+    padding-left: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+
+.harmonix-player__track > span {
+    overflow: hidden;
+    padding-left: 6px;
+    color: color-mix(in srgb, var(--taskbar-ink) 70%, transparent);
+    font-size: 11px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.harmonix-player.is-scrolling .harmonix-player__track strong {
+    animation: harmonix-title-scroll var(--marquee-duration, 9s) linear infinite;
+}
+
+.harmonix-player__button {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    color: var(--ink);
+    background: transparent;
+}
+
+.harmonix-player__button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.harmonix-player__button:disabled {
+    cursor: default;
+    opacity: .42;
+}
+
+.harmonix-player__button .icon { width: 17px; height: 17px; }
+
+.harmonix-player__button--primary {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #fff;
+    background: var(--luma-accent);
+}
+
+.harmonix-player__button--primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--luma-accent), white 9%);
+}
+
+.harmonix-player__button--large {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+}
+
+.harmonix-player__expand { width: 28px; height: 34px; }
+.harmonix-player__expand .icon { width: 15px; height: 15px; }
+
+@media (max-width: 1100px) {
+    .harmonix-player-slot,
+    .taskbar[data-app-layout] .harmonix-player-slot {
+        width: 174px;
+        min-width: 174px;
+        flex-basis: 174px;
+    }
+
+    .harmonix-player__compact { grid-template-columns: 30px minmax(36px, 1fr) 36px 28px; gap: 4px; padding-left: 4px; }
+    .harmonix-player__cover { width: 30px; height: 30px; }
+    .harmonix-player__track > span { display: none; }
+    .harmonix-player__track { display: block; }
+    .harmonix-player__track strong { font-size: 12px; }
+}
+
+.harmonix-player__details {
+    position: absolute;
+    right: 0;
+    bottom: 62px;
+    z-index: 2;
+    width: min(390px, calc(100vw - 32px));
+    max-height: min(624px, calc(100vh - 152px));
+    padding: 16px;
+    overflow: auto;
+    color: var(--ink);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--panel-shadow);
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    animation: harmonix-details-arrive 260ms var(--ease-out) both;
+}
+
+.harmonix-player__now-playing {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: end;
+    gap: 16px;
+    padding: 6px 0 16px;
+}
+
+.harmonix-player__hero-cover {
+    width: 112px;
+    height: 112px;
+    border-radius: 14px;
+}
+
+.harmonix-player__hero-placeholder { width: 34px; height: 34px; }
+
+.harmonix-player__hero-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding-bottom: 3px;
+}
+
+.harmonix-player__hero-copy strong {
+    overflow: hidden;
+    font-size: 18px;
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    text-overflow: ellipsis;
+}
+
+.harmonix-player__hero-copy span {
+    overflow: hidden;
+    color: var(--ink-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.harmonix-player__timeline {
+    display: grid;
+    gap: 6px;
+}
+
+.harmonix-player__timeline > div {
+    display: flex;
+    justify-content: space-between;
+    color: var(--ink-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.harmonix-player input[type="range"] {
+    width: 100%;
+    height: 18px;
+    margin: 0;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.harmonix-player input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--luma-accent) var(--range-progress, 0%), color-mix(in srgb, var(--ink) 18%, transparent) var(--range-progress, 0%));
+}
+
+.harmonix-player input[type="range"]::-webkit-slider-thumb {
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    appearance: none;
+    border: 0;
+    border-radius: 50%;
+    background: var(--luma-accent);
+    box-shadow: 0 2px 6px rgba(4, 8, 30, .25);
+}
+
+.harmonix-player input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+.harmonix-player input[type="range"]::-moz-range-progress {
+    height: 4px;
+    border-radius: 4px;
+    background: var(--luma-accent);
+}
+
+.harmonix-player input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--luma-accent);
+}
+
+.harmonix-player input[type="range"]:disabled { cursor: default; opacity: .45; }
+
+.harmonix-player__transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 7px 0 8px;
+}
+
+.harmonix-player__volume {
+    height: 32px;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    color: var(--ink-muted);
+}
+
+.harmonix-player__volume .icon { width: 18px; height: 18px; }
+
+.harmonix-player__queue-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+}
+
+.harmonix-player__queue-heading h2 {
+    margin: 0;
+    font-size: 15px;
+    letter-spacing: -.02em;
+}
+
+.harmonix-player__queue-heading span { color: var(--ink-muted); font-size: 10px; }
+
+.harmonix-player__queue {
+    display: grid;
+    gap: 3px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.harmonix-player__queue-item button {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 7px;
+    border: 0;
+    border-radius: 10px;
+    color: var(--ink);
+    text-align: left;
+    background: transparent;
+}
+
+.harmonix-player__queue-item button:hover,
+.harmonix-player__queue-item.is-current button {
+    background: var(--surface-muted);
+}
+
+.harmonix-player__queue-item.is-current button { color: var(--luma-accent); }
+
+.harmonix-player__queue-cover { width: 36px; height: 36px; border-radius: 8px; }
+.harmonix-player__queue-cover .icon { width: 16px; height: 16px; }
+
+.harmonix-player__queue-copy { min-width: 0; display: grid; gap: 1px; }
+.harmonix-player__queue-copy strong,
+.harmonix-player__queue-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.harmonix-player__queue-copy strong { font-size: 11px; font-weight: 600; }
+.harmonix-player__queue-copy span,
+.harmonix-player__queue-duration { color: var(--ink-muted); font-size: 10px; }
+
+.harmonix-player__empty {
+    display: grid;
+    justify-items: center;
+    gap: 9px;
+    padding: 16px 8px 5px;
+    color: var(--ink-muted);
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.harmonix-player__empty button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--surface-muted);
+}
+
+.harmonix-player__empty button:hover {
+    background: color-mix(in srgb, var(--ink) 12%, var(--surface-muted));
+}
+
+@keyframes harmonix-title-scroll {
+    0%, 16% { transform: translateX(0); }
+    78%, 94% { transform: translateX(var(--marquee-distance)); }
+    100% { transform: translateX(0); }
+}
+
+@keyframes harmonix-details-arrive {
+    from { opacity: .6; transform: translateY(10px); filter: blur(4px); }
+}
+
+@media (max-width: 720px) {
+    .harmonix-player-slot,
+    .taskbar[data-app-layout] .harmonix-player-slot {
+        width: 74px;
+        min-width: 74px;
+        flex-basis: 74px;
+    }
+
+    .harmonix-player__compact {
+        grid-template-columns: 36px 28px;
+        gap: 4px;
+        padding: 0 2px 0 4px;
+    }
+
+    .harmonix-player__cover,
+    .harmonix-player__track { display: none; }
+
+    .harmonix-player__details {
+        right: 0;
+        width: 100%;
+        max-height: calc(100vh - 160px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .harmonix-player.is-scrolling .harmonix-player__track strong {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        animation: none;
+    }
+}

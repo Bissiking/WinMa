@@ -2,11 +2,16 @@ import { requestJson, postJson } from "./luma-api.js";
 import { createWindowManager } from "./luma-window-manager.js";
 
 const apps = [
-    { id: "documents", name: "Documents", icon: "documents", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
-    { id: "settings", name: "Paramètres", icon: "settings", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
-    { id: "trash", name: "Corbeille", icon: "trash", module: "/apps/documents/app.js", width: 980, height: 660, minWidth: 620, minHeight: 400 },
-    { id: "browser", name: "Navigateur LUMA", icon: "browser", module: "/apps/web-frame/app.js", url: "https://mhemery.fr", width: 1080, height: 720 },
-    { id: "jellyfin", name: "Jellyfin", icon: "jellyfin", module: "/apps/web-frame/app.js", url: "https://jelly.mhemery.fr", width: 1100, height: 740 }
+    { id: "documents", name: "Documents", taskbarName: "Docs", icon: "documents", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
+    { id: "settings", name: "Paramètres", taskbarName: "Config", icon: "settings", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
+    { id: "task-manager", name: "Gestionnaire des tâches", taskbarName: "Tâches", icon: "activity", module: "/apps/task-manager/app.js", width: 920, height: 650, minWidth: 660, minHeight: 440, position: { left: .12, top: .08 } },
+    { id: "luma-orbit", name: "Luma Orbit", taskbarName: "Orbit", icon: "orbit", module: "/apps/luma-orbit/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 480, position: { left: .09, top: .06 } },
+    { id: "matheo-systems", name: "Matheo Systems", taskbarName: "Matheo", icon: "chip", module: "/apps/matheo-systems/app.js", width: 1060, height: 730, minWidth: 700, minHeight: 500, position: { left: .08, top: .05 } },
+    { id: "notepad", name: "Bloc-notes", taskbarName: "Notes", icon: "notepad", module: "/apps/notepad/app.js", width: 800, height: 640, minWidth: 520, minHeight: 400, position: { left: .18, top: .1 } },
+    { id: "image-viewer", name: "Photos Luma", taskbarName: "Photos", icon: "image", module: "/apps/image-viewer/app.js", width: 900, height: 680, minWidth: 480, minHeight: 360, hidden: true, position: { left: .16, top: .08 } },
+    { id: "trash", name: "Corbeille", taskbarName: "Corb.", icon: "trash", module: "/apps/documents/app.js", width: 980, height: 660, minWidth: 620, minHeight: 400 },
+    { id: "browser", name: "Navigateur LUMA", taskbarName: "LUMA", icon: "browser", module: "/apps/web-frame/app.js", url: "https://mhemery.fr", width: 1080, height: 720 },
+    { id: "jellyfin", name: "Jellyfin", taskbarName: "Jelly", icon: "jellyfin", logo: "/images/interface-logo/applications/jellyfin.png", module: "/apps/web-frame/app.js", url: "https://jelly.mhemery.fr", width: 1100, height: 740 }
 ];
 
 const desktop = document.getElementById("luma-desktop");
@@ -17,9 +22,12 @@ const startApps = document.getElementById("start-apps");
 const toastRegion = document.getElementById("toast-region");
 let windowManager;
 let currentUser;
+let startupLaunched = false;
 
 function iconFor(app) {
-    const symbol = app.icon === "settings" ? "settings" : app.icon === "trash" ? "trash" : "folder";
+    if (app.logo) return `<span class="app-icon app-icon--image-logo"><img src="${app.logo}" alt=""></span>`;
+    const symbols = { settings: "settings", trash: "trash", notepad: "notepad", image: "image", activity: "activity", orbit: "orbit", chip: "chip" };
+    const symbol = symbols[app.icon] || "folder";
     return `<span class="app-icon app-icon--${app.icon}"><svg class="icon" aria-hidden="true"><use href="#icon-${symbol}"></use></svg></span>`;
 }
 
@@ -62,11 +70,21 @@ function setStartPanel(open) {
 
 function renderStartApps(filter = "") {
     const normalized = filter.trim().toLocaleLowerCase("fr");
-    const visible = apps.filter((app) => app.name.toLocaleLowerCase("fr").includes(normalized));
+    const visible = apps.filter((app) => !app.hidden && app.name.toLocaleLowerCase("fr").includes(normalized));
     startApps.innerHTML = visible.length ? visible.map((app) => `
         <button class="start-app" type="button" data-open-app="${app.id}">
             ${iconFor(app)}<span>${app.name}</span>
         </button>`).join("") : '<p class="start-empty">Aucune application trouvée.</p>';
+}
+
+function launchStartupApps() {
+    if (startupLaunched || !windowManager) return;
+    startupLaunched = true;
+    let startupIds = [];
+    try { startupIds = JSON.parse(localStorage.getItem("luma.startup-apps") || "[]"); } catch { startupIds = []; }
+    startupIds.filter((id) => apps.some((app) => app.id === id && !app.hidden)).forEach((id, index) => {
+        window.setTimeout(() => windowManager.openApp(id), index * 90);
+    });
 }
 
 function renderSessionScreen({ authenticated = false, authentication = {}, user = null, message = "" } = {}) {
@@ -90,18 +108,33 @@ function renderSessionScreen({ authenticated = false, authentication = {}, user 
 
 async function loadDesktopSession(user) {
     currentUser = user;
-    sessionRoot.hidden = true;
-    desktop.hidden = false;
+    const startedAt = performance.now();
+    desktop.hidden = true;
+    sessionRoot.hidden = false;
+    sessionRoot.innerHTML = `
+        <section class="luma-boot" aria-labelledby="boot-title">
+            <span class="luma-boot__logo"><svg class="icon" aria-hidden="true"><use href="#icon-luma"></use></svg></span>
+            <div><h1 id="boot-title">Luma OS</h1><p data-boot-status role="status" aria-live="polite">Vérification de la session…</p></div>
+            <div class="luma-boot__track" aria-hidden="true"><i data-boot-progress></i></div>
+        </section>`;
+    const bootStatus = sessionRoot.querySelector("[data-boot-status]");
+    const bootProgress = sessionRoot.querySelector("[data-boot-progress]");
+    const progress = (value, label) => {
+        bootProgress.style.transform = `scaleX(${value / 100})`;
+        bootStatus.textContent = label;
+    };
     const name = user?.displayName || user?.username || "Utilisateur Luma";
     document.getElementById("account-name").textContent = name;
     document.getElementById("account-avatar").textContent = name.trim().charAt(0).toLocaleUpperCase("fr") || "L";
     try {
+        progress(36, "Chargement de votre environnement…");
         applySettings(await requestJson("/api/users/me/settings"));
     } catch {
         applySettings({ theme: "luma", accentColor: "#6d5ee8", wallpaper: "./images/backgrounds/luma-aurora.webp", density: "comfortable", motion: "system" });
         toast("Les préférences n’ont pas pu être chargées.");
     }
     if (!windowManager) {
+        progress(72, "Initialisation du bureau…");
         windowManager = createWindowManager({
             layer: document.getElementById("window-layer"),
             taskbar: document.getElementById("taskbar-apps"),
@@ -110,9 +143,19 @@ async function loadDesktopSession(user) {
         });
         window.LumaOS = Object.freeze({
             openApp: windowManager.openApp,
-            setWindowState: windowManager.setAppState
+            closeWindow: windowManager.close,
+            getWindows: windowManager.getWindows,
+            setWindowState: windowManager.setAppState,
+            setWindowTitle: windowManager.setTitle
         });
     }
+    progress(100, "Votre espace est prêt.");
+    await new Promise((resolve) => window.setTimeout(resolve, Math.max(0, 760 - (performance.now() - startedAt))));
+    sessionRoot.querySelector(".luma-boot")?.classList.add("is-leaving");
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
+    sessionRoot.hidden = true;
+    desktop.hidden = false;
+    launchStartupApps();
 }
 
 async function bootstrap() {

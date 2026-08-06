@@ -8,9 +8,15 @@ function createTestConfig(overrides = {}) {
         host: '127.0.0.1',
         port: 0,
         appBaseUrl: 'http://127.0.0.1:3000',
+        version: '3.0.0-alpha.1',
         sessionSecret: 'test-session-secret-with-at-least-32-characters',
         sessionMaxAgeMs: 60 * 60 * 1000,
         ...overrides,
+        harmonix: {
+            baseUrl: 'https://harmonix.test',
+            timeoutMs: 1000,
+            ...(overrides.harmonix || {})
+        },
         kyros: {
             enabled: true,
             baseUrl: 'https://kyros.test',

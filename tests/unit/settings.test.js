@@ -56,3 +56,10 @@ test('un fond arbitraire est refusé', async () => {
         (error) => error.code === 'WALLPAPER_INVALID'
     );
 });
+
+test('les collections Full HD et 4K peuvent être sélectionnées', async () => {
+    const service = await createService();
+
+    assert.equal((await service.update('usr_one', { wallpaper: './images/backgrounds/background-12.jpg' })).wallpaper, './images/backgrounds/background-12.jpg');
+    assert.equal((await service.update('usr_one', { wallpaper: './images/backgrounds/4K/background-4k-04.jpg' })).wallpaper, './images/backgrounds/4K/background-4k-04.jpg');
+});

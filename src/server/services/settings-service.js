@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 const ALLOWED_THEMES = new Set(['light', 'dark', 'luma', 'system']);
 const ALLOWED_DENSITIES = new Set(['comfortable', 'compact']);
 const ALLOWED_MOTION = new Set(['full', 'reduced', 'system']);
-const WALLPAPER_PATTERN = /^\.\/images\/backgrounds\/(?:luma-aurora\.webp|background-04\.jpg)$/;
+const WALLPAPER_PATTERN = /^\.\/images\/backgrounds\/(?:luma-aurora\.webp|background-(?:0[1-9]|1[0-2])\.jpg|4K\/background-4k-0[1-4]\.jpg)$/;
 const ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const ALLOWED_FIELDS = new Set(Object.keys(DEFAULT_SETTINGS));
 
