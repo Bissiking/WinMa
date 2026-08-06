@@ -70,3 +70,43 @@ test('Sonora Studio exige un token issu de la session Kyros', async () => {
     assert.deepEqual(service.status('kyros-user-token'), { authenticated: true, apiVersion: '5.0.0', authentication: 'kyros' });
     await assert.rejects(service.listAlbums(null), (error) => error.code === 'KYROS_TOKEN_REQUIRED' && error.status === 401);
 });
+
+test('Sonora Studio relaie l’ordre des pistes d’un album et d’une playlist', async () => {
+    const requests = [];
+    const service = createSonoraStudioService(config, async (url, options = {}) => {
+        requests.push({ url, options });
+        return Response.json({ success: true, track_ids: ['track-2', 'track-1'] });
+    });
+
+    await service.setAlbumTracks('kyros-user-token', 'album-1', { track_ids: ['track-2', 'track-1'] });
+    await service.setPlaylistTracks('kyros-user-token', 'playlist-1', { track_ids: ['track-2', 'track-1'] });
+
+    assert.deepEqual(requests.map(({ url }) => url), [
+        'https://sonora.test/api/albums/album-1/tracks',
+        'https://sonora.test/api/playlists/playlist-1/tracks'
+    ]);
+    assert.ok(requests.every(({ options }) => options.method === 'PUT'));
+    assert.deepEqual(JSON.parse(requests[0].options.body), { track_ids: ['track-2', 'track-1'] });
+});
+
+test('Sonora Studio permet de lire et d’affecter les rôles d’un utilisateur Kyros', async () => {
+    const requests = [];
+    const service = createSonoraStudioService(config, async (url, options = {}) => {
+        requests.push({ url, options });
+        return Response.json([]);
+    });
+
+    await service.listRoles('kyros-user-token');
+    await service.getUserRoles('kyros-user-token', 'user@example.test');
+    await service.setUserRoles('kyros-user-token', 'user@example.test', { role_ids: ['editor'] });
+
+    assert.equal(requests[0].url, 'https://sonora.test/api/access/roles');
+    assert.equal(requests[1].url, 'https://sonora.test/api/access/users/user%40example.test/roles');
+    assert.equal(requests[2].options.method, 'PUT');
+    assert.deepEqual(JSON.parse(requests[2].options.body), { role_ids: ['editor'] });
+});
+
+test('Sonora Studio refuse un identifiant utilisateur contenant un séparateur de chemin', () => {
+    const service = createSonoraStudioService(config, async () => Response.json({}));
+    assert.throws(() => service.getUserRoles('kyros-user-token', '../admin'), (error) => error.code === 'SONORA_USER_ID_INVALID');
+});

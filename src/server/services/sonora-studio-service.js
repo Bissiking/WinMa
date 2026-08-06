@@ -1,6 +1,7 @@
 const { HttpError } = require('../utils/http-error');
 
 const ID_PATTERN = /^[a-zA-Z0-9._-]{1,160}$/;
+const USER_ID_PATTERN = /^[^\u0000-\u001f\u007f/]{1,255}$/u;
 
 function createTimeoutSignal(timeoutMs) {
     const controller = new AbortController();
@@ -67,6 +68,12 @@ function createSonoraStudioService(config, fetchImplementation = globalThis.fetc
         return encodeURIComponent(id);
     }
 
+    function safeUserId(value) {
+        const id = String(value || '').trim();
+        if (!USER_ID_PATTERN.test(id)) throw new HttpError(400, 'SONORA_USER_ID_INVALID', 'Identifiant utilisateur Kyros invalide.');
+        return encodeURIComponent(id);
+    }
+
     return {
         status: (accessToken) => ({ authenticated: Boolean(accessToken), apiVersion: '5.0.0', authentication: 'kyros' }),
         getIdentity: (accessToken) => request(accessToken, '/api/auth/me'),
@@ -76,13 +83,20 @@ function createSonoraStudioService(config, fetchImplementation = globalThis.fetc
             return request(accessToken, `/api/studio/music?${query}`);
         },
         listAlbums: (accessToken) => request(accessToken, '/api/albums'),
+        getAlbum: (accessToken, id) => request(accessToken, `/api/albums/${safeId(id)}`),
         createAlbum: (accessToken, body) => jsonRequest(accessToken, '/api/albums', 'POST', body),
         updateAlbum: (accessToken, id, body) => jsonRequest(accessToken, `/api/albums/${safeId(id)}`, 'PATCH', body),
+        setAlbumTracks: (accessToken, id, body) => jsonRequest(accessToken, `/api/albums/${safeId(id)}/tracks`, 'PUT', body),
         deleteAlbum: (accessToken, id) => request(accessToken, `/api/albums/${safeId(id)}`, { method: 'DELETE' }),
         listPlaylists: (accessToken) => request(accessToken, '/api/playlists'),
+        getPlaylist: (accessToken, id) => request(accessToken, `/api/playlists/${safeId(id)}`),
         createPlaylist: (accessToken, body) => jsonRequest(accessToken, '/api/playlists', 'POST', body),
         updatePlaylist: (accessToken, id, body) => jsonRequest(accessToken, `/api/playlists/${safeId(id)}`, 'PATCH', body),
+        setPlaylistTracks: (accessToken, id, body) => jsonRequest(accessToken, `/api/playlists/${safeId(id)}/tracks`, 'PUT', body),
         deletePlaylist: (accessToken, id) => request(accessToken, `/api/playlists/${safeId(id)}`, { method: 'DELETE' }),
+        listRoles: (accessToken) => request(accessToken, '/api/access/roles'),
+        getUserRoles: (accessToken, userId) => request(accessToken, `/api/access/users/${safeUserId(userId)}/roles`),
+        setUserRoles: (accessToken, userId, body) => jsonRequest(accessToken, `/api/access/users/${safeUserId(userId)}/roles`, 'PUT', body),
         updateTrack: (accessToken, id, body) => jsonRequest(accessToken, `/api/studio/music/${safeId(id)}`, 'PATCH', body),
         bulkTrackVisibility: (accessToken, body) => jsonRequest(accessToken, '/api/studio/music/bulk-visibility', 'PATCH', body),
         deleteTrack: (accessToken, id, deleteFile = false) => request(accessToken, `/api/studio/music/${safeId(id)}?deleteFile=${deleteFile ? 'true' : 'false'}`, { method: 'DELETE' }),

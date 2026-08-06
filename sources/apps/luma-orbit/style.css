@@ -27,6 +27,9 @@
 .orbit-node__logo { width: 52px; height: 52px; border-radius: 15px; transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out); }
 .orbit-node__logo .icon { width: 25px; height: 25px; }
 .orbit-node strong { font-size: 11px; }
+.orbit-node small { margin-top: -3px; color: var(--ink-muted); font-size: 9px; font-weight: 600; }
+.orbit-node.is-coming-soon .orbit-node__logo { filter: saturate(.42); opacity: .72; }
+.orbit-node.is-coming-soon:hover .orbit-node__logo, .orbit-node.is-coming-soon:focus-visible .orbit-node__logo { box-shadow: none; }
 .orbit-node--1 { top: 3%; left: 24%; }.orbit-node--2 { top: 3%; right: 24%; }.orbit-node--3 { top: 37%; right: 2%; }.orbit-node--4 { right: 21%; bottom: 0; }.orbit-node--5 { left: 21%; bottom: 0; }.orbit-node--6 { top: 37%; left: 2%; }
 .orbit-catalog { padding: 28px clamp(24px, 5vw, 56px) 46px; scroll-margin-top: 16px; }
 .orbit-catalog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
@@ -43,6 +46,8 @@
 .orbit-row p { margin: 4px 0 0; color: var(--ink-muted); font-size: 11px; line-height: 1.4; }
 .orbit-row > button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 8px; color: #fff; background: var(--luma-accent); font-weight: 600; font-size: 11px; }
 .orbit-row > button:disabled { color: var(--ink-muted); background: var(--surface-muted); }
+.orbit-row.is-coming-soon .orbit-app-logo { filter: saturate(.45); opacity: .72; }
+.orbit-row.is-coming-soon .orbit-row__status { color: color-mix(in srgb, var(--luma-accent), var(--ink) 36%); font-weight: 600; }
 .orbit-empty { padding: 30px 0; }
 .orbit-empty h3 { margin: 0 0 5px; }.orbit-empty p { margin: 0; color: var(--ink-muted); }
 @container (max-width: 760px) { .orbit-header { align-items: stretch; flex-direction: column; gap: 14px; } .orbit-search { width: 100%; } .orbit-map { grid-template-columns: 1fr; padding-top: 30px; } .orbit-map__copy { max-width: 54ch; } .orbit-system { min-height: 250px; } .orbit-row { grid-template-columns: 42px minmax(160px, 1fr) 96px; } .orbit-row__status { display: none; } }

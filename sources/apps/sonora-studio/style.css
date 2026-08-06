@@ -56,3 +56,103 @@
     .sonora-panel__tools { width: 100%; justify-content: space-between; }
     .sonora-bulk > span { display: none; }
 }
+
+/* Édition des collections et des droits Sonora. */
+.sonora-studio button,.sonora-studio input,.sonora-studio select { font-family: inherit; }
+.sonora-studio button { cursor: pointer; }
+.sonora-studio button:disabled { cursor: not-allowed; opacity: .45; }
+.sonora-studio :is(button,input,select,textarea):focus-visible { outline: 3px solid color-mix(in srgb,var(--sonora-accent),white 22%); outline-offset: 2px; }
+.sonora-card { width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 160ms ease-out, background 160ms ease-out, transform 160ms ease-out; }
+.sonora-card:hover { border-color: rgba(139,120,255,.32); background: rgba(139,120,255,.07); transform: translateY(-2px); }
+.sonora-card__copy { min-width: 0; display: grid; gap: 4px; }
+.sonora-card__copy strong { overflow: hidden; color: #f3f2fa; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.sonora-card__copy > span { min-height: 28px; overflow: hidden; color: #9296aa; font-size: 9px; line-height: 1.45; }
+.sonora-card__copy em { margin-top: 4px; color: #b7b1d8; font-size: 8px; font-style: normal; }
+
+.sonora-editor { max-width: 1050px; display: grid; gap: 16px; margin: 0 auto; }
+.sonora-editor__top { min-height: 34px; display: flex; align-items: center; justify-content: space-between; }
+.sonora-editor__top > button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 0; border: 0; color: #b7b9c9; background: transparent; font-size: 10px; }
+.sonora-editor__top > button:hover { color: #fff; }
+.sonora-editor__top .icon { width: 14px; }
+.sonora-editor__meta { display: grid; grid-template-columns: 148px minmax(0,1fr); gap: 20px; padding: 20px; border: 1px solid rgba(255,255,255,.075); border-radius: 15px; background: linear-gradient(125deg,rgba(139,120,255,.09),rgba(8,10,20,.55)); }
+.sonora-editor__art { min-height: 148px; display: grid; place-items: center; border-radius: 12px; color: #e7e3ff; background: radial-gradient(circle at 70% 25%,rgba(57,212,197,.38),transparent 28%),linear-gradient(145deg,#5949bd,#26213f); }
+.sonora-editor__art .icon { width: 42px; }
+.sonora-editor__meta form { min-width: 0; display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 12px; }
+.sonora-editor__meta form > div { grid-column: 1/-1; }
+.sonora-editor__meta h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.03em; }
+.sonora-editor__meta p { margin: 0; color: #9296aa; font-size: 10px; }
+.sonora-editor__meta label,.sonora-add-track > label,.sonora-access form > label { display: grid; gap: 6px; color: #a4a7b9; font-size: 9px; }
+.sonora-editor__meta input,.sonora-editor__meta select,.sonora-add-track select,.sonora-access input { min-width: 0; min-height: 39px; padding: 0 11px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; outline: 0; color: #f5f4fb; background: rgba(255,255,255,.045); font-size: 10px; }
+.sonora-editor__meta select,.sonora-add-track select { color-scheme: dark; }
+
+.sonora-sequencer { overflow: hidden; border: 1px solid rgba(255,255,255,.075); border-radius: 15px; background: rgba(8,10,20,.52); }
+.sonora-sequencer > header { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.sonora-sequencer h2 { margin: 0 0 4px; font-size: 14px; }
+.sonora-sequencer header p { margin: 0; color: #85899d; font-size: 9px; line-height: 1.45; }
+.sonora-add-track { display: grid; grid-template-columns: 155px minmax(0,1fr); align-items: center; gap: 14px; padding: 13px 18px; border-bottom: 1px solid rgba(255,255,255,.06); background: rgba(139,120,255,.045); }
+.sonora-add-track > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.sonora-add-track button { min-height: 39px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; border: 0; border-radius: 9px; color: #d9d5f7; background: rgba(139,120,255,.14); font-size: 9px; }
+.sonora-add-track .icon { width: 13px; }
+.sonora-sequence { margin: 0; padding: 0; list-style: none; }
+.sonora-sequence li { min-height: 58px; display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 8px 18px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.sonora-sequence li:last-child { border-bottom: 0; }
+.sonora-sequence li > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+.sonora-sequence li strong,.sonora-sequence li small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sonora-sequence li strong { font-size: 10px; }
+.sonora-sequence li small { color: #85899e; font-size: 8px; }
+.sonora-sequence li > div { display: flex; align-items: center; gap: 5px; }
+.sonora-sequence li button { min-width: 31px; min-height: 31px; display: grid; place-items: center; padding: 0 9px; border: 0; border-radius: 8px; color: #aeb1c3; background: rgba(255,255,255,.055); font-size: 8px; }
+.sonora-sequence li button:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,.1); }
+.sonora-sequence li button .icon { width: 12px; }
+.sonora-sequence [data-action="move-track-up"] .icon { transform: rotate(-90deg); }
+.sonora-sequence [data-action="move-track-down"] .icon { transform: rotate(90deg); }
+.sonora-sequence .sonora-remove { display: inline-flex; color: #e6a0a8; background: rgba(216,75,91,.08); }
+.sonora-sequence .sonora-sequence__empty { min-height: 110px; display: grid; place-items: center; color: #85899e; font-size: 10px; }
+
+.sonora-access { max-width: 940px; display: grid; gap: 16px; margin: 0 auto; }
+.sonora-access__intro { display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,.7fr); align-items: center; gap: 24px; padding: 21px; border: 1px solid rgba(255,255,255,.075); border-radius: 15px; background: linear-gradient(120deg,rgba(139,120,255,.1),rgba(57,212,197,.035)); }
+.sonora-access__intro > div { display: flex; align-items: center; gap: 14px; }
+.sonora-access__intro > div > span { width: 43px; height: 43px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 12px; color: var(--sonora-mint); background: rgba(57,212,197,.1); }
+.sonora-access__intro .icon { width: 20px; }
+.sonora-access h2 { margin: 0 0 5px; font-size: 17px; }
+.sonora-access p { max-width: 66ch; margin: 0; color: #9699ab; font-size: 10px; line-height: 1.55; }
+.sonora-access form { display: grid; gap: 7px; }
+.sonora-access form > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.sonora-role-panel { overflow: hidden; border: 1px solid rgba(255,255,255,.075); border-radius: 15px; background: rgba(8,10,20,.52); }
+.sonora-role-panel > header { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.sonora-role-panel header h2 { font-size: 14px; }
+.sonora-role-list { display: grid; grid-template-columns: 1fr 1fr; }
+.sonora-role { min-height: 92px; position: relative; display: grid; grid-template-columns: 18px minmax(0,1fr); align-items: start; gap: 11px; padding: 17px; border-bottom: 1px solid rgba(255,255,255,.055); cursor: pointer; }
+.sonora-role:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.055); }
+.sonora-role:hover { background: rgba(255,255,255,.025); }
+.sonora-role input { width: 16px; height: 16px; accent-color: var(--sonora-accent); }
+.sonora-role > span { min-width: 0; display: grid; gap: 4px; }
+.sonora-role strong { font-size: 11px; }
+.sonora-role small { color: #9a9daf; font-size: 9px; }
+.sonora-role em { overflow: hidden; color: #777b90; font-family: ui-monospace,SFMono-Regular,Consolas,monospace; font-size: 7px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.sonora-role b { position: absolute; top: 14px; right: 14px; color: #8e91a5; font-size: 7px; font-weight: 600; text-transform: uppercase; }
+.sonora-access__notice { padding: 13px 18px; border-top: 1px solid rgba(255,255,255,.06); background: rgba(224,160,82,.06); }
+.sonora-access__notice code,.sonora-offline code { color: #d1caff; }
+.sonora-access__empty { min-height: 230px; display: grid; place-items: center; align-content: center; gap: 8px; border: 1px dashed rgba(255,255,255,.1); border-radius: 15px; text-align: center; }
+.sonora-access__empty > .icon { width: 28px; color: var(--sonora-accent); }
+
+@container (max-width: 760px) {
+    .sonora-editor__meta { grid-template-columns: 110px minmax(0,1fr); }
+    .sonora-editor__art { min-height: 110px; }
+    .sonora-editor__meta form { grid-template-columns: 1fr; }
+    .sonora-editor__meta form > div { grid-column: auto; }
+    .sonora-access__intro { grid-template-columns: 1fr; }
+}
+
+@container (max-width: 540px) {
+    .sonora-editor__meta { grid-template-columns: 1fr; }
+    .sonora-editor__art { min-height: 120px; }
+    .sonora-sequencer > header { align-items: flex-start; flex-direction: column; }
+    .sonora-sequencer > header .sonora-primary { width: 100%; }
+    .sonora-add-track { grid-template-columns: 1fr; }
+    .sonora-sequence li { grid-template-columns: 30px minmax(0,1fr); }
+    .sonora-sequence li > div { grid-column: 2; }
+    .sonora-role-list { grid-template-columns: 1fr; }
+    .sonora-role:nth-child(odd) { border-right: 0; }
+    .sonora-access form > div { grid-template-columns: 1fr; }
+}

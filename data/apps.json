@@ -76,6 +76,21 @@
     }
   },
   {
+    "id": "braindump",
+    "name": "BrainDump",
+    "icon": "/images/interface-logo/applications/braindump.svg",
+    "entry": "/apps/braindump/app.js",
+    "type": "internal",
+    "enabled": true,
+    "pinned": false,
+    "window": {
+      "width": 1040,
+      "height": 700,
+      "minWidth": 620,
+      "minHeight": 440
+    }
+  },
+  {
     "id": "jellyfin",
     "name": "Jellyfin",
     "icon": "/images/interface-logo/applications/jellyfin.png",

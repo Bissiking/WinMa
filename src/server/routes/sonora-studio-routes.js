@@ -23,12 +23,19 @@ function createSonoraStudioRoutes(controller, requireSession, requireSameOrigin)
     router.post('/api/sonora-studio/upload', ...write, upload.single('file'), requireAudio, asyncHandler(controller.uploadTrack));
     router.get('/api/sonora-studio/albums', requireSession, asyncHandler(controller.albums));
     router.post('/api/sonora-studio/albums', ...write, asyncHandler(controller.createAlbum));
+    router.get('/api/sonora-studio/albums/:id', requireSession, asyncHandler(controller.album));
+    router.put('/api/sonora-studio/albums/:id/tracks', ...write, asyncHandler(controller.setAlbumTracks));
     router.patch('/api/sonora-studio/albums/:id', ...write, asyncHandler(controller.updateAlbum));
     router.delete('/api/sonora-studio/albums/:id', ...write, asyncHandler(controller.deleteAlbum));
     router.get('/api/sonora-studio/playlists', requireSession, asyncHandler(controller.playlists));
     router.post('/api/sonora-studio/playlists', ...write, asyncHandler(controller.createPlaylist));
+    router.get('/api/sonora-studio/playlists/:id', requireSession, asyncHandler(controller.playlist));
+    router.put('/api/sonora-studio/playlists/:id/tracks', ...write, asyncHandler(controller.setPlaylistTracks));
     router.patch('/api/sonora-studio/playlists/:id', ...write, asyncHandler(controller.updatePlaylist));
     router.delete('/api/sonora-studio/playlists/:id', ...write, asyncHandler(controller.deletePlaylist));
+    router.get('/api/sonora-studio/access/roles', requireSession, asyncHandler(controller.roles));
+    router.get('/api/sonora-studio/access/users/:userId/roles', requireSession, asyncHandler(controller.userRoles));
+    router.put('/api/sonora-studio/access/users/:userId/roles', ...write, asyncHandler(controller.setUserRoles));
     return router;
 }
 

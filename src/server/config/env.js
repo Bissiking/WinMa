@@ -48,6 +48,10 @@ function loadConfig(environment = process.env) {
         environment.LUMA_SONORA_STUDIO_BASE_URL || 'http://localhost:6002',
         'LUMA_SONORA_STUDIO_BASE_URL'
     );
+    const brainDumpBaseUrl = parseUrl(
+        environment.LUMA_BRAINDUMP_BASE_URL || 'https://note-orbis.mhemery.fr',
+        'LUMA_BRAINDUMP_BASE_URL'
+    );
     const sessionSecret = environment.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
     if (isProduction && !environment.SESSION_SECRET) {
@@ -104,6 +108,10 @@ function loadConfig(environment = process.env) {
         sonoraStudio: {
             baseUrl: sonoraStudioBaseUrl,
             timeoutMs: parseInteger(environment.LUMA_SONORA_STUDIO_TIMEOUT_MS, 15000, 'LUMA_SONORA_STUDIO_TIMEOUT_MS')
+        },
+        brainDump: {
+            baseUrl: brainDumpBaseUrl,
+            timeoutMs: parseInteger(environment.LUMA_BRAINDUMP_TIMEOUT_MS, 10000, 'LUMA_BRAINDUMP_TIMEOUT_MS')
         },
         kyros
     };

@@ -5,6 +5,7 @@
  * DOM harmonix:state / harmonix:command.
  */
 const player = document.querySelector("#harmonix-player");
+const HARMONIX_ENABLED_KEY = "luma.harmonix.enabled";
 
 if (player) {
     const slot = player.closest(".harmonix-player-slot");
@@ -49,6 +50,7 @@ if (player) {
         updatedAt: performance.now()
     };
     let catalogController;
+    let enabled = localStorage.getItem(HARMONIX_ENABLED_KEY) !== "false";
 
     const channel = "BroadcastChannel" in window ? new BroadcastChannel("harmonix") : null;
 
@@ -452,6 +454,23 @@ if (player) {
         updateTitleScrolling();
     }
 
+    function setEnabled(nextEnabled, { persist = true } = {}) {
+        enabled = Boolean(nextEnabled);
+        if (persist) localStorage.setItem(HARMONIX_ENABLED_KEY, String(enabled));
+        player.dataset.enabled = String(enabled);
+        slot.hidden = !enabled;
+        slot.setAttribute("aria-hidden", String(!enabled));
+        if (enabled) {
+            loadPublicCatalog();
+            return;
+        }
+        catalogController?.abort();
+        elements.audio.pause();
+        elements.audio.removeAttribute("src");
+        elements.audio.load();
+        setExpanded(false);
+    }
+
     elements.expand.addEventListener("click", () => setExpanded(player.dataset.expanded !== "true"));
     elements.play.addEventListener("click", () => sendCommand("toggle-playback"));
     elements.playExpanded.addEventListener("click", () => sendCommand("toggle-playback"));
@@ -526,6 +545,7 @@ if (player) {
         if (event.key === "Escape" && player.dataset.expanded === "true") setExpanded(false);
     });
     window.addEventListener("resize", updateTitleScrolling);
+    window.addEventListener("luma:harmonix-enabled", (event) => setEnabled(event.detail?.enabled));
 
     if ("mediaSession" in navigator) {
         try {
@@ -541,9 +561,11 @@ if (player) {
     window.HarmonixPlayer = Object.freeze({
         setState: setRemoteState,
         reload: loadPublicCatalog,
-        collapse: () => setExpanded(false)
+        collapse: () => setExpanded(false),
+        setEnabled,
+        isEnabled: () => enabled
     });
     channel?.postMessage({ source: "luma-os", type: "request-state" });
     window.setInterval(renderTimeline, 1000);
-    loadPublicCatalog();
+    setEnabled(enabled, { persist: false });
 }

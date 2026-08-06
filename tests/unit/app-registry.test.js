@@ -16,6 +16,7 @@ test('le registre charge uniquement des applications déclarées', async () => {
         'settings',
         'browser',
         'sonora-studio',
+        'braindump',
         'jellyfin'
     ]);
 });

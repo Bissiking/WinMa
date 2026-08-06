@@ -2,12 +2,12 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character
 const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
 
 const catalog = [
-    { id: "nino", name: "Nino", icon: "luma", color: "#e8925b", category: "Création", description: "Un futur compagnon créatif de l’écosystème LUMA.", status: "Aperçu" },
-    { id: "braindump", name: "BrainDump", icon: "notepad", color: "#54b693", category: "Productivité", description: "Un espace destiné à capturer et organiser les idées.", status: "Aperçu" },
+    { id: "nino", name: "Nino", icon: "luma", color: "#e8925b", category: "Création", description: "Un futur compagnon créatif de l’écosystème LUMA.", status: "Bientôt", available: false },
+    { id: "braindump", name: "BrainDump", icon: "notepad", color: "#54b693", category: "Productivité", description: "Capturez une pensée et classez-la automatiquement par type, priorité, projet et échéance.", status: "Disponible", action: "braindump" },
     { id: "kyros", name: "Kyros", icon: "user", color: "#6e72e8", category: "Identité", description: "Votre compte et votre identité partagée dans l’écosystème.", status: "Intégré", action: "settings" },
     { id: "harmonix", name: "Harmonix", icon: "music", color: "#b05fe0", category: "Audio", description: "La bibliothèque musicale reliée au lecteur de Luma OS.", status: "Intégré", action: "harmonix" },
     { id: "sonora-studio", name: "Sonora Studio", icon: "music", color: "#8b78ff", category: "Audio", description: "Administrez le catalogue Sonora, les imports, albums et playlists depuis Luma OS.", status: "Disponible", action: "sonora-studio" },
-    { id: "arc", name: "A.R.C.", icon: "luma-network", color: "#3a9fd0", category: "Réseau", description: "Une future porte d’entrée vers les services A.R.C.", status: "Aperçu" }
+    { id: "arc", name: "A.R.C.", icon: "luma-network", color: "#3a9fd0", category: "Réseau", description: "Une future porte d’entrée vers les services A.R.C.", status: "Bientôt", available: false }
 ];
 
 function appLogo(app, className = "orbit-app-logo") {
@@ -17,6 +17,7 @@ function appLogo(app, className = "orbit-app-logo") {
 export function mount(root, { open, toast }) {
     let query = "";
     let installed;
+    let harmonixEnabled = localStorage.getItem("luma.harmonix.enabled") !== "false";
     try { installed = new Set(JSON.parse(localStorage.getItem("luma.orbit.installed") || "[]")); } catch { installed = new Set(); }
 
     root.innerHTML = `
@@ -31,7 +32,7 @@ export function mount(root, { open, toast }) {
                 <div class="orbit-system" aria-label="Applications reliées à Luma OS">
                     <i class="orbit-path orbit-path--one"></i><i class="orbit-path orbit-path--two"></i>
                     <span class="orbit-core"><span>${icon("orbit")}</span><strong>Luma OS</strong></span>
-                    ${catalog.map((app, index) => `<button type="button" class="orbit-node orbit-node--${index + 1}" data-orbit-focus="${app.id}" aria-label="Voir ${app.name}">${appLogo(app, "orbit-node__logo")}<strong>${app.name}</strong></button>`).join("")}
+                    ${catalog.map((app, index) => `<button type="button" class="orbit-node orbit-node--${index + 1}${app.available === false ? " is-coming-soon" : ""}" data-orbit-focus="${app.id}" aria-label="Voir ${app.name}${app.available === false ? ", bientôt disponible" : ""}">${appLogo(app, "orbit-node__logo")}<strong>${app.name}</strong>${app.available === false ? "<small>Bientôt</small>" : ""}</button>`).join("")}
                 </div>
             </section>
             <section class="orbit-catalog" aria-labelledby="orbit-catalog-title">
@@ -47,13 +48,16 @@ export function mount(root, { open, toast }) {
         const visible = catalog.filter((app) => `${app.name} ${app.category} ${app.description}`.toLocaleLowerCase("fr").includes(query));
         root.querySelector("[data-orbit-count]").textContent = String(visible.length);
         list.innerHTML = visible.length ? visible.map((app) => {
-            const isInstalled = installed.has(app.id);
-            const actionLabel = app.action === "settings" ? "Ouvrir le compte" : app.action === "harmonix" ? "Déjà actif" : app.action === "sonora-studio" && isInstalled ? "Ouvrir" : app.action === "sonora-studio" ? "Activer" : isInstalled ? "Retirer" : "Ajouter";
-            return `<article class="orbit-row" data-orbit-app="${app.id}">
+            const isComingSoon = app.available === false;
+            const isHarmonix = app.action === "harmonix";
+            const isInstalled = !isComingSoon && (isHarmonix ? harmonixEnabled : installed.has(app.id));
+            const actionLabel = isComingSoon ? "Bientôt" : app.action === "settings" ? "Ouvrir le compte" : isHarmonix ? (isInstalled ? "Désactiver" : "Activer") : app.action && isInstalled ? "Ouvrir" : app.action ? "Activer" : isInstalled ? "Retirer" : "Ajouter";
+            const statusLabel = isHarmonix ? (isInstalled ? "Intégré" : "Désactivé") : isInstalled ? "Ajoutée au prototype" : app.status;
+            return `<article class="orbit-row${isComingSoon ? " is-coming-soon" : ""}" data-orbit-app="${app.id}">
                 ${appLogo(app)}
                 <div class="orbit-row__copy"><div><h3>${escapeHtml(app.name)}</h3><span>${escapeHtml(app.category)}</span></div><p>${escapeHtml(app.description)}</p></div>
-                <span class="orbit-row__status">${escapeHtml(isInstalled ? "Ajoutée au prototype" : app.status)}</span>
-                <button type="button" data-orbit-action="${app.id}" ${app.action === "harmonix" ? "disabled" : ""}>${actionLabel}</button>
+                <span class="orbit-row__status">${escapeHtml(statusLabel)}</span>
+                <button type="button" data-orbit-action="${app.id}" ${isComingSoon ? "disabled" : ""}>${actionLabel}</button>
             </article>`;
         }).join("") : `<div class="orbit-empty"><h3>Aucune application trouvée</h3><p>Essayez un autre nom ou une autre catégorie.</p></div>`;
     }
@@ -69,8 +73,17 @@ export function mount(root, { open, toast }) {
             root.querySelector(".orbit-catalog").scrollIntoView({ behavior: "smooth", block: "start" });
         } else if (actionId) {
             const app = catalog.find((item) => item.id === actionId);
+            if (app.available === false) return;
             if (app.action === "settings") { open("settings"); return; }
-            if (app.action === "sonora-studio" && installed.has(actionId)) { open("sonora-studio"); return; }
+            if (app.action === "harmonix") {
+                harmonixEnabled = !harmonixEnabled;
+                localStorage.setItem("luma.harmonix.enabled", String(harmonixEnabled));
+                window.dispatchEvent(new CustomEvent("luma:harmonix-enabled", { detail: { enabled: harmonixEnabled } }));
+                render();
+                toast?.(`Harmonix a été ${harmonixEnabled ? "activé" : "désactivé"}.`);
+                return;
+            }
+            if (app.action && installed.has(actionId)) { open(app.action); return; }
             installed.has(actionId) ? installed.delete(actionId) : installed.add(actionId);
             localStorage.setItem("luma.orbit.installed", JSON.stringify([...installed]));
             window.dispatchEvent(new CustomEvent("luma:apps-changed"));

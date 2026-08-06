@@ -20,6 +20,11 @@ async function configure(page) {
     let settings = { wallpaper: "./images/backgrounds/luma-aurora.webp", theme: "luma", accentColor: "#6d5ee8", density: "comfortable", motion: "system" };
     let preferences = { preferredName: "", language: "fr-FR", timeZone: "auto", syncProfile: true, syncAppearance: true };
     const storage = { usedBytes: 3619635, quotaBytes: 1073741824, availableBytes: 1070122189 };
+    let brainNotes = [
+        { id: 3, content: "Préparer la présentation de Luma OS vendredi", type: "task", priority: "high", project: "LUMA", dueDate: "2026-08-07T09:00:00.000Z", tags: ["frontend"], confidence: 91, createdAt: "2026-08-06T09:20:00.000Z" },
+        { id: 2, content: "Idée : relier BrainDump au bureau LUMA", type: "idea", priority: "normal", project: "LUMA", dueDate: null, tags: ["api"], confidence: 88, createdAt: "2026-08-05T16:10:00.000Z" },
+        { id: 1, content: "Ne pas oublier la rotation des jetons Kyros", type: "reminder", priority: "normal", project: "Kyros", dueDate: "2026-08-08T08:00:00.000Z", tags: ["security"], confidence: 94, createdAt: "2026-08-04T11:30:00.000Z" }
+    ];
     const accountView = () => ({
         identity: { username: "matheo", displayName: "Mathéo", provider: "Kyros" },
         preferences,
@@ -47,6 +52,15 @@ async function configure(page) {
             data = accountView();
         } else if (pathname === "/api/users/me/context") {
             data = { schemaVersion: 1, profile: preferences.syncProfile ? preferences : null, appearance: preferences.syncAppearance ? settings : null };
+        } else if (pathname === "/api/braindump/notes" && request.method() === "GET") data = brainNotes;
+        else if (pathname === "/api/braindump/analyze") data = { type: "task", priority: "high", project: "LUMA", dueDate: "2026-08-07T09:00:00.000Z", tags: ["frontend"], confidence: 92 };
+        else if (pathname === "/api/braindump/notes" && request.method() === "POST") {
+            const created = { id: 4, content: request.postDataJSON().content, type: "task", priority: "high", project: "LUMA", dueDate: null, tags: [], confidence: 90, createdAt: new Date().toISOString() };
+            brainNotes = [created, ...brainNotes];
+            data = created;
+        } else if (/^\/api\/braindump\/notes\/\d+$/.test(pathname) && request.method() === "DELETE") {
+            brainNotes = brainNotes.filter((note) => String(note.id) !== pathname.split("/").at(-1));
+            data = null;
         } else if (pathname === "/api/apps") {
             data = [
                 { id: "documents", name: "Documents", type: "system" },
@@ -129,6 +143,20 @@ await orbitWindow.locator(".orbit-app").waitFor();
 if (await orbitWindow.locator(".orbit-row").count() !== 6) throw new Error("Le catalogue Luma Orbit est incomplet.");
 await desktop.waitForTimeout(600);
 if (!skipScreenshots) await desktop.screenshot({ path: `${outputDirectory}luma-orbit-desktop.png`, fullPage: true });
+await orbitWindow.locator('[data-orbit-action="braindump"]').click();
+await orbitWindow.locator('[data-orbit-action="braindump"]').click();
+const brainDumpWindow = desktop.locator('.luma-window[aria-label="BrainDump"]');
+await brainDumpWindow.locator(".braindump-app").waitFor();
+await brainDumpWindow.locator("[data-note]").fill("Préparer le déploiement LUMA demain");
+await brainDumpWindow.locator("[data-analyze]").click();
+await brainDumpWindow.locator(".braindump-analysis").waitFor();
+await brainDumpWindow.locator("[data-save]").click();
+await brainDumpWindow.getByText("Préparer le déploiement LUMA demain").waitFor();
+const brainDumpWidth = await brainDumpWindow.locator(".braindump-app").evaluate((element) => ({ width: element.scrollWidth, client: element.clientWidth }));
+if (brainDumpWidth.width > brainDumpWidth.client + 2) throw new Error("BrainDump déborde horizontalement sur desktop.");
+await desktop.waitForTimeout(350);
+if (!skipScreenshots) await desktop.screenshot({ path: `${outputDirectory}braindump-desktop.png`, fullPage: true });
+await brainDumpWindow.locator('[data-window-action="minimize"]').click();
 await orbitWindow.locator('[data-window-action="minimize"]').click();
 await desktop.locator("#luma-launcher").click();
 await desktop.locator('.start-app[data-open-app="matheo-systems"]').click();
@@ -177,6 +205,14 @@ if (mobileOrbitWidth.width > mobileOrbitWidth.client + 2) throw new Error("Luma 
 await mobile.waitForTimeout(600);
 if (!skipScreenshots) await mobile.screenshot({ path: `${outputDirectory}luma-orbit-mobile.png`, fullPage: true });
 await mobile.locator('.luma-window[aria-label="Luma Orbit"] [data-window-action="minimize"]').click();
+await mobile.evaluate(() => window.LumaOS.openApp("braindump"));
+const mobileBrainDump = mobile.locator('.luma-window[aria-label="BrainDump"]');
+await mobileBrainDump.locator(".braindump-app").waitFor();
+const mobileBrainDumpWidth = await mobileBrainDump.locator(".braindump-app").evaluate((element) => ({ width: element.scrollWidth, client: element.clientWidth }));
+if (mobileBrainDumpWidth.width > mobileBrainDumpWidth.client + 2) throw new Error("BrainDump déborde horizontalement sur mobile.");
+await mobile.waitForTimeout(350);
+if (!skipScreenshots) await mobile.screenshot({ path: `${outputDirectory}braindump-mobile.png`, fullPage: true });
+await mobileBrainDump.locator('[data-window-action="minimize"]').click();
 await mobile.locator("#luma-launcher").click();
 await mobile.locator('.start-app[data-open-app="matheo-systems"]').click();
 const mobileMatheo = mobile.locator('.luma-window[aria-label="Matheo Systems"]');

@@ -13,6 +13,7 @@ const { createSqliteDocumentRepository } = require('./repositories/sqlite-docume
 const { createDocumentService } = require('./services/document-service');
 const { createHarmonixService } = require('./services/harmonix-service');
 const { createSonoraStudioService } = require('./services/sonora-studio-service');
+const { createBrainDumpService } = require('./services/braindump-service');
 const { createAuthController } = require('./controllers/auth-controller');
 const { createSessionController } = require('./controllers/session-controller');
 const { createAppsController } = require('./controllers/apps-controller');
@@ -21,6 +22,7 @@ const { createAccountController } = require('./controllers/account-controller');
 const { createDocumentsController } = require('./controllers/documents-controller');
 const { createHarmonixController } = require('./controllers/harmonix-controller');
 const { createSonoraStudioController } = require('./controllers/sonora-studio-controller');
+const { createBrainDumpController } = require('./controllers/braindump-controller');
 const { createAuthRoutes } = require('./routes/auth-routes');
 const { createSessionRoutes } = require('./routes/session-routes');
 const { createAppsRoutes } = require('./routes/apps-routes');
@@ -29,6 +31,7 @@ const { createAccountRoutes } = require('./routes/account-routes');
 const { createDocumentsRoutes } = require('./routes/documents-routes');
 const { createHarmonixRoutes } = require('./routes/harmonix-routes');
 const { createSonoraStudioRoutes } = require('./routes/sonora-studio-routes');
+const { createBrainDumpRoutes } = require('./routes/braindump-routes');
 const { createApiRoutes } = require('./routes/api');
 const { createRequireSameOrigin } = require('./middlewares/require-same-origin');
 const { createRequireSession } = require('./middlewares/require-session');
@@ -57,6 +60,9 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const sonoraStudioService = createSonoraStudioService(config.sonoraStudio || {
         baseUrl: 'http://localhost:6002', timeoutMs: 15000
     }, fetchImplementation);
+    const brainDumpService = createBrainDumpService(config.brainDump || {
+        baseUrl: 'https://note-orbis.mhemery.fr', timeoutMs: 10000
+    }, fetchImplementation);
     const kyrosService = createKyrosService(config.kyros, fetchImplementation);
     const sessionService = createSessionService(kyrosService);
     const authController = createAuthController({ config, kyrosService, sessionService });
@@ -72,6 +78,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const documentsController = createDocumentsController(documentService);
     const harmonixController = createHarmonixController(harmonixService);
     const sonoraStudioController = createSonoraStudioController(sonoraStudioService);
+    const brainDumpController = createBrainDumpController(brainDumpService);
     const requireSameOrigin = createRequireSameOrigin(config.appBaseUrl);
     const requireSession = createRequireSession(sessionService);
 
@@ -106,6 +113,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     app.use(createDocumentsRoutes(documentsController, requireSession, requireSameOrigin));
     app.use(createHarmonixRoutes(harmonixController));
     app.use(createSonoraStudioRoutes(sonoraStudioController, requireSession, requireSameOrigin));
+    app.use(createBrainDumpRoutes(brainDumpController, requireSession, requireSameOrigin));
     app.use(createApiRoutes({ version: config.version, requireSession }));
     app.use(express.static(legacyPublicRoot, { index: false }));
     app.get('/', (req, res) => res.sendFile(path.join(projectRoot, 'index.html')));

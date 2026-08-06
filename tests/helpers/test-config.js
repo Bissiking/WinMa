@@ -17,6 +17,11 @@ function createTestConfig(overrides = {}) {
             timeoutMs: 1000,
             ...(overrides.harmonix || {})
         },
+        brainDump: {
+            baseUrl: 'https://braindump.test',
+            timeoutMs: 1000,
+            ...(overrides.brainDump || {})
+        },
         kyros: {
             enabled: true,
             baseUrl: 'https://kyros.test',
