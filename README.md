@@ -30,6 +30,8 @@ Créer une application distincte pour Luma OS dans Kyros puis renseigner `.env` 
 - `LUMA_KYROS_CALLBACK_URL` enregistré à l'identique dans Kyros ;
 - les scopes demandés et requis.
 
+Sonora Studio utilise `LUMA_SONORA_STUDIO_BASE_URL`. Le serveur Express transmet à Sonora le token Kyros de la session utilisateur dans l’en-tête `Authorization`; ce token n’est jamais transmis au frontend.
+
 Le navigateur est redirigé vers `/authorize`. Le code est échangé par Express sur `/token`. Les access et refresh tokens restent dans la session serveur et ne sont jamais transmis au frontend. La déconnexion appelle `/revoke` puis détruit la session Luma OS.
 
 ## Scripts
@@ -67,6 +69,9 @@ Ajouter une entrée validée dans `data/apps.json`. Un identifiant doit contenir
 - `POST /api/auth/logout` ;
 - `GET /api/session` ;
 - `GET /api/apps` et `GET /api/apps/:appId` ;
+- `GET /api/sonora-studio/status`, `/me`, `/tracks`, `/albums` et `/playlists` ;
+- `POST /api/sonora-studio/upload`, `/albums` et `/playlists` ainsi que les opérations de modification associées ;
+- `PATCH /api/sonora-studio/tracks/bulk-visibility` pour publier ou dépublier une sélection ;
 - `GET /api/users/me/settings` ;
 - `PATCH /api/users/me/settings`.
 - `GET` et `PATCH /api/users/me/account` ;

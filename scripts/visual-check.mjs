@@ -126,7 +126,7 @@ await desktop.locator("#luma-launcher").click();
 await desktop.locator('.start-app[data-open-app="luma-orbit"]').click();
 const orbitWindow = desktop.locator('.luma-window[aria-label="Luma Orbit"]');
 await orbitWindow.locator(".orbit-app").waitFor();
-if (await orbitWindow.locator(".orbit-row").count() !== 5) throw new Error("Le catalogue Luma Orbit est incomplet.");
+if (await orbitWindow.locator(".orbit-row").count() !== 6) throw new Error("Le catalogue Luma Orbit est incomplet.");
 await desktop.waitForTimeout(600);
 if (!skipScreenshots) await desktop.screenshot({ path: `${outputDirectory}luma-orbit-desktop.png`, fullPage: true });
 await orbitWindow.locator('[data-window-action="minimize"]').click();

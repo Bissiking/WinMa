@@ -61,6 +61,21 @@
     }
   },
   {
+    "id": "sonora-studio",
+    "name": "Sonora Studio",
+    "icon": "/images/interface-logo/applications/sonora-studio.svg",
+    "entry": "/apps/sonora-studio/app.js",
+    "type": "internal",
+    "enabled": true,
+    "pinned": false,
+    "window": {
+      "width": 1120,
+      "height": 740,
+      "minWidth": 700,
+      "minHeight": 480
+    }
+  },
+  {
     "id": "jellyfin",
     "name": "Jellyfin",
     "icon": "/images/interface-logo/applications/jellyfin.png",

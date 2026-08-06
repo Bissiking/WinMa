@@ -6,6 +6,7 @@ const apps = [
     { id: "settings", name: "Paramètres", taskbarName: "Config", icon: "settings", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
     { id: "task-manager", name: "Gestionnaire des tâches", taskbarName: "Tâches", icon: "activity", module: "/apps/task-manager/app.js", width: 920, height: 650, minWidth: 660, minHeight: 440, position: { left: .12, top: .08 } },
     { id: "luma-orbit", name: "Luma Orbit", taskbarName: "Orbit", icon: "orbit", module: "/apps/luma-orbit/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 480, position: { left: .09, top: .06 } },
+    { id: "sonora-studio", name: "Sonora Studio", taskbarName: "Sonora", icon: "music", logo: "/images/interface-logo/applications/sonora-studio.svg", module: "/apps/sonora-studio/app.js", width: 1120, height: 740, minWidth: 700, minHeight: 480, storeManaged: true, position: { left: .06, top: .04 } },
     { id: "matheo-systems", name: "Matheo Systems", taskbarName: "Matheo", icon: "chip", module: "/apps/matheo-systems/app.js", width: 1060, height: 730, minWidth: 700, minHeight: 500, position: { left: .08, top: .05 } },
     { id: "notepad", name: "Bloc-notes", taskbarName: "Notes", icon: "notepad", module: "/apps/notepad/app.js", width: 800, height: 640, minWidth: 520, minHeight: 400, position: { left: .18, top: .1 } },
     { id: "image-viewer", name: "Photos Luma", taskbarName: "Photos", icon: "image", module: "/apps/image-viewer/app.js", width: 900, height: 680, minWidth: 480, minHeight: 360, hidden: true, position: { left: .16, top: .08 } },
@@ -70,7 +71,9 @@ function setStartPanel(open) {
 
 function renderStartApps(filter = "") {
     const normalized = filter.trim().toLocaleLowerCase("fr");
-    const visible = apps.filter((app) => !app.hidden && app.name.toLocaleLowerCase("fr").includes(normalized));
+    let installed = new Set();
+    try { installed = new Set(JSON.parse(localStorage.getItem("luma.orbit.installed") || "[]")); } catch { installed = new Set(); }
+    const visible = apps.filter((app) => !app.hidden && (!app.storeManaged || installed.has(app.id)) && app.name.toLocaleLowerCase("fr").includes(normalized));
     startApps.innerHTML = visible.length ? visible.map((app) => `
         <button class="start-app" type="button" data-open-app="${app.id}">
             ${iconFor(app)}<span>${app.name}</span>
@@ -211,4 +214,5 @@ function updateClock() {
 updateClock();
 window.setInterval(updateClock, 30_000);
 window.addEventListener("luma:settings", (event) => applySettings(event.detail));
+window.addEventListener("luma:apps-changed", () => renderStartApps(document.getElementById("app-search").value));
 bootstrap();

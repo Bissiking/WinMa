@@ -6,10 +6,11 @@ const { createApp } = require('../../src/server/app');
 const { createTestConfig } = require('../helpers/test-config');
 const { extractCookie, startTestServer, stopTestServer } = require('../helpers/test-server');
 
-const config = createTestConfig();
+const config = createTestConfig({ sonoraStudio: { baseUrl: 'https://sonora.test', timeoutMs: 1000 } });
 let baseUrl;
 let server;
 let providerCalls;
+let sonoraCalls;
 
 function createToken(overrides = {}) {
     return jwt.sign(
@@ -33,6 +34,10 @@ function createToken(overrides = {}) {
 }
 
 async function fakeKyrosFetch(url, options) {
+    if (url.startsWith('https://sonora.test')) {
+        sonoraCalls.push({ url, authorization: new Headers(options.headers).get('authorization') });
+        return Response.json({ items: [{ id: 'track-1', title: 'Lueur' }] });
+    }
     providerCalls.push({ url, body: JSON.parse(options.body) });
 
     if (url.endsWith('/revoke')) {
@@ -61,6 +66,7 @@ async function fakeKyrosFetch(url, options) {
 
 before(async () => {
     providerCalls = [];
+    sonoraCalls = [];
     const started = await startTestServer(createApp({ config, fetchImplementation: fakeKyrosFetch }));
     baseUrl = started.baseUrl;
     server = started.server;
@@ -147,4 +153,23 @@ test('la déconnexion révoque le refresh token et détruit la session', async (
     assert.equal(logoutResponse.status, 200);
     assert.equal(sessionPayload.data.authenticated, false);
     assert.ok(providerCalls.some((call) => call.url.endsWith('/revoke')));
+});
+
+test('Sonora reçoit le token Kyros utilisateur conservé dans la session serveur', async () => {
+    const loginResponse = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
+    const authorizeUrl = new URL(loginResponse.headers.get('location'));
+    const callbackResponse = await fetch(
+        `${baseUrl}/auth/callback?code=valid-code&state=${encodeURIComponent(authorizeUrl.searchParams.get('state'))}`,
+        { headers: { cookie: extractCookie(loginResponse) }, redirect: 'manual' }
+    );
+    const response = await fetch(`${baseUrl}/api/sonora-studio/tracks`, {
+        headers: { cookie: extractCookie(callbackResponse) }
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(payload.data.items[0].title, 'Lueur');
+    assert.equal(sonoraCalls.length, 1);
+    assert.match(sonoraCalls[0].authorization, /^Bearer ey/);
+    assert.equal(JSON.stringify(payload).includes(sonoraCalls[0].authorization), false);
 });

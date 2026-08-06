@@ -44,6 +44,10 @@ function loadConfig(environment = process.env) {
         environment.LUMA_HARMONIX_BASE_URL || 'https://mhemery.fr',
         'LUMA_HARMONIX_BASE_URL'
     );
+    const sonoraStudioBaseUrl = parseUrl(
+        environment.LUMA_SONORA_STUDIO_BASE_URL || 'http://localhost:6002',
+        'LUMA_SONORA_STUDIO_BASE_URL'
+    );
     const sessionSecret = environment.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
     if (isProduction && !environment.SESSION_SECRET) {
@@ -96,6 +100,10 @@ function loadConfig(environment = process.env) {
         harmonix: {
             baseUrl: harmonixBaseUrl,
             timeoutMs: parseInteger(environment.LUMA_HARMONIX_TIMEOUT_MS, 10000, 'LUMA_HARMONIX_TIMEOUT_MS')
+        },
+        sonoraStudio: {
+            baseUrl: sonoraStudioBaseUrl,
+            timeoutMs: parseInteger(environment.LUMA_SONORA_STUDIO_TIMEOUT_MS, 15000, 'LUMA_SONORA_STUDIO_TIMEOUT_MS')
         },
         kyros
     };

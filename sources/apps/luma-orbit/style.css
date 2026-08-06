@@ -27,7 +27,7 @@
 .orbit-node__logo { width: 52px; height: 52px; border-radius: 15px; transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out); }
 .orbit-node__logo .icon { width: 25px; height: 25px; }
 .orbit-node strong { font-size: 11px; }
-.orbit-node--1 { top: 4%; left: 44%; }.orbit-node--2 { top: 31%; right: 3%; }.orbit-node--3 { right: 23%; bottom: 0; }.orbit-node--4 { left: 20%; bottom: 2%; }.orbit-node--5 { top: 24%; left: 3%; }
+.orbit-node--1 { top: 3%; left: 24%; }.orbit-node--2 { top: 3%; right: 24%; }.orbit-node--3 { top: 37%; right: 2%; }.orbit-node--4 { right: 21%; bottom: 0; }.orbit-node--5 { left: 21%; bottom: 0; }.orbit-node--6 { top: 37%; left: 2%; }
 .orbit-catalog { padding: 28px clamp(24px, 5vw, 56px) 46px; scroll-margin-top: 16px; }
 .orbit-catalog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .orbit-catalog h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.025em; }

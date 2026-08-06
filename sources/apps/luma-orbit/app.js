@@ -6,6 +6,7 @@ const catalog = [
     { id: "braindump", name: "BrainDump", icon: "notepad", color: "#54b693", category: "Productivité", description: "Un espace destiné à capturer et organiser les idées.", status: "Aperçu" },
     { id: "kyros", name: "Kyros", icon: "user", color: "#6e72e8", category: "Identité", description: "Votre compte et votre identité partagée dans l’écosystème.", status: "Intégré", action: "settings" },
     { id: "harmonix", name: "Harmonix", icon: "music", color: "#b05fe0", category: "Audio", description: "La bibliothèque musicale reliée au lecteur de Luma OS.", status: "Intégré", action: "harmonix" },
+    { id: "sonora-studio", name: "Sonora Studio", icon: "music", color: "#8b78ff", category: "Audio", description: "Administrez le catalogue Sonora, les imports, albums et playlists depuis Luma OS.", status: "Disponible", action: "sonora-studio" },
     { id: "arc", name: "A.R.C.", icon: "luma-network", color: "#3a9fd0", category: "Réseau", description: "Une future porte d’entrée vers les services A.R.C.", status: "Aperçu" }
 ];
 
@@ -47,7 +48,7 @@ export function mount(root, { open, toast }) {
         root.querySelector("[data-orbit-count]").textContent = String(visible.length);
         list.innerHTML = visible.length ? visible.map((app) => {
             const isInstalled = installed.has(app.id);
-            const actionLabel = app.action === "settings" ? "Ouvrir le compte" : app.action === "harmonix" ? "Déjà actif" : isInstalled ? "Retirer" : "Ajouter";
+            const actionLabel = app.action === "settings" ? "Ouvrir le compte" : app.action === "harmonix" ? "Déjà actif" : app.action === "sonora-studio" && isInstalled ? "Ouvrir" : app.action === "sonora-studio" ? "Activer" : isInstalled ? "Retirer" : "Ajouter";
             return `<article class="orbit-row" data-orbit-app="${app.id}">
                 ${appLogo(app)}
                 <div class="orbit-row__copy"><div><h3>${escapeHtml(app.name)}</h3><span>${escapeHtml(app.category)}</span></div><p>${escapeHtml(app.description)}</p></div>
@@ -69,10 +70,12 @@ export function mount(root, { open, toast }) {
         } else if (actionId) {
             const app = catalog.find((item) => item.id === actionId);
             if (app.action === "settings") { open("settings"); return; }
+            if (app.action === "sonora-studio" && installed.has(actionId)) { open("sonora-studio"); return; }
             installed.has(actionId) ? installed.delete(actionId) : installed.add(actionId);
             localStorage.setItem("luma.orbit.installed", JSON.stringify([...installed]));
+            window.dispatchEvent(new CustomEvent("luma:apps-changed"));
             render();
-            toast?.(`${app.name} ${installed.has(actionId) ? "a été ajoutée au prototype" : "a été retirée du prototype"}.`);
+            toast?.(`${app.name} ${installed.has(actionId) ? "est maintenant active" : "a été retirée du prototype"}.`);
         }
     };
 
