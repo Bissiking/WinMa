@@ -35,7 +35,18 @@ function validIds(value) {
     return [...new Set(value.map((id) => validId(id)))];
 }
 
+const ALLOWED_TYPES = new Set(['image', 'video', 'audio', 'document']);
+
 function createDocumentService({ repository, storageRoot }) {
+    function validType(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const normalized = String(value).trim();
+        if (!ALLOWED_TYPES.has(normalized)) {
+            throw new HttpError(400, 'DOCUMENT_TYPE_INVALID', 'Le filtre de type demandé est inconnu.');
+        }
+        return normalized;
+    }
+
     function validTextContent(value) {
         if (typeof value !== 'string') throw new HttpError(400, 'DOCUMENT_CONTENT_INVALID', 'Le contenu texte est invalide.');
         const size = Buffer.byteLength(value, 'utf8');
@@ -69,10 +80,11 @@ function createDocumentService({ repository, storageRoot }) {
         const key = ownerKey(subject);
         const parentId = validId(query.parentId, 'identifiant du dossier');
         const trash = query.trash === true || query.trash === 'true';
+        const type = validType(query.type);
         const search = typeof query.search === 'string' ? query.search.trim().slice(0, 120) : '';
-        if (parentId && !trash && !search) await ensureParent(key, parentId);
+        if (parentId && !trash && !search && !type) await ensureParent(key, parentId);
         return {
-            items: repository.list(key, { parentId, search, trash }),
+            items: repository.list(key, { parentId, search, trash, type }),
             breadcrumbs: parentId && !trash ? repository.ancestors(key, parentId) : [],
             storage: quota(key),
             retentionDays: TRASH_RETENTION_DAYS

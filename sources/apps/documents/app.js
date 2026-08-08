@@ -38,9 +38,17 @@ function renderShell(root, trashMode) {
         <div class="documents-app" data-trash="${trashMode}" data-view="list">
             <aside class="documents-sidebar">
                 <div class="documents-location-title"><span class="app-icon app-icon--documents">${icon("folder")}</span><strong>Documents</strong></div>
-                <nav aria-label="Emplacements">
+                <nav class="documents-nav documents-nav--quick" aria-label="Accès rapide">
+                    <span class="documents-nav-label">Accès rapide</span>
                     <button type="button" data-location="root">${icon("folder")}<span>Mes fichiers</span></button>
+                    <button type="button" data-location="image">${icon("image")}<span>Images</span></button>
+                    <button type="button" data-location="video">${icon("device")}<span>Vidéos</span></button>
+                    <button type="button" data-location="audio">${icon("volume")}<span>Musique</span></button>
+                    <button type="button" data-location="document">${icon("notepad")}<span>Documents</span></button>
                     <button type="button" data-location="recent" disabled>${icon("search")}<span>Récents</span><small>Bientôt</small></button>
+                </nav>
+                <nav class="documents-nav" aria-label="Système">
+                    <span class="documents-nav-label">Système</span>
                     <button type="button" data-location="trash">${icon("trash")}<span>Corbeille</span></button>
                 </nav>
                 <div class="storage-summary">
@@ -99,8 +107,11 @@ function dialog(root, { title, description, field, options, confirm = "Valider",
     return new Promise((resolve) => element.addEventListener("close", () => resolve(element.returnValue === "confirm" ? (input?.value ?? true) : null), { once: true }));
 }
 
+const QUICK_LOCATIONS = new Set(["image", "video", "audio", "document"]);
+const QUICK_LABELS = { image: "Images", video: "Vidéos", audio: "Musique", document: "Documents" };
+
 export async function mount(root, { app, toast, open }) {
-    const state = { trash: app.id === "trash", parentId: null, search: "", view: "list", selected: new Set(), data: null };
+    const state = { trash: app.id === "trash", parentId: null, search: "", view: "list", selected: new Set(), data: null, type: null };
     renderShell(root, state.trash);
     const shell = root.querySelector(".documents-app");
     const list = root.querySelector(".documents-list");
@@ -139,11 +150,16 @@ export async function mount(root, { app, toast, open }) {
         shell.dataset.trash = String(state.trash);
         shell.dataset.view = state.view;
         root.querySelectorAll(".view-controls [data-view]").forEach((button) => button.classList.toggle("is-selected", button.dataset.view === state.view));
-        root.querySelector('[data-location="root"]').classList.toggle("is-current", !state.trash);
-        root.querySelector('[data-location="trash"]').classList.toggle("is-current", state.trash);
+        root.querySelectorAll(".documents-nav [data-location]").forEach((button) => {
+            const location = button.dataset.location;
+            const current = location === "root" ? (!state.trash && !state.type) : location === "trash" ? state.trash : location === state.type;
+            button.classList.toggle("is-current", current);
+        });
         root.querySelector(".documents-path").innerHTML = state.trash
             ? `<strong>${icon("trash")} Corbeille</strong><span>Suppression automatique après ${state.data.retentionDays} jours</span>`
-            : `<button type="button" data-breadcrumb="">Mes fichiers</button>${breadcrumbs.map((crumb) => `${icon("chevron")}<button type="button" data-breadcrumb="${crumb.id}">${escapeHtml(crumb.name)}</button>`).join("")}<span class="mobile-storage-label">${formatBytes(storage.usedBytes)} / 1 Go</span>`;
+            : state.type
+                ? `<strong>${icon("folder")} ${QUICK_LABELS[state.type]}</strong><span>${state.data.items.length} élément${state.data.items.length > 1 ? "s" : ""}</span>`
+                : `<button type="button" data-breadcrumb="">Mes fichiers</button>${breadcrumbs.map((crumb) => `${icon("chevron")}<button type="button" data-breadcrumb="${crumb.id}">${escapeHtml(crumb.name)}</button>`).join("")}<span class="mobile-storage-label">${formatBytes(storage.usedBytes)} / 1 Go</span>`;
         const percent = Math.min(100, storage.usedBytes / storage.quotaBytes * 100);
         root.querySelector("[data-storage-label]").textContent = `${formatBytes(storage.usedBytes)} / 1 Go`;
         root.querySelector("[data-storage-meter]").style.transform = `scaleX(${percent / 100})`;
@@ -154,7 +170,7 @@ export async function mount(root, { app, toast, open }) {
                 <time datetime="${item.updatedAt}">${formatDate(item.trashedAt || item.updatedAt)}</time>
                 <span>${typeLabel(item)}</span>
                 <span>${item.kind === "file" ? formatBytes(item.size) : "—"}</span>
-            </article>`).join("") : `<div class="documents-empty">${state.trash ? icon("trash") : icon("folder")}<h2>${state.trash ? "La Corbeille est vide" : state.search ? "Aucun résultat" : "Ce dossier est prêt"}</h2><p>${state.trash ? "Les éléments supprimés apparaîtront ici pendant 30 jours." : state.search ? "Essayez un autre nom ou revenez à vos fichiers." : "Créez un dossier ou importez votre premier fichier."}</p></div>`;
+            </article>`).join("") : `<div class="documents-empty">${state.trash ? icon("trash") : icon(state.type || "folder")}<h2>${state.trash ? "La Corbeille est vide" : state.search ? "Aucun résultat" : state.type ? `Aucun fichier dans ${QUICK_LABELS[state.type].toLocaleLowerCase("fr")}` : "Ce dossier est prêt"}</h2><p>${state.trash ? "Les éléments supprimés apparaîtront ici pendant 30 jours." : state.search ? "Essayez un autre nom ou revenez à vos fichiers." : state.type ? "Importez des fichiers de ce type ou parcourez Mes fichiers." : "Créez un dossier ou importez votre premier fichier."}</p></div>`;
         updateActions();
     }
 
@@ -163,6 +179,7 @@ export async function mount(root, { app, toast, open }) {
         const params = new URLSearchParams();
         if (state.parentId) params.set("parentId", state.parentId);
         if (state.search) params.set("search", state.search);
+        if (state.type) params.set("type", state.type);
         if (state.trash) params.set("trash", "true");
         try {
             state.data = await requestJson(`/api/documents?${params}`);
@@ -185,6 +202,10 @@ export async function mount(root, { app, toast, open }) {
     function openItem(item) {
         if (item.mimeType?.startsWith("image/")) {
             open("image-viewer", { instanceKey: `image:${item.id}`, title: item.name, data: { document: item } });
+        } else if (item.mimeType?.startsWith("audio/") || /\.(?:mp3|wav|ogg|oga|m4a|aac|flac|opus|weba)$/i.test(item.name)) {
+            open("music-player", { instanceKey: `music:${item.id}`, title: item.name, data: { document: item } });
+        } else if (item.mimeType?.startsWith("video/") || /\.(?:mp4|m4v|webm|mov|mkv|ogv)$/i.test(item.name)) {
+            open("video-player", { instanceKey: `video:${item.id}`, title: item.name, data: { document: item } });
         } else if (item.mimeType?.startsWith("text/") || /\.(?:md|markdown|txt)$/i.test(item.name)) {
             open("notepad", { instanceKey: `document:${item.id}`, title: item.name, data: { document: item } });
         } else {
@@ -240,8 +261,13 @@ export async function mount(root, { app, toast, open }) {
             else if (action === "select-all") {
                 state.selected = event.target.checked ? new Set(state.data.items.map((item) => item.id)) : new Set(); render();
             } else if (action) await perform(action);
-            else if (location === "root" || location === "trash") { state.trash = location === "trash"; state.parentId = null; state.search = ""; search.value = ""; await load(); }
-            else if (breadcrumb) { state.parentId = breadcrumb.dataset.breadcrumb || null; state.search = ""; search.value = ""; await load(); }
+            else if (location === "recent") { /* bientôt */ }
+            else if (location) {
+                state.trash = location === "trash";
+                state.type = QUICK_LOCATIONS.has(location) ? location : null;
+                state.parentId = null; state.search = ""; search.value = ""; await load();
+            }
+            else if (breadcrumb) { state.parentId = breadcrumb.dataset.breadcrumb || null; state.search = ""; state.type = null; search.value = ""; await load(); }
             else if (row && event.target.matches('input[type="checkbox"]')) { event.target.checked ? state.selected.add(row.dataset.itemId) : state.selected.delete(row.dataset.itemId); render(); }
         } catch (error) { toast(error.message); }
     };
@@ -249,7 +275,7 @@ export async function mount(root, { app, toast, open }) {
         const row = event.target.closest("[data-item-id]");
         if (!row || state.trash) return;
         const item = state.data.items.find((entry) => entry.id === row.dataset.itemId);
-        if (item.kind === "folder") { state.parentId = item.id; await load(); }
+        if (item.kind === "folder") { state.parentId = item.id; state.type = null; await load(); }
         else openItem(item);
     };
     const uploadChange = async (event) => {
@@ -260,7 +286,7 @@ export async function mount(root, { app, toast, open }) {
     };
     const searchInput = () => {
         window.clearTimeout(searchTimer);
-        searchTimer = window.setTimeout(() => { state.search = search.value.trim(); state.parentId = null; load(); }, 280);
+        searchTimer = window.setTimeout(() => { state.search = search.value.trim(); state.parentId = null; state.type = null; load(); }, 280);
     };
 
     root.addEventListener("click", click);

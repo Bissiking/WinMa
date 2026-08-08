@@ -110,3 +110,27 @@ test('le Bloc-notes refuse de modifier un fichier binaire', async () => {
         (error) => error.code === 'DOCUMENT_NOT_TEXT'
     );
 });
+
+test('le filtre de type retourne uniquement les fichiers correspondants', async () => {
+    const service = await createService();
+    const directory = temporaryDirectories.at(-1);
+    const uploadFixture = async (name, mimetype) => {
+        const temporaryFile = path.join(directory, `${name}.tmp`);
+        await fs.writeFile(temporaryFile, name);
+        return service.upload('usr_one', {}, { path: temporaryFile, originalname: name, mimetype, size: name.length });
+    };
+    const image = await uploadFixture('photo.png', 'image/png');
+    await uploadFixture('film.mp4', 'video/mp4');
+    await uploadFixture('piste.mp3', 'audio/mpeg');
+    await uploadFixture('rapport.pdf', 'application/pdf');
+
+    assert.deepEqual((await service.list('usr_one', { type: 'image' })).items.map((item) => item.id), [image.id]);
+    assert.equal((await service.list('usr_one', { type: 'video' })).items.length, 1);
+    assert.equal((await service.list('usr_one', { type: 'audio' })).items.length, 1);
+    assert.equal((await service.list('usr_one', { type: 'document' })).items.length, 1);
+
+    await assert.rejects(
+        service.list('usr_one', { type: 'musique' }),
+        (error) => error.code === 'DOCUMENT_TYPE_INVALID'
+    );
+});

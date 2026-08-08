@@ -303,6 +303,21 @@ Schéma initial :
 - Le chargement d'une application passe uniquement par le registre.
 - Les animations sont courtes et supprimées sous `prefers-reduced-motion`.
 
+## Easter eggs
+
+Le bureau LUMA cache quelques applications derrière des commandes du Terminal. Elles n'apparaissent ni dans le menu Démarrer, ni dans la liste `apps` du Terminal, mais restent ouvrèables.
+
+| Application | Déclencheur | Où |
+| --- | --- | --- |
+| **Matheo Systems** (moniteur de « mode survie » de la workstation cognitive) | `sudo reboot` | Terminal (`sources/apps/terminal/app.js`) |
+
+### Ajouter un easter egg
+
+1. Masquer l'application dans le registre du shell : `sources/assets/javascripts/luma-shell.js`, ajouter `hidden: true` à sa définition (ex. `{ id: "matheo-systems", …, hidden: true }`).
+   - `hidden: true` la retire du menu Démarrer (`renderStartApps`) et de la liste `apps` transmise aux applications, sans bloquer `openApp()`.
+2. Déclencher son ouverture depuis le Terminal : dans `sources/apps/terminal/app.js`, ajouter un `case` au `switch` de `run()`, qui appelle `open("<id>")` (la fonction `open` du contexte est `openApp` du gestionnaire de fenêtres). Ne pas l'ajouter à `COMMANDS` pour qu'elle reste secrète et absente de `help`.
+3. Mettre à jour ce tableau.
+
 ## Migration sans rupture
 
 1. Construire le nouveau serveur et ses tests à côté de `app.js`.

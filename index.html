@@ -6,12 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0d1532">
     <title>Luma OS</title>
-    <link rel="icon" type="image/png" href="./images/favicon/logo-luma.png">
+    <link rel="icon" type="image/svg+xml" href="./images/interface-logo/luma-os-logo.svg">
+    <link rel="alternate icon" type="image/png" href="./images/favicon/logo-luma.png">
     <link rel="stylesheet" href="./assets/css/luma-shell.css">
     <link rel="stylesheet" href="./apps/session-select/style.css">
     <link rel="stylesheet" href="./apps/parametres/style.css">
     <link rel="stylesheet" href="./apps/documents/style.css">
-    <link rel="stylesheet" href="./apps/web-frame/style.css">
     <link rel="stylesheet" href="./apps/harmonix-player/style.css">
     <link rel="stylesheet" href="./apps/notepad/style.css">
     <link rel="stylesheet" href="./apps/image-viewer/style.css">
@@ -20,6 +20,13 @@
     <link rel="stylesheet" href="./apps/matheo-systems/style.css">
     <link rel="stylesheet" href="./apps/sonora-studio/style.css">
     <link rel="stylesheet" href="./apps/braindump/style.css">
+    <link rel="stylesheet" href="./apps/calculator/style.css">
+    <link rel="stylesheet" href="./apps/terminal/style.css">
+    <link rel="stylesheet" href="./apps/calendar/style.css">
+    <link rel="stylesheet" href="./apps/music-player/style.css">
+    <link rel="stylesheet" href="./apps/video-player/style.css">
+    <link rel="stylesheet" href="./apps/power/style.css">
+    <link rel="stylesheet" href="./apps/timer/style.css">
 </head>
 
 <body>
@@ -77,6 +84,13 @@
         <symbol id="icon-power" viewBox="0 0 24 24">
             <path d="M12 2v9M6.3 5.8a9 9 0 1 0 11.4 0" />
         </symbol>
+        <symbol id="icon-battery" viewBox="0 0 24 24">
+            <rect x="2" y="7" width="17" height="10" rx="2" />
+            <path d="M22 10v4M5 10v4" />
+        </symbol>
+        <symbol id="icon-plug" viewBox="0 0 24 24">
+            <path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0zM12 17v5" />
+        </symbol>
         <symbol id="icon-play" viewBox="0 0 24 24">
             <path d="m8 5 11 7-11 7z" />
         </symbol>
@@ -102,6 +116,13 @@
             <path d="M9 18V5l10-2v13M9 9l10-2" />
             <circle cx="6" cy="18" r="3" />
             <circle cx="16" cy="16" r="3" />
+        </symbol>
+        <symbol id="icon-download" viewBox="0 0 24 24">
+            <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />
+        </symbol>
+        <symbol id="icon-video" viewBox="0 0 24 24">
+            <rect x="2.5" y="5.5" width="14" height="13" rx="2" />
+            <path d="m16.5 10.5 5-3v9l-5-3" />
         </symbol>
         <symbol id="icon-minus" viewBox="0 0 24 24">
             <path d="M5 12h14" />
@@ -142,6 +163,18 @@
         </symbol>
         <symbol id="icon-check" viewBox="0 0 24 24">
             <path d="m5 12 4 4L19 6" />
+        </symbol>
+        <symbol id="icon-calc" viewBox="0 0 24 24">
+            <rect x="5" y="3" width="14" height="18" rx="2" />
+            <path d="M9 7h6M9 11h.01M12 11h.01M15 11h.01M9 14h.01M12 14h.01M15 14h.01M9 17h.01M12 17h.01M15 17h.01" />
+        </symbol>
+        <symbol id="icon-terminal" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="m7 9 3 3-3 3M13 15h4" />
+        </symbol>
+        <symbol id="icon-timer" viewBox="0 0 24 24">
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l2.5 2M9 2h6M12 2v2" />
         </symbol>
     </svg>
 
@@ -279,6 +312,11 @@
             </button>
             <div id="taskbar-apps" class="taskbar-apps" aria-label="Applications ouvertes"></div>
             <div class="taskbar-status">
+                <button id="taskbar-battery" class="status-button battery-button" type="button"
+                    aria-label="Alimentation : batterie" aria-pressed="false" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-power" /></svg>
+                    <span class="battery-button__percent" data-battery-percent>—</span>
+                </button>
                 <button id="clock" class="clock" type="button"
                     aria-label="Date et heure"><span></span><small></small></button>
             </div>

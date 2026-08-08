@@ -10,12 +10,15 @@ const { createAppRegistryService } = require('./services/app-registry-service');
 const { createSettingsService } = require('./services/settings-service');
 const { createAccountService } = require('./services/account-service');
 const { createSqliteDocumentRepository } = require('./repositories/sqlite-document-repository');
+const { createSqliteSessionRepository } = require('./repositories/sqlite-session-repository');
 const { createDocumentService } = require('./services/document-service');
+const { createWindowSessionService } = require('./services/window-session-service');
 const { createHarmonixService } = require('./services/harmonix-service');
 const { createSonoraStudioService } = require('./services/sonora-studio-service');
 const { createBrainDumpService } = require('./services/braindump-service');
 const { createAuthController } = require('./controllers/auth-controller');
 const { createSessionController } = require('./controllers/session-controller');
+const { createWindowSessionController } = require('./controllers/window-session-controller');
 const { createAppsController } = require('./controllers/apps-controller');
 const { createSettingsController } = require('./controllers/settings-controller');
 const { createAccountController } = require('./controllers/account-controller');
@@ -25,6 +28,7 @@ const { createSonoraStudioController } = require('./controllers/sonora-studio-co
 const { createBrainDumpController } = require('./controllers/braindump-controller');
 const { createAuthRoutes } = require('./routes/auth-routes');
 const { createSessionRoutes } = require('./routes/session-routes');
+const { createWindowSessionRoutes } = require('./routes/window-session-routes');
 const { createAppsRoutes } = require('./routes/apps-routes');
 const { createSettingsRoutes } = require('./routes/settings-routes');
 const { createAccountRoutes } = require('./routes/account-routes');
@@ -52,10 +56,12 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const settingsService = createSettingsService(path.join(projectRoot, 'data/settings'));
     const accountService = createAccountService(path.join(projectRoot, 'data/accounts'));
     const documentRepository = createSqliteDocumentRepository(path.join(projectRoot, 'data/luma.sqlite'));
+    const windowSessionRepository = createSqliteSessionRepository(path.join(projectRoot, 'data/luma.sqlite'));
     const documentService = createDocumentService({
         repository: documentRepository,
         storageRoot: path.join(projectRoot, 'storage/documents')
     });
+    const windowSessionService = createWindowSessionService(windowSessionRepository);
     const harmonixService = createHarmonixService(config.harmonix, fetchImplementation);
     const sonoraStudioService = createSonoraStudioService(config.sonoraStudio || {
         baseUrl: 'http://localhost:6002', timeoutMs: 15000
@@ -67,6 +73,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const sessionService = createSessionService(kyrosService);
     const authController = createAuthController({ config, kyrosService, sessionService });
     const sessionController = createSessionController(sessionService, config);
+    const windowSessionController = createWindowSessionController(windowSessionService);
     const appsController = createAppsController(appRegistryService);
     const settingsController = createSettingsController(settingsService);
     const accountController = createAccountController({
@@ -107,6 +114,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
 
     app.use(createAuthRoutes(authController, requireSameOrigin));
     app.use(createSessionRoutes(sessionController));
+    app.use(createWindowSessionRoutes(windowSessionController, requireSession, requireSameOrigin));
     app.use(createAppsRoutes(appsController, requireSession));
     app.use(createSettingsRoutes(settingsController, requireSession, requireSameOrigin));
     app.use(createAccountRoutes(accountController, requireSession, requireSameOrigin));

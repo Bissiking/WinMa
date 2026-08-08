@@ -1,6 +1,6 @@
 {
   "name": "luma-os",
-  "version": "3.0.0-alpha.4",
+  "version": "3.1.0",
   "description": "Bureau web modulaire pour l'écosystème LUMA",
   "main": "src/server/server.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^12.11.1",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",

@@ -8,11 +8,10 @@ const themes = [
 ];
 const accents = ["#6d5ee8", "#4776e6", "#20a9ca", "#2eab74", "#e6962f", "#df5f5f", "#d64a9c"];
 const wallpapers = [
-    { path: "./images/backgrounds/luma-aurora.webp", name: "Luma Aurora", collection: "Luma" },
-    ...Array.from({ length: 12 }, (_, index) => ({
-        path: `./images/backgrounds/background-${String(index + 1).padStart(2, "0")}.jpg`,
-        name: `Fond ${String(index + 1).padStart(2, "0")}`,
-        collection: "Full HD"
+    ...Array.from({ length: 13 }, (_, index) => ({
+        path: `./images/backgrounds/background-${String(index).padStart(2, "0")}.jpg`,
+        name: `Fond ${String(index).padStart(2, "0")}`,
+        collection: index === 0 ? "Défaut" : "Full HD"
     })),
     ...Array.from({ length: 4 }, (_, index) => ({
         path: `./images/backgrounds/4K/background-4k-${String(index + 1).padStart(2, "0")}.jpg`,
@@ -21,10 +20,19 @@ const wallpapers = [
     }))
 ];
 const views = [
+    { id: "home", label: "Accueil", icon: "luma", keywords: "accueil démarrer catégories" },
     { id: "system", label: "Système", icon: "device", keywords: "appareil stockage version affichage" },
     { id: "personalization", label: "Personnalisation", icon: "luma", keywords: "thème couleur fond densité mouvement" },
+    { id: "startup", label: "Démarrage", icon: "power", keywords: "réouverture applications session démarrage" },
     { id: "network", label: "Réseau Luma", icon: "luma-network", keywords: "local modules connexion synchronisation" },
     { id: "account", label: "Compte", icon: "user", keywords: "kyros profil quota langue fuseau synchronisation" }
+];
+const homeCards = [
+    { id: "system", title: "Système", description: "État de votre environnement Luma OS", icon: "device" },
+    { id: "personalization", title: "Personnalisation", description: "Thème, couleurs, arrière-plan et confort", icon: "luma" },
+    { id: "startup", title: "Démarrage", description: "Applications réouvertes au lancement", icon: "power" },
+    { id: "network", title: "Réseau Luma", description: "Services, modules et synchronisation", icon: "luma-network" },
+    { id: "account", title: "Compte", description: "Identité Kyros, quota et préférences", icon: "user" }
 ];
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
 const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
@@ -200,18 +208,51 @@ function renderAccount(account) {
         </section>`;
 }
 
+function renderHome(settings) {
+    const cards = homeCards.map((card) => `
+        <button class="settings-home-card" type="button" data-settings-view="${card.id}">
+            <span class="settings-home-card__icon">${icon(card.icon)}</span>
+            <span class="settings-home-card__text"><strong>${card.title}</strong><small>${card.description}</small></span>
+            <span class="settings-home-card__chevron">${icon("chevron")}</span>
+        </button>`).join("");
+    return `<div class="settings-home">
+        <header class="settings-home__header">
+            <span class="settings-home__logo">${icon("luma")}</span>
+            <div><h1>Paramètres Luma</h1><p>Choisissez une catégorie pour ajuster votre espace LUMA.</p></div>
+        </header>
+        <div class="settings-home__grid">${cards}</div>
+        <div class="settings-home__footer">
+            <span>${icon("luma")}</span>
+            <p><strong>Luma OS</strong><small>${settings.theme === "system" ? "Thème automatique" : `Thème ${themes.find((theme) => theme.id === settings.theme)?.name || settings.theme}`}</small></p>
+        </div>
+    </div>`;
+}
+
+function renderStartup(settings) {
+    return `${heading("Démarrage", "Décidez de ce qui se rouvre au lancement du bureau.")}
+        <section class="settings-section" aria-labelledby="startup-session-heading">
+            <div class="settings-section__heading"><h2 id="startup-session-heading">Réouverture des applications</h2><p>Quand vous fermez ou rechargez le bureau, vos fenêtres ouvertes peuvent revenir automatiquement au prochain démarrage.</p></div>
+            <label class="settings-toggle-row">
+                <span class="settings-toggle-row__text"><strong>Restaurer les applications récemment ouvertes</strong><small>Rouvre vos documents et fenêtres après un rechargement.</small></span>
+                <input type="checkbox" data-setting="restoreSession" ${settings.restoreSession !== false ? "checked" : ""}>
+                <i class="settings-toggle" aria-hidden="true"></i>
+            </label>
+        </section>`;
+}
+
 function updateSelection(root, settings) {
     root.querySelectorAll("[data-theme-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.themeValue === settings.theme));
     root.querySelectorAll("[data-accent-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.accentValue.toLowerCase() === settings.accentColor.toLowerCase()));
     root.querySelectorAll("[data-wallpaper-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.wallpaperValue === settings.wallpaper));
     root.querySelectorAll("[data-setting]").forEach((button) => button.classList.toggle("is-selected", settings[button.dataset.setting] === button.dataset.value));
+    root.querySelectorAll('[data-setting="restoreSession"]').forEach((input) => { input.checked = settings.restoreSession !== false; });
 }
 
 export async function mount(root, { toast }) {
     renderShell(root);
     const viewRoot = root.querySelector(".settings-view");
     const search = root.querySelector(".settings-search input");
-    let currentView = "personalization";
+    let currentView = "home";
     let settings = await requestJson("/api/users/me/settings");
     let account;
     let session;
@@ -240,8 +281,13 @@ export async function mount(root, { toast }) {
         root.querySelectorAll("[data-settings-view]").forEach((button) => button.classList.toggle("is-current", button.dataset.settingsView === view));
         viewRoot.innerHTML = loadingView();
         try {
-            if (view === "personalization") {
+            if (view === "home") {
+                viewRoot.innerHTML = renderHome(settings);
+            } else if (view === "personalization") {
                 viewRoot.innerHTML = renderPersonalization(settings);
+                updateSelection(root, settings);
+            } else if (view === "startup") {
+                viewRoot.innerHTML = renderStartup(settings);
                 updateSelection(root, settings);
             } else if (view === "system") {
                 const data = await Promise.all([getAccount(), getSystemInfo()]);
@@ -316,7 +362,12 @@ export async function mount(root, { toast }) {
         else if (theme) saveSetting({ theme: theme.dataset.themeValue }, theme);
         else if (accent) saveSetting({ accentColor: accent.dataset.accentValue }, accent);
         else if (wallpaper) saveSetting({ wallpaper: wallpaper.dataset.wallpaperValue }, wallpaper);
-        else if (preference) saveSetting({ [preference.dataset.setting]: preference.dataset.value }, preference);
+        else if (preference && preference.dataset.value) saveSetting({ [preference.dataset.setting]: preference.dataset.value }, preference);
+    };
+    const change = (event) => {
+        const toggle = event.target.matches('[data-setting="restoreSession"]');
+        if (!toggle) return;
+        saveSetting({ restoreSession: event.target.checked }, event.target);
     };
     const submit = (event) => {
         if (!event.target.matches(".account-form")) return;
@@ -334,6 +385,7 @@ export async function mount(root, { toast }) {
     };
 
     root.addEventListener("click", click);
+    root.addEventListener("change", change);
     root.addEventListener("submit", submit);
     search.addEventListener("input", input);
     getSession().then((data) => {
@@ -344,6 +396,7 @@ export async function mount(root, { toast }) {
     await showView(currentView);
     return () => {
         root.removeEventListener("click", click);
+        root.removeEventListener("change", change);
         root.removeEventListener("submit", submit);
         search.removeEventListener("input", input);
     };

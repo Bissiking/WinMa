@@ -1,0 +1,29 @@
+.music-player { min-height: 100%; display: flex; flex-direction: column; color: var(--ink); background: radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--luma-accent) 16%, transparent), transparent 44%), var(--surface-solid); }
+.music-player__stage { width: min(440px, 100%); margin: auto; padding: clamp(26px, 5vh, 52px) 24px 30px; display: flex; flex-direction: column; align-items: center; }
+.music-player__artwork { position: relative; width: clamp(180px, 44vw, 250px); aspect-ratio: 1; display: grid; place-items: center; margin-bottom: 26px; border-radius: 22px; color: #fff; background: linear-gradient(145deg, color-mix(in srgb, var(--luma-accent) 82%, #fff 8%), color-mix(in srgb, var(--luma-accent) 55%, #222)); box-shadow: 0 26px 60px color-mix(in srgb, var(--luma-accent) 32%, transparent), inset 0 1px 0 rgba(255, 255, 255, .18); }
+.music-player__artwork .icon { width: 34%; height: 34%; }
+.music-player__artwork i { position: absolute; inset: 6px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 18px; }
+.music-player__meta { text-align: center; margin-bottom: 24px; }
+.music-player__meta h2 { margin: 0 0 6px; font-size: clamp(17px, 2vw, 20px); letter-spacing: -.02em; max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-player__meta p { margin: 0; color: var(--ink-muted); font-size: 11px; max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-player__timeline { width: 100%; }
+.music-player__track { position: relative; height: 14px; display: flex; align-items: center; cursor: pointer; }
+.music-player__track::before { content: ""; width: 100%; height: 4px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 16%, transparent); }
+.music-player__fill { position: absolute; left: 0; top: 50%; width: 100%; height: 4px; border-radius: 4px; background: var(--luma-accent); transform: scaleX(0); transform-origin: left; }
+.music-player__knob { position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 2px 7px rgba(0, 0, 0, .3); transform: translate(-50%, -50%); pointer-events: none; }
+.music-player__times { display: flex; justify-content: space-between; margin-top: 7px; color: var(--ink-muted); font-size: 10px; }
+.music-player__controls { display: flex; align-items: center; justify-content: center; margin: 22px 0 18px; }
+.music-player__controls button { width: 62px; height: 62px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--luma-accent); box-shadow: 0 14px 30px color-mix(in srgb, var(--luma-accent) 36%, transparent); }
+.music-player__controls button:hover, .music-player__controls button:focus-visible { background: color-mix(in srgb, var(--luma-accent), #fff 8%); }
+.music-player__controls button .icon { width: 26px; height: 26px; }
+.music-player__volume { width: min(180px, 70%); display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--ink-muted); }
+.music-player__volume > .icon { width: 17px; height: 17px; flex: 0 0 auto; }
+.music-player__volume-track { position: relative; width: 100%; height: 14px; display: flex; align-items: center; }
+.music-player__volume-track::before { content: ""; width: 100%; height: 4px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 16%, transparent); }
+.music-player__volume-fill { position: absolute; left: 0; top: 50%; height: 4px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 55%, transparent); transform: translateY(-50%); }
+.music-player__download { min-height: 32px; display: inline-flex; align-items: center; gap: 7px; margin-top: 20px; padding: 0 11px; border-radius: 8px; color: var(--ink-muted); font-size: 11px; font-weight: 600; text-decoration: none; }
+.music-player__download:hover, .music-player__download:focus-visible { color: var(--ink); background: var(--surface-muted); }
+.music-player__download .icon { width: 14px; height: 14px; }
+.music-player__error { padding: 40px 0; text-align: center; }
+.music-player__error h2 { margin: 0 0 7px; font-size: 16px; }
+.music-player__error p { margin: 0; color: var(--ink-muted); font-size: 12px; }

@@ -18,7 +18,7 @@ function formatPercent(value) {
 
 function appMark(app) {
     if (app.logo) return `<span class="task-app-mark task-app-mark--logo"><img src="${app.logo}" alt=""></span>`;
-    const symbols = { settings: "settings", trash: "trash", notepad: "notepad", image: "image", activity: "activity", orbit: "orbit", chip: "chip" };
+    const symbols = { settings: "settings", trash: "trash", notepad: "notepad", image: "image", activity: "activity", orbit: "orbit", chip: "chip", calculator: "calc", terminal: "terminal", calendar: "calendar" };
     return `<span class="task-app-mark task-app-mark--${app.icon}">${icon(symbols[app.icon] || "folder")}</span>`;
 }
 

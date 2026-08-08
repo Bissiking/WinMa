@@ -46,9 +46,15 @@
                 setStatus('Redirection vers la connexion sécurisée.');
                 window.location.assign('/auth/login');
             }, { once: true });
-        } catch {
+        } catch (error) {
             button.disabled = true;
-            setStatus('Le service de session est indisponible. Rechargez la page pour réessayer.');
+            const unreachable = error instanceof TypeError;
+            button.textContent = 'Serveur injoignable';
+            if (unreachable) {
+                setStatus('Impossible de joindre le serveur Luma. Soit le serveur web n’est pas lancé, soit votre connexion est coupée.');
+            } else {
+                setStatus('Le service de session est indisponible. Rechargez la page pour réessayer.');
+            }
         }
     }
 

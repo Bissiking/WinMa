@@ -5,16 +5,17 @@ const path = require('node:path');
 const { HttpError } = require('../utils/http-error');
 
 const DEFAULT_SETTINGS = Object.freeze({
-    wallpaper: './images/backgrounds/luma-aurora.webp',
+    wallpaper: './images/backgrounds/background-00.jpg',
     theme: 'luma',
     accentColor: '#6d5ee8',
     density: 'comfortable',
-    motion: 'system'
+    motion: 'system',
+    restoreSession: true
 });
 const ALLOWED_THEMES = new Set(['light', 'dark', 'luma', 'system']);
 const ALLOWED_DENSITIES = new Set(['comfortable', 'compact']);
 const ALLOWED_MOTION = new Set(['full', 'reduced', 'system']);
-const WALLPAPER_PATTERN = /^\.\/images\/backgrounds\/(?:luma-aurora\.webp|background-(?:0[1-9]|1[0-2])\.jpg|4K\/background-4k-0[1-4]\.jpg)$/;
+const WALLPAPER_PATTERN = /^\.\/images\/backgrounds\/(?:luma-aurora\.webp|background-(?:0[0-9]|1[0-2])\.jpg|4K\/background-4k-0[1-4]\.jpg)$/;
 const ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const ALLOWED_FIELDS = new Set(Object.keys(DEFAULT_SETTINGS));
 
@@ -51,6 +52,10 @@ function validatePatch(patch) {
 
     if ('motion' in patch && !ALLOWED_MOTION.has(patch.motion)) {
         throw new HttpError(400, 'MOTION_INVALID', 'Le niveau de mouvement demandé n’est pas autorisé.');
+    }
+
+    if ('restoreSession' in patch && typeof patch.restoreSession !== 'boolean') {
+        throw new HttpError(400, 'RESTORE_SESSION_INVALID', 'La réouverture au démarrage doit être un booléen.');
     }
 
     return patch;

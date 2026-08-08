@@ -15,8 +15,10 @@
 
 .documents-location-title { display: flex; align-items: center; gap: 10px; padding: 4px 8px 17px; font-size: 13px; }
 .documents-location-title .app-icon { width: 29px; height: 29px; border-radius: 8px; box-shadow: none; }
-.documents-sidebar nav { display: grid; gap: 3px; }
-.documents-sidebar nav button {
+.documents-sidebar .documents-nav { display: grid; gap: 3px; }
+.documents-sidebar .documents-nav--quick { margin-bottom: 14px; }
+.documents-nav-label { padding: 0 10px 6px; color: var(--ink-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
+.documents-nav button {
     min-height: 39px;
     display: grid;
     grid-template-columns: 22px minmax(0, 1fr) auto;
@@ -29,11 +31,11 @@
     text-align: left;
     background: transparent;
 }
-.documents-sidebar nav button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 7%, transparent); }
-.documents-sidebar nav button.is-current { background: color-mix(in srgb, var(--luma-accent) 15%, var(--surface-raised)); }
-.documents-sidebar nav button:disabled { opacity: .55; }
-.documents-sidebar nav .icon { width: 18px; }
-.documents-sidebar nav small { color: var(--ink-muted); font-size: 9px; }
+.documents-nav button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.documents-nav button.is-current { background: color-mix(in srgb, var(--luma-accent) 15%, var(--surface-raised)); }
+.documents-nav button:disabled { opacity: .55; }
+.documents-nav .icon { width: 18px; }
+.documents-nav small { color: var(--ink-muted); font-size: 9px; }
 
 .storage-summary { display: grid; gap: 8px; margin-top: auto; padding: 16px 9px 6px; border-top: 1px solid var(--line); }
 .storage-summary > div:first-child { display: grid; gap: 3px; }

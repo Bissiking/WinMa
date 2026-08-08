@@ -56,7 +56,27 @@ function createSqliteDocumentRepository(databasePath) {
 
     function findById(ownerKey, id) { return map(findByIdStatement.get(id, ownerKey)); }
 
-    function list(ownerKey, { parentId = null, search = '', trash = false } = {}) {
+    function typeCondition(type) {
+        const prefixes = { image: 'image/%', video: 'video/%', audio: 'audio/%' };
+        if (prefixes[type]) {
+            return { sql: "AND kind = 'file' AND mime_type LIKE ?", params: [prefixes[type]] };
+        }
+        if (type === 'document') {
+            return {
+                sql: `AND kind = 'file' AND (mime_type LIKE 'text/%'
+                    OR mime_type IN (
+                        'application/pdf', 'application/rtf', 'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                    ))`,
+                params: []
+            };
+        }
+        return null;
+    }
+
+    function list(ownerKey, { parentId = null, search = '', trash = false, type = null } = {}) {
         if (trash) {
             return database.prepare(`
                 SELECT * FROM document_items
@@ -71,6 +91,14 @@ function createSqliteDocumentRepository(databasePath) {
                 ORDER BY kind DESC, name COLLATE NOCASE
                 LIMIT 200
             `).all(ownerKey, `%${search.replace(/[\\%_]/g, '\\$&')}%`).map(map);
+        }
+        const typeFilter = typeCondition(type);
+        if (typeFilter) {
+            return database.prepare(`
+                SELECT * FROM document_items
+                WHERE owner_key = ? AND trashed_at IS NULL ${typeFilter.sql}
+                ORDER BY kind DESC, name COLLATE NOCASE
+            `).all(ownerKey, ...typeFilter.params).map(map);
         }
         return database.prepare(`
             SELECT * FROM document_items

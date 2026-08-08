@@ -45,22 +45,6 @@
     }
   },
   {
-    "id": "browser",
-    "name": "Navigateur LUMA",
-    "icon": "/images/interface-logo/apps-menu/LumaNav.png",
-    "entry": "/apps/navigateur/index.html",
-    "type": "iframe",
-    "enabled": true,
-    "pinned": true,
-    "allowedOrigin": "https://mhemery.fr",
-    "window": {
-      "width": 1040,
-      "height": 720,
-      "minWidth": 480,
-      "minHeight": 360
-    }
-  },
-  {
     "id": "sonora-studio",
     "name": "Sonora Studio",
     "icon": "/images/interface-logo/applications/sonora-studio.svg",
@@ -88,22 +72,6 @@
       "height": 700,
       "minWidth": 620,
       "minHeight": 440
-    }
-  },
-  {
-    "id": "jellyfin",
-    "name": "Jellyfin",
-    "icon": "/images/interface-logo/applications/jellyfin.png",
-    "entry": "/apps/jellyfin/index.html",
-    "type": "iframe",
-    "enabled": true,
-    "pinned": false,
-    "allowedOrigin": "https://jelly.mhemery.fr",
-    "window": {
-      "width": 1100,
-      "height": 740,
-      "minWidth": 480,
-      "minHeight": 360
     }
   }
 ]

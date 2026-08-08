@@ -36,7 +36,8 @@ test('un patch conserve les champs qui ne sont pas modifiés', async () => {
         theme: 'dark',
         accentColor: '#3366CC',
         density: 'comfortable',
-        motion: 'system'
+        motion: 'system',
+        restoreSession: true
     });
 });
 
@@ -55,6 +56,16 @@ test('un fond arbitraire est refusé', async () => {
         service.update('usr_one', { wallpaper: 'https://attacker.example/image.jpg' }),
         (error) => error.code === 'WALLPAPER_INVALID'
     );
+});
+
+test('la réouverture au démarrage doit être un booléen', async () => {
+    const service = await createService();
+
+    await assert.rejects(
+        service.update('usr_one', { restoreSession: 'oui' }),
+        (error) => error.code === 'RESTORE_SESSION_INVALID'
+    );
+    assert.equal((await service.update('usr_one', { restoreSession: false })).restoreSession, false);
 });
 
 test('les collections Full HD et 4K peuvent être sélectionnées', async () => {
