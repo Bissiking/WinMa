@@ -34,6 +34,9 @@ function createKyrosService(config, fetchImplementation = globalThis.fetch) {
         authorizeUrl.searchParams.set('redirect_uri', config.callbackUrl);
         authorizeUrl.searchParams.set('scope', config.requestedScopes.join(' '));
         authorizeUrl.searchParams.set('state', state);
+        authorizeUrl.searchParams.set('kyros_sso_version', config.ssoVersion);
+        authorizeUrl.searchParams.set('kyros_edition', config.edition);
+        authorizeUrl.searchParams.set('kyros_application_scope', config.applicationScope);
         return authorizeUrl.toString();
     }
 
@@ -41,6 +44,12 @@ function createKyrosService(config, fetchImplementation = globalThis.fetch) {
         requireConfiguration();
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+        const bodyWithHandshake = {
+            ...body,
+            kyros_sso_version: config.ssoVersion,
+            kyros_edition: config.edition,
+            kyros_application_scope: config.applicationScope
+        };
 
         try {
             const response = await fetchImplementation(url, {
@@ -49,7 +58,7 @@ function createKyrosService(config, fetchImplementation = globalThis.fetch) {
                     accept: 'application/json',
                     'content-type': 'application/json'
                 },
-                body: JSON.stringify(body),
+                body: JSON.stringify(bodyWithHandshake),
                 signal: controller.signal
             });
             const payload = await response.json().catch(() => null);

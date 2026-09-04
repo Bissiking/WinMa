@@ -34,12 +34,24 @@ function splitScopes(value) {
         .filter(Boolean);
 }
 
+function envWithFallback(env, lumaKey, kyrosKey) {
+    const luma = env[lumaKey];
+    if (luma !== undefined && luma !== '') return luma;
+    const kyros = env[kyrosKey];
+    if (kyros !== undefined && kyros !== '') return kyros;
+    return undefined;
+}
+
 function loadConfig(environment = process.env) {
     const nodeEnv = environment.NODE_ENV || 'development';
     const isProduction = nodeEnv === 'production';
     const port = parseInteger(environment.PORT, 3000, 'PORT');
     const appBaseUrl = parseUrl(environment.APP_BASE_URL || `http://localhost:${port}`, 'APP_BASE_URL');
-    const kyrosBaseUrl = parseUrl(environment.LUMA_KYROS_BASE_URL, 'LUMA_KYROS_BASE_URL', { required: false });
+    const kyrosBaseUrl = parseUrl(
+        envWithFallback(environment, 'LUMA_KYROS_BASE_URL', 'KYROS_BASE_URL'),
+        'LUMA_KYROS_BASE_URL',
+        { required: false }
+    );
     const harmonixBaseUrl = parseUrl(
         environment.LUMA_HARMONIX_BASE_URL || 'https://mhemery.fr',
         'LUMA_HARMONIX_BASE_URL'
@@ -65,18 +77,35 @@ function loadConfig(environment = process.env) {
     const kyros = {
         baseUrl: kyrosBaseUrl,
         authorizeUrl: kyrosBaseUrl ? `${kyrosBaseUrl}/authorize` : null,
-        tokenUrl: parseUrl(environment.LUMA_KYROS_TOKEN_URL, 'LUMA_KYROS_TOKEN_URL', { required: false }) || (kyrosBaseUrl ? `${kyrosBaseUrl}/token` : null),
-        revokeUrl: parseUrl(environment.LUMA_KYROS_REVOKE_URL, 'LUMA_KYROS_REVOKE_URL', { required: false }) || (kyrosBaseUrl ? `${kyrosBaseUrl}/revoke` : null),
-        clientId: environment.LUMA_KYROS_CLIENT_ID || '',
-        clientSecret: environment.LUMA_KYROS_CLIENT_SECRET || '',
-        jwtSecret: environment.LUMA_KYROS_JWT_SECRET || '',
-        issuer: environment.LUMA_KYROS_ISSUER || 'kyros',
-        audience: environment.LUMA_KYROS_AUDIENCE || 'kyros-modules',
-        resourceAudience: environment.LUMA_KYROS_RESOURCE_AUDIENCE || '',
-        requestedScopes: splitScopes(environment.LUMA_KYROS_REQUESTED_SCOPES || 'profile email'),
-        requiredScopes: splitScopes(environment.LUMA_KYROS_REQUIRED_SCOPES || 'profile email'),
-        callbackUrl: parseUrl(environment.LUMA_KYROS_CALLBACK_URL || `${appBaseUrl}/auth/callback`, 'LUMA_KYROS_CALLBACK_URL'),
-        timeoutMs: parseInteger(environment.LUMA_KYROS_TIMEOUT_MS, 5000, 'LUMA_KYROS_TIMEOUT_MS')
+        tokenUrl: parseUrl(
+            envWithFallback(environment, 'LUMA_KYROS_TOKEN_URL', 'KYROS_TOKEN_URL'),
+            'LUMA_KYROS_TOKEN_URL',
+            { required: false }
+        ) || (kyrosBaseUrl ? `${kyrosBaseUrl}/token` : null),
+        revokeUrl: parseUrl(
+            envWithFallback(environment, 'LUMA_KYROS_REVOKE_URL', 'KYROS_REVOKE_URL'),
+            'LUMA_KYROS_REVOKE_URL',
+            { required: false }
+        ) || (kyrosBaseUrl ? `${kyrosBaseUrl}/revoke` : null),
+        clientId: envWithFallback(environment, 'LUMA_KYROS_CLIENT_ID', 'KYROS_CLIENT_ID') || '',
+        clientSecret: envWithFallback(environment, 'LUMA_KYROS_CLIENT_SECRET', 'KYROS_CLIENT_SECRET') || '',
+        jwtSecret: envWithFallback(environment, 'LUMA_KYROS_JWT_SECRET', 'KYROS_JWT_SECRET') || '',
+        issuer: envWithFallback(environment, 'LUMA_KYROS_ISSUER', 'KYROS_ISSUER') || 'kyros',
+        audience: envWithFallback(environment, 'LUMA_KYROS_AUDIENCE', 'KYROS_AUDIENCE') || 'kyros-modules',
+        resourceAudience: envWithFallback(environment, 'LUMA_KYROS_RESOURCE_AUDIENCE', 'KYROS_RESOURCE_AUDIENCE') || '',
+        requestedScopes: splitScopes(envWithFallback(environment, 'LUMA_KYROS_REQUESTED_SCOPES', 'KYROS_REQUESTED_SCOPE') || 'profile email'),
+        requiredScopes: splitScopes(envWithFallback(environment, 'LUMA_KYROS_REQUIRED_SCOPES', 'KYROS_REQUIRED_SCOPES') || 'profile email'),
+        callbackUrl: parseUrl(envWithFallback(environment, 'LUMA_KYROS_CALLBACK_URL', 'KYROS_CALLBACK_URL') || `${appBaseUrl}/auth/callback`, 'LUMA_KYROS_CALLBACK_URL'),
+        timeoutMs: (() => {
+            const lumaMs = environment.LUMA_KYROS_TIMEOUT_MS;
+            if (lumaMs !== undefined) return parseInteger(lumaMs, 5000, 'LUMA_KYROS_TIMEOUT_MS');
+            const kyrosSeconds = environment.KYROS_TIMEOUT_SECONDS;
+            if (kyrosSeconds !== undefined) return parseInteger(kyrosSeconds, 5, 'KYROS_TIMEOUT_SECONDS') * 1000;
+            return 5000;
+        })(),
+        ssoVersion: envWithFallback(environment, 'LUMA_KYROS_SSO_VERSION', 'KYROS_SSO_VERSION') || 'v3',
+        edition: envWithFallback(environment, 'LUMA_KYROS_EDITION', 'KYROS_EDITION') || 'standard',
+        applicationScope: envWithFallback(environment, 'LUMA_KYROS_APPLICATION_SCOPE', 'KYROS_APPLICATION_SCOPE') || 'standard'
     };
 
     kyros.enabled = Boolean(
