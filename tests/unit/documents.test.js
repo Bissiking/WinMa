@@ -70,6 +70,51 @@ test('un dossier ne peut pas être déplacé dans son descendant', async () => {
     );
 });
 
+async function uploadFixture(service, directory, { name, mimetype, content }) {
+    const file = path.join(directory, `${name}.tmp`);
+    await fs.writeFile(file, content);
+    return service.upload('usr_one', {}, { path: file, originalname: name, mimetype, size: Buffer.byteLength(content) });
+}
+
+test('les statistiques catégorisent les fichiers et la Corbeille', async () => {
+    const service = await createService();
+    const directory = temporaryDirectories.at(-1);
+
+    const image = await uploadFixture(service, directory, { name: 'aurore.png', mimetype: 'image/png', content: 'img' });
+    await uploadFixture(service, directory, { name: 'b.jpg', mimetype: 'image/jpeg', content: 'img2' });
+    await uploadFixture(service, directory, { name: 'clip.mp4', mimetype: 'video/mp4', content: 'vid' });
+    await uploadFixture(service, directory, { name: 'son.mp3', mimetype: 'audio/mpeg', content: 'aud' });
+    await uploadFixture(service, directory, { name: 'note.md', mimetype: 'text/markdown', content: '# note' });
+    await uploadFixture(service, directory, { name: 'blob.bin', mimetype: 'application/octet-stream', content: 'bin' });
+    await service.createFolder('usr_one', { name: 'Dossier' });
+
+    let stats = service.getStats('usr_one');
+    assert.deepEqual(stats.categories, [
+        { category: 'image', count: 2, bytes: 7 },
+        { category: 'video', count: 1, bytes: 3 },
+        { category: 'audio', count: 1, bytes: 3 },
+        { category: 'document', count: 1, bytes: 6 },
+        { category: 'other', count: 1, bytes: 3 }
+    ]);
+    assert.deepEqual(stats.trash, { count: 0, bytes: 0 });
+    assert.equal(stats.storage.usedBytes, 22);
+
+    await service.trash('usr_one', [image.id]);
+    stats = service.getStats('usr_one');
+    assert.deepEqual(stats.categories.find((entry) => entry.category === 'image'), { category: 'image', count: 1, bytes: 4 });
+    assert.deepEqual(stats.trash, { count: 1, bytes: 3 });
+    assert.equal(stats.storage.usedBytes, 22);
+});
+
+test('les statistiques sont isolées par utilisateur', async () => {
+    const service = await createService();
+    const directory = temporaryDirectories.at(-1);
+    await uploadFixture(service, directory, { name: 'secret.png', mimetype: 'image/png', content: 'img' });
+
+    assert.equal(service.getStats('usr_one').categories.length, 1);
+    assert.deepEqual(service.getStats('usr_two').categories, []);
+});
+
 test('vider la Corbeille supprime tous les groupes appartenant à l’utilisateur', async () => {
     const service = await createService();
     const first = await service.createFolder('usr_one', { name: 'Premier' });

@@ -17,7 +17,7 @@ export function createWindowManager({ layer, taskbar, apps, version = "3.1.0", o
     function loadPinned() {
         try {
             const stored = JSON.parse(localStorage.getItem(TASKBAR_PIN_KEY));
-            if (Array.isArray(stored)) return stored.filter((id) => apps.some((item) => item.id === id));
+            if (Array.isArray(stored)) return stored.filter((id) => apps.some((item) => item.id === id && !item.incompatible));
         } catch { /* valeurs invalides ignorées */ }
         return [...DEFAULT_PINNED];
     }
@@ -268,7 +268,7 @@ export function createWindowManager({ layer, taskbar, apps, version = "3.1.0", o
         let restored = 0;
         entries.forEach((entry, index) => {
             const definition = apps.find((item) => item.id === entry.appId);
-            if (!definition) return;
+            if (!definition || definition.incompatible) return;
             const options = {
                 instanceKey: entry.instanceKey,
                 title: entry.name,
@@ -439,6 +439,10 @@ export function createWindowManager({ layer, taskbar, apps, version = "3.1.0", o
     function openApp(appId, options = {}, initial = null) {
         const definition = apps.find((item) => item.id === appId);
         if (!definition) return null;
+        if (definition.incompatible) {
+            onToast(`${definition.name} est incompatible avec cette version de Luma OS.`);
+            return null;
+        }
         const instanceKey = options.instanceKey || appId;
         const existing = [...windows.values()].find((item) => item.instanceKey === instanceKey);
         if (existing) {

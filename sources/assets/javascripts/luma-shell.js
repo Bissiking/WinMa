@@ -1,7 +1,8 @@
-import { requestJson, postJson, putJson } from "./luma-api.js";
+import { requestJson, patchJson, postJson, putJson } from "./luma-api.js";
 import { createWindowManager } from "./luma-window-manager.js";
 import { showContextMenu } from "./luma-context-menu.js";
 import { welcomeMessage } from "./luma-welcome.js";
+import { avatarMarkup, hydrateAvatars } from "./luma-avatar.js";
 
 const apps = [
     { id: "documents", name: "Documents", taskbarName: "Docs", icon: "documents", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
@@ -11,14 +12,14 @@ const apps = [
     { id: "settings", name: "Paramètres", taskbarName: "Config", icon: "settings", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
     { id: "task-manager", name: "Gestionnaire des tâches", taskbarName: "Tâches", icon: "activity", module: "/apps/task-manager/app.js", width: 920, height: 650, minWidth: 660, minHeight: 440, position: { left: .12, top: .08 } },
     { id: "luma-orbit", name: "Luma Orbit", taskbarName: "Orbit", icon: "orbit", module: "/apps/luma-orbit/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 480, position: { left: .09, top: .06 } },
-    { id: "sonora-studio", name: "Sonora Studio", taskbarName: "Sonora", icon: "music", logo: "/images/interface-logo/applications/sonora-studio.svg", module: "/apps/sonora-studio/app.js", width: 1120, height: 740, minWidth: 700, minHeight: 480, storeManaged: true, position: { left: .06, top: .04 } },
-    { id: "braindump", name: "BrainDump", taskbarName: "Brain", icon: "notepad", module: "/apps/braindump/app.js", width: 1040, height: 700, minWidth: 620, minHeight: 440, storeManaged: true, position: { left: .1, top: .06 } },
+    { id: "sonora-studio", name: "Sonora Studio", taskbarName: "Sonora", icon: "music", logo: "/images/interface-logo/applications/sonora-studio.svg", module: "/apps/sonora-studio/app.js", width: 1120, height: 740, minWidth: 700, minHeight: 480, storeManaged: true, incompatible: true, position: { left: .06, top: .04 } },
+    { id: "braindump", name: "BrainDump", taskbarName: "Brain", icon: "notepad", module: "/apps/braindump/app.js", width: 1040, height: 700, minWidth: 620, minHeight: 440, storeManaged: true, incompatible: true, position: { left: .1, top: .06 } },
     { id: "matheo-systems", name: "Matheo Systems", taskbarName: "Matheo", icon: "chip", module: "/apps/matheo-systems/app.js", width: 1060, height: 730, minWidth: 700, minHeight: 500, position: { left: .08, top: .05 }, hidden: true },
     { id: "notepad", name: "Bloc-notes", taskbarName: "Notes", icon: "notepad", module: "/apps/notepad/app.js", width: 800, height: 640, minWidth: 520, minHeight: 400, position: { left: .18, top: .1 } },
     { id: "image-viewer", name: "Photos Luma", taskbarName: "Photos", icon: "image", module: "/apps/image-viewer/app.js", width: 900, height: 680, minWidth: 480, minHeight: 360, hidden: true, position: { left: .16, top: .08 } },
     { id: "music-player", name: "Lecteur de musique", taskbarName: "Musique", icon: "music", module: "/apps/music-player/app.js", width: 640, height: 720, minWidth: 420, minHeight: 480, hidden: true, position: { left: .2, top: .06 } },
     { id: "video-player", name: "Lecteur vidéo", taskbarName: "Vidéo", icon: "video", module: "/apps/video-player/app.js", width: 980, height: 700, minWidth: 560, minHeight: 400, hidden: true, position: { left: .12, top: .08 } },
-    { id: "power", name: "Alimentation", taskbarName: "Alim.", icon: "power", module: "/apps/power/app.js", width: 480, height: 560, minWidth: 380, minHeight: 420, position: { left: .3, top: .12 } },
+    { id: "power", name: "Alimentation", taskbarName: "Alim.", icon: "power", module: "/apps/power/app.js", width: 480, height: 560, minWidth: 380, minHeight: 420, hidden: true, position: { left: .3, top: .12 } },
     { id: "timer", name: "Minuteur", taskbarName: "Min.", icon: "timer", module: "/apps/timer/app.js", width: 520, height: 620, minWidth: 380, minHeight: 440, position: { left: .32, top: .1 } },
     { id: "trash", name: "Corbeille", taskbarName: "Corb.", icon: "trash", module: "/apps/documents/app.js", width: 980, height: 660, minWidth: 620, minHeight: 400 }
 ];
@@ -33,6 +34,7 @@ let windowManager;
 let currentUser;
 let startupLaunched = false;
 let restoreSessionEnabled = true;
+let currentSettings = null;
 let systemVersion = "3.1.0";
 
 function iconFor(app) {
@@ -67,6 +69,7 @@ function resolveTheme(theme) {
 }
 
 export function applySettings(settings) {
+    currentSettings = settings;
     restoreSessionEnabled = settings.restoreSession !== false;
     const theme = resolveTheme(settings.theme || "luma");
     document.documentElement.dataset.theme = theme;
@@ -90,20 +93,51 @@ function renderStartApps(filter = "") {
     const normalized = filter.trim().toLocaleLowerCase("fr");
     let installed = new Set();
     try { installed = new Set(JSON.parse(localStorage.getItem("luma.orbit.installed") || "[]")); } catch { installed = new Set(); }
-    const visible = apps.filter((app) => !app.hidden && (!app.storeManaged || installed.has(app.id)) && app.name.toLocaleLowerCase("fr").includes(normalized));
+    const visible = apps.filter((app) => !app.hidden && !app.incompatible && (!app.storeManaged || installed.has(app.id)) && app.name.toLocaleLowerCase("fr").includes(normalized));
     startApps.innerHTML = visible.length ? visible.map((app) => `
         <button class="start-app" type="button" data-open-app="${app.id}">
             ${iconFor(app)}<span>${app.name}</span>
         </button>`).join("") : '<p class="start-empty">Aucune application trouvée.</p>';
 }
 
+async function migrateLegacyStartupApps() {
+    if (Array.isArray(currentSettings?.startupApps) && currentSettings.startupApps.length) {
+        try { localStorage.removeItem("luma.startup-apps"); } catch { /* stockage indisponible */ }
+        return;
+    }
+    let legacy = [];
+    try { legacy = JSON.parse(localStorage.getItem("luma.startup-apps") || "[]"); } catch { legacy = []; }
+    if (!Array.isArray(legacy) || !legacy.length) return;
+    try {
+        const settings = await patchJson("/api/users/me/settings", { startupApps: legacy });
+        currentSettings = { ...currentSettings, ...settings };
+        localStorage.removeItem("luma.startup-apps");
+    } catch { /* migration reportée au prochain démarrage */ }
+}
+
 function launchStartupApps() {
     if (startupLaunched || !windowManager) return;
     startupLaunched = true;
-    let startupIds = [];
-    try { startupIds = JSON.parse(localStorage.getItem("luma.startup-apps") || "[]"); } catch { startupIds = []; }
-    startupIds.filter((id) => apps.some((app) => app.id === id && !app.hidden)).forEach((id, index) => {
-        window.setTimeout(() => windowManager.openApp(id), index * 90);
+    const settings = currentSettings || {};
+    const profile = settings.startupActiveProfile ? settings.startupProfiles?.[settings.startupActiveProfile] : null;
+    const startupIds = Array.isArray(profile?.apps) && profile.apps.length
+        ? profile.apps
+        : (Array.isArray(settings.startupApps) ? settings.startupApps : []);
+    const delay = Number.isInteger(profile?.delayMs) ? profile.delayMs : (Number.isInteger(settings.startupDelayMs) ? settings.startupDelayMs : 90);
+    const mode = profile?.mode || settings.startupMode || "staggered";
+    const presentation = settings.startupPresentation ? { state: "maximized" } : {};
+
+    const launches = startupIds
+        .filter((id) => apps.some((app) => app.id === id && !app.hidden && !app.incompatible))
+        .map((id) => () => windowManager.openApp(id, presentation));
+    if (settings.startupOpenTrash) launches.push(() => windowManager.openApp("trash", presentation));
+    if (settings.startupOpenRecents) {
+        launches.push(() => windowManager.openApp("documents", { instanceKey: "documents:recents", title: "Documents", data: { view: "recent" }, ...presentation }));
+    }
+
+    launches.forEach((launch, index) => {
+        if (mode === "simultaneous") launch();
+        else window.setTimeout(launch, index * Math.max(0, delay));
     });
 }
 
@@ -119,7 +153,7 @@ function renderSessionScreen({ authenticated = false, authentication = {}, user 
     const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(now);
     const date = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "2-digit", month: "long" }).format(now);
     const displayName = lastUser?.displayName || lastUser?.username || "Utilisateur Luma";
-    const avatar = displayName.trim().charAt(0).toLocaleUpperCase("fr") || "L";
+    const avatarMarkupHtml = avatarMarkup(lastUser?.avatarUrl, displayName, { className: "session-user__avatar" });
     const buttonLabel = authenticated ? "Reprendre la session" : lastUser ? "Se connecter avec Kyros" : "Se connecter avec Kyros";
     sessionRoot.innerHTML = `
         <section class="session-select" aria-labelledby="session-title">
@@ -143,7 +177,7 @@ function renderSessionScreen({ authenticated = false, authentication = {}, user 
             <div class="session-select__bottom">
                 ${lastUser ? `
                 <div class="session-user">
-                    <span class="session-user__avatar" aria-hidden="true">${escapeHtml(avatar)}</span>
+                    ${avatarMarkupHtml}
                     <span class="session-user__name">${escapeHtml(displayName)}</span>
                 </div>` : `<span class="session-user__empty"></span>`}
                 <div class="session-select__statusbar" aria-hidden="true">
@@ -152,6 +186,7 @@ function renderSessionScreen({ authenticated = false, authentication = {}, user 
                 </div>
             </div>
         </section>`;
+    hydrateAvatars(sessionRoot);
     updateLockClock();
     window.clearInterval(lockClockInterval);
     lockClockInterval = window.setInterval(updateLockClock, 30_000);
@@ -217,7 +252,7 @@ async function fetchSavedWindows() {
 
 async function loadDesktopSession(user) {
     currentUser = user;
-    try { localStorage.setItem("luma.last-user", JSON.stringify({ displayName: user?.displayName || "", username: user?.username || "" })); } catch { /* stockage indisponible */ }
+    try { localStorage.setItem("luma.last-user", JSON.stringify({ displayName: user?.displayName || "", username: user?.username || "", avatarUrl: user?.avatarUrl || null })); } catch { /* stockage indisponible */ }
     const startedAt = performance.now();
     desktop.hidden = true;
     sessionRoot.hidden = false;
@@ -235,7 +270,8 @@ async function loadDesktopSession(user) {
     };
     const name = user?.displayName || user?.username || "Utilisateur Luma";
     document.getElementById("account-name").textContent = name;
-    document.getElementById("account-avatar").textContent = name.trim().charAt(0).toLocaleUpperCase("fr") || "L";
+    document.getElementById("account-avatar").outerHTML = avatarMarkup(user?.avatarUrl, name, { className: "account-avatar", id: "account-avatar" });
+    hydrateAvatars(document.querySelector(".taskbar"));
     try {
         progress(36, "Chargement de votre environnement…");
         const [settings, health] = await Promise.all([
@@ -244,6 +280,7 @@ async function loadDesktopSession(user) {
         ]);
         applySettings(settings);
         if (health?.version) systemVersion = health.version;
+        await migrateLegacyStartupApps();
     } catch {
         applySettings({ theme: "luma", accentColor: "#6d5ee8", wallpaper: "./images/backgrounds/background-00.jpg", density: "comfortable", motion: "system" });
         toast("Les préférences n’ont pas pu être chargées.");

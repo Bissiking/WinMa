@@ -13,10 +13,19 @@ test('le registre charge uniquement des applications déclarées', async () => {
     assert.deepEqual(applications.map((application) => application.id), [
         'documents',
         'trash',
-        'settings',
-        'sonora-studio',
-        'braindump'
+        'settings'
     ]);
+});
+
+test('les applications incompatibles restent déclarées mais désactivées', async () => {
+    const service = createAppRegistryService(registryPath);
+    const applications = await service.load();
+
+    for (const id of ['sonora-studio', 'braindump']) {
+        const application = applications.find((item) => item.id === id);
+        assert.ok(application, `${id} doit rester déclaré dans le registre`);
+        assert.equal(application.enabled, false);
+    }
 });
 
 test('un identifiant de chemin est refusé avant toute lecture', async () => {

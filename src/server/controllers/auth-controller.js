@@ -18,9 +18,10 @@ function statesMatch(expected, received) {
 function createAuthController({ config, kyrosService, sessionService }) {
     async function login(req, res) {
         const state = crypto.randomBytes(32).toString('base64url');
-        req.session.kyrosAuthorization = { state, createdAt: Date.now() };
+        const { url, codeVerifier } = await kyrosService.buildAuthorizeUrl(state);
+        req.session.kyrosAuthorization = { state, codeVerifier, createdAt: Date.now() };
         await sessionService.saveSession(req);
-        return res.redirect(302, kyrosService.buildAuthorizeUrl(state));
+        return res.redirect(302, url);
     }
 
     async function callback(req, res) {
@@ -39,11 +40,18 @@ function createAuthController({ config, kyrosService, sessionService }) {
             throw new HttpError(400, 'KYROS_STATE_INVALID', 'La demande de connexion a expiré ou est invalide.');
         }
 
+        if (config.kyros.ssoVersion !== 'v3') {
+            const issuer = typeof req.query.iss === 'string' ? req.query.iss : null;
+            if (!issuer || issuer !== config.kyros.issuer) {
+                throw new HttpError(400, 'KYROS_ISSUER_INVALID', "L'émetteur de la réponse de connexion est invalide.");
+            }
+        }
+
         if (typeof req.query.code !== 'string' || !req.query.code) {
             throw new HttpError(400, 'KYROS_CODE_MISSING', 'Le code de connexion Kyros est absent.');
         }
 
-        const { tokens, claims } = await kyrosService.exchangeAuthorizationCode(req.query.code);
+        const { tokens, claims } = await kyrosService.exchangeAuthorizationCode(req.query.code, pending.codeVerifier);
         await sessionService.establish(req, tokens, claims);
         return res.redirect(303, config.appBaseUrl);
     }

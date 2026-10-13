@@ -28,6 +28,8 @@ function createTestConfig(overrides = {}) {
             authorizeUrl: 'https://kyros.test/authorize',
             tokenUrl: 'https://kyros.test/token',
             revokeUrl: 'https://kyros.test/revoke',
+            parUrl: 'https://kyros.test/par',
+            jwksUrl: 'https://kyros.test/sso/v4/jwks',
             clientId: 'cli_luma_os',
             clientSecret: 'test-client-secret',
             jwtSecret: 'test-jwt-secret-with-enough-entropy',
@@ -38,6 +40,9 @@ function createTestConfig(overrides = {}) {
             requiredScopes: ['profile', 'email'],
             callbackUrl: 'http://127.0.0.1:3000/auth/callback',
             timeoutMs: 1000,
+            ssoVersion: 'v4',
+            edition: 'standard',
+            applicationScope: 'standard',
             ...kyrosOverrides
         }
     };

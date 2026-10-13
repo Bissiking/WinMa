@@ -36,3 +36,51 @@ test('un fuseau ou un champ inconnu est refusé', async () => {
     await assert.rejects(service.update('usr_one', { timeZone: 'Mars/Olympus' }), (error) => error.code === 'ACCOUNT_TIMEZONE_INVALID');
     await assert.rejects(service.update('usr_one', { kyrosRole: 'admin' }), (error) => error.code === 'ACCOUNT_INVALID');
 });
+
+test('le pull Kyros initialise le snapshot sans écraser les préférences locales', async () => {
+    const service = await createService();
+    await service.update('usr_one', { preferredName: 'Nom local' });
+
+    const account = await service.applyKyrosProfile('usr_one', { display_name: 'Kyros Name', locale: 'fr-FR', timezone: 'Europe/Paris' });
+
+    assert.equal(account.preferredName, 'Nom local');
+    assert.deepEqual(account.lastProfileSync, { displayName: 'Kyros Name', locale: 'fr-FR', timezone: 'Europe/Paris' });
+});
+
+test('le pull Kyros applique un changement de profil depuis le dernier synchronisme', async () => {
+    const service = await createService();
+    await service.applyKyrosProfile('usr_one', { display_name: 'Avant', locale: 'fr-FR', timezone: 'Europe/Paris' });
+
+    const account = await service.applyKyrosProfile('usr_one', {
+        display_name: 'Après',
+        locale: 'en-US',
+        timezone: 'America/New_York'
+    });
+
+    assert.equal(account.preferredName, 'Après');
+    assert.equal(account.language, 'en-US');
+    assert.equal(account.timeZone, 'America/New_York');
+    assert.deepEqual(account.lastProfileSync, { displayName: 'Après', locale: 'en-US', timezone: 'America/New_York' });
+});
+
+test('le pull Kyros ignore les locales inconnues et ne boucle pas sans changement', async () => {
+    const service = await createService();
+    await service.applyKyrosProfile('usr_one', { display_name: 'Stable', locale: 'fr-FR', timezone: 'Europe/Paris' });
+
+    const unchanged = await service.applyKyrosProfile('usr_one', { display_name: 'Stable', locale: 'fr-FR', timezone: 'Europe/Paris' });
+    assert.equal(unchanged.preferredName, '');
+
+    const weird = await service.applyKyrosProfile('usr_one', { display_name: 'Stable', locale: 'xx-INVALID', timezone: 'Europe/Paris' });
+    assert.equal(weird.language, 'fr-FR');
+    assert.equal(weird.lastProfileSync.locale, 'xx-INVALID');
+});
+
+test('le pull Kyros ne s\'applique jamais si syncProfile est désactivé', async () => {
+    const service = await createService();
+    await service.update('usr_one', { syncProfile: false });
+
+    const account = await service.applyKyrosProfile('usr_one', { display_name: 'Ignored', locale: 'en-US', timezone: 'America/New_York' });
+
+    assert.equal(account.preferredName, '');
+    assert.equal(account.lastProfileSync, null);
+});

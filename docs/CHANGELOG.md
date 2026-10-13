@@ -2,6 +2,73 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) : chaque version expose un **survol** (rapide et court, à survoler) puis une section **détails** complète. Les versions marquées `alpha` sont des jalons internes ; seules les versions stables reçoivent un numéro public sans suffixe.
 
+## 3.3.0-alpha — Survol
+
+> Stockage, Réseau Luma et Démarrage enrichi.
+
+- **Stockage** : nouvelle vue Paramètres > Stockage (quota 1 Go, répartition par type de fichier, espace Corbeille).
+- **Réseau Luma** : nouvelle vue Paramètres > Réseau Luma (santé des services avec latence, session en cours, réseau de l'appareil).
+- **Démarrage enrichi** : applications au démarrage réordonnables, délai et mode de lancement, profils nommés, options (Corbeille, Récents, dernier dossier, présentation) — gestion migrée du Gestionnaire des tâches vers Paramètres.
+- **Documents Récents** : vue « Récents » dans la barre latérale de Documents (50 derniers fichiers modifiés), utilisée par l'option de démarrage.
+- **Gestionnaire des tâches** : l'onglet Démarrage est retiré (configuration déplacée dans Paramètres).
+
+## 3.3.0-alpha — Détails
+
+### Ajouts
+
+- **Paramètres > Stockage** : `GET /api/documents/stats` agrège l'usage par catégorie (images, vidéos, musique, documents, autres) et l'espace Corbeille ; la vue affiche le quota personnel, la répartition et la Corbeille.
+- **Paramètres > Réseau Luma** : `GET /api/system/network` mesure la latence des services configurés (Kyros, Sonora, BrainDump, Harmonix), expose l'état de la session (hôte, transport, âge, expiration des jetons) et le réseau de l'appareil (`navigator.connection` avec repli).
+- **Démarrage enrichi** (Paramètres > Démarrage) :
+  - liste des applications éligibles avec activation et réordonnancement (↑/↓) ;
+  - délai entre chaque lancement (0–5000 ms) et mode (Progressif / Simultané) ;
+  - profils de démarrage (enregistrer le scénario actuel, appliquer, renommer, supprimer) ;
+  - options : ouvrir la Corbeille, ouvrir les Récents, restaurer le dernier dossier de Documents, mode présentation (fenêtres maximisées).
+- **Documents — vue Récents** : les 50 derniers fichiers modifiés, accessible depuis la barre latérale ; utilisée par l'option de démarrage « Ouvrir les Récents ».
+- **Restauration du dernier dossier** : si l'option est active, Documents rouvre le dossier dans lequel l'utilisateur se trouvait (localStorage `luma.documents.last-folder`).
+
+### Changements
+
+- **Gestionnaire des tâches** : l'onglet Démarrage est supprimé ; la configuration des applications au démarrage vit dans Paramètres > Démarrage.
+- Le shell lit désormais les réglages de démarrage côté serveur (`/api/users/me/settings`) ; la liste `localStorage["luma.startup-apps"]` est migrée une fois vers le serveur puis supprimée.
+
+---
+
+## 3.2.0-alpha — Survol
+
+> Stabilité de session, SSO v4, profil synchronisé, apps incompatibles et Narra.
+
+- **Session durable** : la session ne saute plus lors d'un changement de réglage (magasin de sessions en SQLite, nodemon n'ignore plus les écritures de configuration).
+- **SSO Kyros v4** : Luma OS parle désormais le protocole SSO v4 (PAR + PKCE S256, jetons RS256 vérifiés via JWKS, validation `iss` RFC 9207).
+- **Profil synchronisé** : avatar Kyros affiché partout (écran de session, Paramètres, Gestionnaire des tâches) et profil aller-retour (nom, langue, fuseau) entre Kyros et Luma.
+- **Narra** : A.R.C. devient Narra dans Luma Orbit.
+- **Apps incompatibles** : Sonora Studio, BrainDump et Harmonix sont marqués « Incompatible » et ne peuvent plus être lancés.
+- **Alimentation** retirée du menu Démarrer (l'accès reste disponible via l'indicateur de batterie).
+- **Documentation externe** : `docs/API-EXTERNE.md` décrit le contrat SSO v4 et le profil synchronisable.
+
+## 3.2.0-alpha — Détails
+
+### Ajouts
+
+- **SSO Kyros v4** : `KYROS_SSO_VERSION=v4` est le défaut. `GET /auth/login` effectue un POST `/par` (PKCE S256) puis redirige vers `/authorize` avec le `request_uri` ; `/auth/callback` valide `iss` (RFC 9207) et échange le code avec `code_verifier` ; les jetons d'accès RS256 sont vérifiés via le JWKS public (`kid` → clé, cache 5 minutes) avec `sso_version: "v4"`, issuer, audience et resource audience. Le mode v3 HS256 reste disponible.
+- **Avatar Kyros** : l'avatar du compte est proxifié (`GET /api/users/me/avatar`) et affiché sur l'écran de session, dans Paramètres (identité du compte) et dans le Gestionnaire des tâches, avec repli sur l'initiale du nom.
+- **Synchronisation de profil aller-retour** (scope `profile`) :
+  - *Pull* : à chaque login et refresh, Luma compare le profil du jeton au dernier snapshot ; si le profil Kyros a changé, le nom préféré, la langue et le fuseau locaux suivent (`syncProfile` actif). Le premier passage initialise le snapshot sans écraser les préférences locales.
+  - *Push* : `PATCH /api/users/me/account` pousse nom/langue/fuseau vers Kyros ; un échec remonte un avertissement (`profileSyncWarning`) sans perdre la sauvegarde locale. Le snapshot interne (`lastProfileSync`) n'est jamais exposé dans l'API.
+- `docs/API-EXTERNE.md` : contrat externe SSO v4, endpoints de profil (`GET`/`PATCH /api/me/profile`) et règles de synchronisation.
+
+### Correctifs
+
+- Les sessions sont persistées en SQLite (`auth_sessions`) au lieu du magasin en mémoire : un redémarrage du serveur (nodemon) ne déconnecte plus l'utilisateur. Le refresh Kyros est « single-flight » (un seul rafraîchissement partagé par token) et la session n'est détruite que sur `invalid_grant` (les timeouts réseau la conservent).
+- `nodemon.json` : les écritures dans `data/settings`, `data/accounts`, `data/sessions` et `data/luma.sqlite` ne redémarrent plus le serveur.
+
+### Changements
+
+- Luma Orbit : l'entrée A.R.C. devient **Narra** (porte d'entrée future vers les services Narra).
+- Sonora Studio, BrainDump et Harmonix sont marqués **Incompatible** : fiche Orbit « Incompatible », bouton d'action désactivé, lancement bloqué, exclusion du menu Démarrer et des restaurations de session ; le lecteur Harmonix est masqué et `luma.harmonix.enabled` forcé à `false` ; le registre serveur les marque `enabled: false`.
+- Alimentation n'apparaît plus dans le menu Démarrer (toujours accessible par le bouton batterie de la barre des tâches).
+
+---
+
 ## 3.1.0 — Survol
 
 > Nouveautés en une minute.

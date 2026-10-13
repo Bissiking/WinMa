@@ -8,7 +8,8 @@ const DEFAULT_ACCOUNT = Object.freeze({
     language: 'fr-FR',
     timeZone: 'auto',
     syncProfile: true,
-    syncAppearance: true
+    syncAppearance: true,
+    lastProfileSync: null
 });
 const ALLOWED_FIELDS = new Set(Object.keys(DEFAULT_ACCOUNT));
 const ALLOWED_LANGUAGES = new Set(['fr-FR', 'en-US']);
@@ -54,9 +55,30 @@ function validatePatch(patch) {
             throw new HttpError(400, 'ACCOUNT_SYNC_INVALID', 'Les options de synchronisation doivent être booléennes.');
         }
     }
+    if ('lastProfileSync' in patch) {
+        const snapshot = patch.lastProfileSync;
+        const isStringOrNull = (value) => value === null || typeof value === 'string';
+        if (
+            snapshot !== null &&
+            (typeof snapshot !== 'object' || Array.isArray(snapshot) ||
+                !isStringOrNull(snapshot.displayName) ||
+                !isStringOrNull(snapshot.locale) ||
+                !isStringOrNull(snapshot.timezone))
+        ) {
+            throw new HttpError(400, 'ACCOUNT_SYNC_INVALID', 'Le snapshot de synchronisation est invalide.');
+        }
+    }
     return {
         ...patch,
         ...(patch.preferredName !== undefined ? { preferredName: patch.preferredName.trim() } : {})
+    };
+}
+
+function snapshotFromClaims(claims) {
+    return {
+        displayName: typeof claims?.display_name === 'string' ? claims.display_name : null,
+        locale: typeof claims?.locale === 'string' ? claims.locale : null,
+        timezone: typeof claims?.timezone === 'string' ? claims.timezone : null
     };
 }
 
@@ -88,7 +110,44 @@ function createAccountService(accountsDirectory) {
         return account;
     }
 
-    return { read, update };
+    // Pull Kyros → Luma : si le profil Kyros a changé depuis le dernier
+    // synchronisme, les préférences locales suivent (syncProfile actif).
+    async function applyKyrosProfile(subject, claims) {
+        const account = await read(subject);
+        if (!account.syncProfile || !claims) {
+            return account;
+        }
+
+        const snapshot = snapshotFromClaims(claims);
+        const previous = account.lastProfileSync;
+        const changed = !previous ||
+            previous.displayName !== snapshot.displayName ||
+            previous.locale !== snapshot.locale ||
+            previous.timezone !== snapshot.timezone;
+
+        if (!changed) {
+            return account;
+        }
+
+        // Premier passage : on mémorise l'état Kyros sans écraser les préférences locales.
+        if (!previous) {
+            return update(subject, { lastProfileSync: snapshot });
+        }
+
+        const patch = { lastProfileSync: snapshot };
+        if (snapshot.displayName && snapshot.displayName !== previous.displayName) {
+            patch.preferredName = snapshot.displayName;
+        }
+        if (snapshot.locale && snapshot.locale !== previous.locale && ALLOWED_LANGUAGES.has(snapshot.locale)) {
+            patch.language = snapshot.locale;
+        }
+        if (snapshot.timezone && snapshot.timezone !== previous.timezone && isValidTimeZone(snapshot.timezone)) {
+            patch.timeZone = snapshot.timezone;
+        }
+        return update(subject, patch);
+    }
+
+    return { read, update, applyKyrosProfile, snapshotFromClaims };
 }
 
 module.exports = { createAccountService, DEFAULT_ACCOUNT, validatePatch };

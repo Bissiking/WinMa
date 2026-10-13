@@ -1,0 +1,18 @@
+{
+    "watch": ["src", "sources", "index.html", "data/apps.json"],
+    "ignore": [
+        "data/settings",
+        "data/accounts",
+        "data/sessions",
+        "data/luma.sqlite",
+        "data/luma.sqlite-wal",
+        "data/luma.sqlite-shm",
+        "storage",
+        ".git",
+        "node_modules",
+        "tests",
+        "docs",
+        ".impeccable"
+    ],
+    "ext": "js,mjs,cjs"
+}

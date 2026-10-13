@@ -1,55 +1,17 @@
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
-const jwt = require('jsonwebtoken');
 const { createApp } = require('../../src/server/app');
 const { createTestConfig } = require('../helpers/test-config');
+const { createFakeKyros, loginAs } = require('../helpers/fake-kyros');
 const { extractCookie, startTestServer, stopTestServer } = require('../helpers/test-server');
 
 const config = createTestConfig();
+const fake = createFakeKyros(config);
 let baseUrl;
 let server;
 
-function createToken(overrides = {}) {
-    return jwt.sign(
-        {
-            sub: 'usr_luma',
-            username: 'matheo',
-            display_name: 'Matheo',
-            resource_aud: config.kyros.resourceAudience,
-            client_id: config.kyros.clientId,
-            scope: 'profile email',
-            ...overrides
-        },
-        config.kyros.jwtSecret,
-        {
-            algorithm: 'HS256',
-            issuer: config.kyros.issuer,
-            audience: config.kyros.audience,
-            expiresIn: '15m'
-        }
-    );
-}
-
-async function fakeKyrosFetch(url, options) {
-    return new Response(JSON.stringify({
-        access_token: createToken(),
-        refresh_token: 'refresh-token-next',
-        refresh_token_expires_at: '2099-01-01T00:00:00.000Z',
-        user: {
-            id: 'usr_luma',
-            username: 'matheo',
-            email: 'not-exposed@example.test',
-            displayName: 'Matheo',
-            role: 'admin'
-        }
-    }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' }
-    });
-}
-
 before(async () => {
-    const started = await startTestServer(createApp({ config, fetchImplementation: fakeKyrosFetch }));
+    const started = await startTestServer(createApp({ config, fetchImplementation: fake.fetchImplementation }));
     baseUrl = started.baseUrl;
     server = started.server;
 });
@@ -59,13 +21,8 @@ after(async () => {
 });
 
 async function authenticate() {
-    const loginResponse = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
-    const authorizeUrl = new URL(loginResponse.headers.get('location'));
-    const callbackResponse = await fetch(
-        `${baseUrl}/auth/callback?code=valid-code&state=${encodeURIComponent(authorizeUrl.searchParams.get('state'))}`,
-        { headers: { cookie: extractCookie(loginResponse) }, redirect: 'manual' }
-    );
-    return extractCookie(callbackResponse);
+    const { cookie } = await loginAs(baseUrl, fake, { extractCookie });
+    return cookie;
 }
 
 test('une session anonyme ne peut pas accéder aux fenêtres', async () => {

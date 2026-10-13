@@ -1,73 +1,36 @@
 // tests/integration/auth.test.js
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
-const jwt = require('jsonwebtoken');
 const { createApp } = require('../../src/server/app');
 const { createTestConfig } = require('../helpers/test-config');
+const { createFakeKyros, loginAs } = require('../helpers/fake-kyros');
 const { extractCookie, startTestServer, stopTestServer } = require('../helpers/test-server');
 
 const config = createTestConfig({ sonoraStudio: { baseUrl: 'https://sonora.test', timeoutMs: 1000 } });
+const fake = createFakeKyros(config);
 let baseUrl;
 let server;
-let providerCalls;
 let sonoraCalls;
 
-function createToken(overrides = {}) {
-    return jwt.sign(
-        {
-            sub: 'usr_luma',
-            username: 'matheo',
-            display_name: 'Matheo',
-            resource_aud: config.kyros.resourceAudience,
-            client_id: config.kyros.clientId,
-            scope: 'profile email',
-            ...overrides
-        },
-        config.kyros.jwtSecret,
-        {
-            algorithm: 'HS256',
-            issuer: config.kyros.issuer,
-            audience: config.kyros.audience,
-            expiresIn: '15m'
-        }
-    );
-}
-
-async function fakeKyrosFetch(url, options) {
+async function combinedFetch(url, options) {
     if (url.startsWith('https://sonora.test')) {
         sonoraCalls.push({ url, authorization: new Headers(options.headers).get('authorization') });
         return Response.json({ items: [{ id: 'track-1', title: 'Lueur' }] });
     }
-    providerCalls.push({ url, body: JSON.parse(options.body) });
+    return fake.fetchImplementation(url, options);
+}
 
-    if (url.endsWith('/revoke')) {
-        return new Response(JSON.stringify({ revoked: true }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' }
-        });
-    }
+function tokenCalls() {
+    return fake.calls.filter((call) => call.url.endsWith('/token'));
+}
 
-    return new Response(JSON.stringify({
-        access_token: createToken(),
-        refresh_token: 'refresh-token-next',
-        refresh_token_expires_at: '2099-01-01T00:00:00.000Z',
-        user: {
-            id: 'usr_luma',
-            username: 'matheo',
-            email: 'not-exposed@example.test',
-            displayName: 'Matheo',
-            role: 'admin'
-        }
-    }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' }
-    });
+async function authenticate() {
+    return loginAs(baseUrl, fake, { extractCookie });
 }
 
 before(async () => {
-    providerCalls = [];
     sonoraCalls = [];
-    const started = await startTestServer(createApp({ config, fetchImplementation: fakeKyrosFetch }));
+    const started = await startTestServer(createApp({ config, fetchImplementation: combinedFetch }));
     baseUrl = started.baseUrl;
     server = started.server;
 });
@@ -76,7 +39,7 @@ after(async () => {
     await stopTestServer(server);
 });
 
-test('le login redirige vers Kyros avec callback, scopes et state', async () => {
+test('le login pousse un PAR SSOv4 puis redirige vers authorize avec request_uri', async () => {
     const response = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
     const location = new URL(response.headers.get('location'));
 
@@ -84,17 +47,28 @@ test('le login redirige vers Kyros avec callback, scopes et state', async () => 
     assert.equal(location.origin, 'https://kyros.test');
     assert.equal(location.pathname, '/authorize');
     assert.equal(location.searchParams.get('client_id'), config.kyros.clientId);
-    assert.equal(location.searchParams.get('redirect_uri'), config.kyros.callbackUrl);
-    assert.equal(location.searchParams.get('scope'), 'profile email');
-    assert.ok(location.searchParams.get('state'));
+    assert.ok(location.searchParams.get('request_uri')?.startsWith('urn:ietf:params:oauth:request_uri:'));
+    assert.equal(location.searchParams.get('code_challenge'), null);
+    assert.equal(location.searchParams.get('state'), null);
     assert.ok(extractCookie(response).startsWith('luma.sid='));
+
+    const par = fake.calls.find((call) => call.url.endsWith('/par'));
+    assert.ok(par, 'le PAR doit précéder la redirection');
+    assert.equal(par.body.kyros_sso_version, 'v4');
+    assert.equal(par.body.kyros_edition, config.kyros.edition);
+    assert.equal(par.body.kyros_application_scope, config.kyros.applicationScope);
+    assert.equal(par.body.redirect_uri, config.kyros.callbackUrl);
+    assert.equal(par.body.scope, 'profile email');
+    assert.ok(par.body.state);
+    assert.match(par.body.code_challenge, /^[A-Za-z0-9_-]{43,128}$/);
+    assert.equal(par.body.code_challenge_method, 'S256');
 });
 
 test('le callback rejette un state différent sans contacter Kyros', async () => {
     const loginResponse = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
     const cookie = extractCookie(loginResponse);
-    const previousCallCount = providerCalls.length;
-    const response = await fetch(`${baseUrl}/auth/callback?code=test-code&state=wrong`, {
+    const previousTokenCalls = tokenCalls().length;
+    const response = await fetch(`${baseUrl}/auth/callback?code=test-code&state=wrong&iss=${encodeURIComponent(config.kyros.issuer)}`, {
         headers: { cookie },
         redirect: 'manual'
     });
@@ -102,21 +76,37 @@ test('le callback rejette un state différent sans contacter Kyros', async () =>
 
     assert.equal(response.status, 400);
     assert.equal(payload.code, 'KYROS_STATE_INVALID');
-    assert.equal(providerCalls.length, previousCallCount);
+    assert.equal(tokenCalls().length, previousTokenCalls);
 });
 
-test('le callback échange le code et expose seulement le profil minimal', async () => {
+test('le callback rejette un issuer absent ou différent', async () => {
+    const previousTokenCalls = tokenCalls().length;
+
     const loginResponse = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
     const loginCookie = extractCookie(loginResponse);
-    const authorizeUrl = new URL(loginResponse.headers.get('location'));
-    const state = authorizeUrl.searchParams.get('state');
-    const callbackResponse = await fetch(`${baseUrl}/auth/callback?code=valid-code&state=${encodeURIComponent(state)}`, {
-        headers: { cookie: loginCookie },
-        redirect: 'manual'
-    });
-    const authenticatedCookie = extractCookie(callbackResponse);
+    const missingIssuer = await fake.completeAuthorization();
+    const deniedWithoutIssuer = await fetch(
+        `${baseUrl}/auth/callback?code=${encodeURIComponent(missingIssuer.code)}&state=${encodeURIComponent(missingIssuer.state)}`,
+        { headers: { cookie: loginCookie }, redirect: 'manual' }
+    );
+    assert.equal(deniedWithoutIssuer.status, 400);
+    assert.equal((await deniedWithoutIssuer.json()).code, 'KYROS_ISSUER_INVALID');
+
+    const loginAgain = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
+    const wrongIssuer = await fake.completeAuthorization();
+    const deniedWithWrongIssuer = await fetch(
+        `${baseUrl}/auth/callback?code=${encodeURIComponent(wrongIssuer.code)}&state=${encodeURIComponent(wrongIssuer.state)}&iss=another-issuer`,
+        { headers: { cookie: extractCookie(loginAgain) }, redirect: 'manual' }
+    );
+    assert.equal(deniedWithWrongIssuer.status, 400);
+    assert.equal((await deniedWithWrongIssuer.json()).code, 'KYROS_ISSUER_INVALID');
+    assert.equal(tokenCalls().length, previousTokenCalls);
+});
+
+test('le callback échange le code avec PKCE et expose seulement le profil minimal', async () => {
+    const { callbackResponse, cookie } = await authenticate();
     const sessionResponse = await fetch(`${baseUrl}/api/session`, {
-        headers: { cookie: authenticatedCookie }
+        headers: { cookie }
     });
     const sessionPayload = await sessionResponse.json();
 
@@ -126,23 +116,25 @@ test('le callback échange le code et expose seulement le profil minimal', async
         id: 'usr_luma',
         username: 'matheo',
         displayName: 'Matheo',
-        avatar: 'default'
+        avatar: 'default',
+        avatarUrl: null
     });
     assert.equal(JSON.stringify(sessionPayload).includes('token'), false);
 
-    const exchange = providerCalls.find((call) => call.body.grant_type === 'authorization_code');
+    const exchange = tokenCalls().find((call) => call.body.grant_type === 'authorization_code');
+    assert.ok(exchange, 'le code doit avoir été échangé');
     assert.equal(exchange.body.client_secret, config.kyros.clientSecret);
     assert.equal(exchange.body.redirect_uri, config.kyros.callbackUrl);
+    assert.equal(exchange.body.kyros_sso_version, 'v4');
+    assert.match(exchange.body.code_verifier, /^[A-Za-z0-9._~-]{43,128}$/);
+
+    const par = [...fake.calls].reverse().find((call) => call.url.endsWith('/par'));
+    const expectedChallenge = require('node:crypto').createHash('sha256').update(exchange.body.code_verifier).digest('base64url');
+    assert.equal(par.body.code_challenge, expectedChallenge);
 });
 
 test('la déconnexion révoque le refresh token et détruit la session', async () => {
-    const loginResponse = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
-    const authorizeUrl = new URL(loginResponse.headers.get('location'));
-    const callbackResponse = await fetch(
-        `${baseUrl}/auth/callback?code=valid-code&state=${encodeURIComponent(authorizeUrl.searchParams.get('state'))}`,
-        { headers: { cookie: extractCookie(loginResponse) }, redirect: 'manual' }
-    );
-    const cookie = extractCookie(callbackResponse);
+    const { cookie } = await authenticate();
     const logoutResponse = await fetch(`${baseUrl}/api/auth/logout`, {
         method: 'POST',
         headers: { cookie, origin: config.appBaseUrl }
@@ -152,18 +144,13 @@ test('la déconnexion révoque le refresh token et détruit la session', async (
 
     assert.equal(logoutResponse.status, 200);
     assert.equal(sessionPayload.data.authenticated, false);
-    assert.ok(providerCalls.some((call) => call.url.endsWith('/revoke')));
+    assert.ok(fake.calls.some((call) => call.url.endsWith('/revoke')));
 });
 
 test('Sonora reçoit le token Kyros utilisateur conservé dans la session serveur', async () => {
-    const loginResponse = await fetch(`${baseUrl}/auth/login`, { redirect: 'manual' });
-    const authorizeUrl = new URL(loginResponse.headers.get('location'));
-    const callbackResponse = await fetch(
-        `${baseUrl}/auth/callback?code=valid-code&state=${encodeURIComponent(authorizeUrl.searchParams.get('state'))}`,
-        { headers: { cookie: extractCookie(loginResponse) }, redirect: 'manual' }
-    );
+    const { cookie } = await authenticate();
     const response = await fetch(`${baseUrl}/api/sonora-studio/tracks`, {
-        headers: { cookie: extractCookie(callbackResponse) }
+        headers: { cookie }
     });
     const payload = await response.json();
 
@@ -172,4 +159,35 @@ test('Sonora reçoit le token Kyros utilisateur conservé dans la session serveu
     assert.equal(sonoraCalls.length, 1);
     assert.match(sonoraCalls[0].authorization, /^Bearer ey/);
     assert.equal(JSON.stringify(payload).includes(sonoraCalls[0].authorization), false);
+});
+
+test("l'avatar Kyros est servi via le proxy avec mise en cache privée", async () => {
+    fake.serveAvatar('https://kyros.test/avatars/matheo.jpg', {
+        contentType: 'image/jpeg',
+        body: Buffer.from('jpeg-bytes')
+    });
+    fake.setTokenClaims({ picture: '/avatars/matheo.jpg' });
+
+    const { cookie } = await authenticate();
+    const response = await fetch(`${baseUrl}/api/users/me/avatar`, { headers: { cookie } });
+    const body = Buffer.from(await response.arrayBuffer());
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'image/jpeg');
+    assert.equal(response.headers.get('cache-control'), 'private, max-age=3600');
+    assert.equal(body.toString(), 'jpeg-bytes');
+
+    fake.setTokenClaims(null);
+});
+
+test("un compte sans avatar reçoit un 404 sur le proxy", async () => {
+    fake.setTokenClaims({ picture: null });
+
+    const { cookie } = await authenticate();
+    const response = await fetch(`${baseUrl}/api/users/me/avatar`, { headers: { cookie } });
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).code, 'AVATAR_NOT_FOUND');
+
+    fake.setTokenClaims(null);
 });

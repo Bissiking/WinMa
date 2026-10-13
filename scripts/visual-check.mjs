@@ -19,7 +19,7 @@ const sampleItems = [
 ];
 
 async function configure(page) {
-    let settings = { wallpaper: "./images/backgrounds/luma-aurora.webp", theme: "luma", accentColor: "#6d5ee8", density: "comfortable", motion: "system" };
+    let settings = { wallpaper: "./images/backgrounds/luma-aurora.webp", theme: "luma", accentColor: "#6d5ee8", density: "comfortable", motion: "system", restoreSession: true, startupApps: ["documents", "notepad"], startupDelayMs: 90, startupMode: "staggered", startupProfiles: {}, startupActiveProfile: null, startupOpenTrash: false, startupOpenRecents: false, startupRestoreFolder: false, startupPresentation: false };
     let preferences = { preferredName: "", language: "fr-FR", timeZone: "auto", syncProfile: true, syncAppearance: true };
     const storage = { usedBytes: 3619635, quotaBytes: 1073741824, availableBytes: 1070122189 };
     let brainNotes = [
@@ -79,7 +79,28 @@ async function configure(page) {
                 { id: "trash", name: "Corbeille", type: "system" },
                 { id: "settings", name: "Paramètres", type: "internal" }
             ];
+        } else if (pathname === "/api/system/network") {
+            data = {
+                server: { version: "3.1.0", uptimeSeconds: 840 },
+                services: [
+                    { id: "kyros", name: "Identité Kyros", configured: true, status: "ok", latencyMs: 42 },
+                    { id: "sonora-studio", name: "Sonora Studio", configured: true, status: "error", latencyMs: 3000 },
+                    { id: "braindump", name: "BrainDump", configured: false, status: "unconfigured", latencyMs: null },
+                    { id: "harmonix", name: "Harmonix", configured: true, status: "ok", latencyMs: 120 }
+                ],
+                session: { host: "127.0.0.1:3210", protocol: "http", authenticated: true, ageSeconds: 840, accessTokenExpiresAt: Date.now() + 900_000, refreshTokenPresent: true }
+            };
         } else if (pathname === "/api/documents/folders") data = [{ id: null, parentId: null, name: "Mes fichiers" }, ...sampleItems.filter((item) => item.kind === "folder")];
+        else if (pathname === "/api/documents/stats") data = {
+            categories: [
+                { category: "image", count: 1, bytes: 180 },
+                { category: "video", count: 1, bytes: 860000 },
+                { category: "audio", count: 1, bytes: 42000 },
+                { category: "document", count: 4, bytes: 245760 + 3355443 + 29 + 18432 }
+            ],
+            trash: { count: 0, bytes: 0 },
+            storage
+        };
         else if (pathname.endsWith("/content")) data = request.method() === "GET" ? { item: sampleItems[5], content: "# Bienvenue\n\nUne note **Luma**." } : sampleItems[5];
         else if (pathname === "/api/documents") data = { items: sampleItems, breadcrumbs: [], storage, retentionDays: 30 };
         else data = {};
@@ -111,10 +132,32 @@ const sidebarTopAfterScroll = await settingsWindow.locator(".settings-sidebar").
 if (sidebarTop !== sidebarTopAfterScroll) throw new Error("La sidebar Paramètres bouge encore avec le contenu.");
 await settingsWindow.locator('[data-settings-view="network"]').first().click();
 await settingsWindow.locator(".luma-network-summary").waitFor();
+if (!await settingsWindow.getByText("Session en cours").isVisible()) throw new Error("La vue Réseau n’affiche pas la section Session en cours.");
+if (await settingsWindow.getByText("Identité Kyros").count() === 0) throw new Error("La vue Réseau n’affiche pas le service Kyros.");
+if (!await settingsWindow.locator("[data-network-refresh]").isVisible()) throw new Error("Le bouton Actualiser est absent de la vue Réseau.");
+await settingsWindow.locator('[data-settings-view="storage"]').first().click();
+await settingsWindow.locator(".settings-storage").waitFor();
+if (!await settingsWindow.getByText("Répartition par type").isVisible()) throw new Error("La vue Stockage n’affiche pas la répartition par type.");
+if (await settingsWindow.getByText("Corbeille", { exact: true }).count() === 0) throw new Error("La vue Stockage n’affiche pas la Corbeille.");
+await settingsWindow.locator('[data-settings-view="startup"]').first().click();
+await settingsWindow.locator(".startup-list").waitFor();
+if (await settingsWindow.locator("[data-startup-toggle]").count() < 5) throw new Error("La liste des applications éligibles au démarrage est incomplète.");
+if (!await settingsWindow.locator('[data-startup-toggle="documents"]').isChecked()) throw new Error("L’application Documents devrait être cochée par défaut.");
+if (await settingsWindow.locator("[data-startup-move]").count() === 0) throw new Error("Les boutons de réordonnancement du démarrage sont absents.");
+if (!await settingsWindow.locator("[data-startup-delay]").isVisible()) throw new Error("Le champ de délai du démarrage est absent.");
+if (await settingsWindow.locator('[data-setting="startupMode"]').count() !== 2) throw new Error("Le contrôle segmenté du mode de démarrage est incomplet.");
+if (!await settingsWindow.locator("[data-profile-select]").isVisible()) throw new Error("Le sélecteur de profils de démarrage est absent.");
+if (!await settingsWindow.locator("[data-profile-create]").isVisible()) throw new Error("Le bouton d’enregistrement de profil est absent.");
 
 await desktop.locator("#luma-launcher").click();
 await desktop.locator('.start-app[data-open-app="documents"]').click();
 const documentsWindow = desktop.locator('.luma-window[aria-label="Documents"]');
+await documentsWindow.locator(".document-row").first().waitFor();
+await documentsWindow.locator('[data-location="recent"]').click();
+await documentsWindow.locator(".documents-path").waitFor();
+if (!await documentsWindow.getByText("Récents").first().isVisible()) throw new Error("La vue Récents de Documents ne s’affiche pas.");
+await documentsWindow.locator('[data-location="root"]').click();
+await documentsWindow.locator(".document-row").first().waitFor();
 await documentsWindow.locator('.document-row:has-text("Bienvenue.md")').dblclick();
 const noteWindow = desktop.locator('.luma-window[aria-label="Bienvenue.md"]');
 await noteWindow.locator("[data-note-editor]").waitFor();
@@ -145,8 +188,7 @@ await desktop.locator('.start-app[data-open-app="task-manager"]').click();
 const taskWindow = desktop.locator('.luma-window[aria-label="Gestionnaire des tâches"]');
 await taskWindow.locator(".task-manager-app").waitFor();
 if (!await taskWindow.getByText("18,4 %").isVisible()) throw new Error("Le Gestionnaire des tâches n’affiche pas le CPU.");
-await taskWindow.locator('[data-task-view="startup"]').click();
-if (await taskWindow.locator("[data-startup-app]").count() < 5) throw new Error("La gestion des applications au démarrage est incomplète.");
+if (await taskWindow.locator('[data-task-view="startup"]').count() !== 0) throw new Error("L’onglet Démarrage du Gestionnaire des tâches ne doit plus exister.");
 await taskWindow.locator('[data-task-view="processes"]').click();
 const beforeResize = await taskWindow.boundingBox();
 const resizeHandle = taskWindow.locator(".window-resize--se");
@@ -172,36 +214,21 @@ if (!skipScreenshots) await desktop.screenshot({ path: `${outputDirectory}luma-o
 await orbitWindow.locator('[data-orbit-open="braindump"]').first().click();
 await orbitWindow.locator(".orbit-detail").waitFor();
 if (!await orbitWindow.getByText("À propos").isVisible()) throw new Error("La fiche produit de Luma Orbit ne s’affiche pas.");
+if (!await orbitWindow.locator('[data-orbit-action="braindump"]').isDisabled()) throw new Error("L’action BrainDump devrait être désactivée (application incompatible).");
+if (!await orbitWindow.locator(".orbit-detail__heading").getByText("Incompatible", { exact: true }).isVisible()) throw new Error("Le statut Incompatible est absent de la fiche BrainDump.");
 await desktop.waitForTimeout(500);
 if (!skipScreenshots) await desktop.screenshot({ path: `${outputDirectory}luma-orbit-detail-desktop.png`, fullPage: true });
 await orbitWindow.locator('[data-orbit-back]').click();
-await orbitWindow.locator('[data-orbit-action="braindump"]').click();
-await orbitWindow.locator('[data-orbit-action="braindump"]').click();
-const brainDumpWindow = desktop.locator('.luma-window[aria-label="BrainDump"]');
-await brainDumpWindow.locator(".braindump-app").waitFor();
-await brainDumpWindow.locator("[data-note]").fill("Préparer le déploiement LUMA demain");
-await brainDumpWindow.locator("[data-analyze]").click();
-await brainDumpWindow.locator(".braindump-analysis").waitFor();
-await brainDumpWindow.locator("[data-save]").click();
-await brainDumpWindow.getByText("Préparer le déploiement LUMA demain").waitFor();
-const brainDumpWidth = await brainDumpWindow.locator(".braindump-app").evaluate((element) => ({ width: element.scrollWidth, client: element.clientWidth }));
-if (brainDumpWidth.width > brainDumpWidth.client + 2) throw new Error("BrainDump déborde horizontalement sur desktop.");
-await desktop.waitForTimeout(350);
-if (!skipScreenshots) await desktop.screenshot({ path: `${outputDirectory}braindump-desktop.png`, fullPage: true });
-await brainDumpWindow.locator('[data-window-action="minimize"]').click();
+await orbitWindow.locator(".orbit-row").first().waitFor();
+const braindumpRowStatus = orbitWindow.locator('.orbit-row[data-orbit-open="braindump"] .orbit-row__status');
+if (!await braindumpRowStatus.getByText("Incompatible", { exact: true }).isVisible()) throw new Error("Le statut Incompatible est absent de la rangée BrainDump.");
+if (await orbitWindow.locator('[data-orbit-action="braindump"]').isDisabled() === false) throw new Error("L’action BrainDump devrait être désactivée dans le catalogue.");
+if (await desktop.evaluate(() => window.LumaOS.openApp("braindump")) !== null) throw new Error("L’application incompatible BrainDump ne doit pas s’ouvrir.");
+await desktop.locator(".toast").waitFor({ state: "detached" });
 await orbitWindow.locator('[data-window-action="minimize"]').click();
 await desktop.locator("#luma-launcher").click();
-await desktop.locator('.start-app[data-open-app="luma-orbit"]').click();
-await orbitWindow.locator(".orbit-app").waitFor();
-await orbitWindow.locator('[data-orbit-open="braindump"]').first().click();
-await orbitWindow.locator(".orbit-detail").waitFor();
-await orbitWindow.locator('[data-orbit-uninstall="braindump"]').click();
-await orbitWindow.locator('[data-orbit-uninstall="braindump"]').waitFor({ state: "detached" });
-await orbitWindow.locator('[data-orbit-back]').click();
-await orbitWindow.locator(".orbit-row").first().waitFor();
-if (await orbitWindow.locator('[data-orbit-uninstall="braindump"]').count() !== 0) throw new Error("L’application BrainDump n’a pas été désinstallée.");
-await desktop.locator("#luma-launcher").click();
-if (await desktop.locator('.start-app[data-open-app="braindump"]').count() !== 0) throw new Error("L’application désinstallée reste dans le menu Démarrer.");
+if (await desktop.locator('.start-app[data-open-app="braindump"]').count() !== 0) throw new Error("L’application incompatible reste dans le menu Démarrer.");
+if (await desktop.locator('.start-app[data-open-app="power"]').count() !== 0) throw new Error("L’application Alimentation ne doit plus figurer dans le menu Démarrer.");
 await desktop.locator("#luma-launcher").click();
 await desktop.evaluate(() => window.LumaOS.openApp("matheo-systems"));
 const matheoSystemsWindow = desktop.locator('.luma-window[aria-label="Matheo Systems"]');
@@ -241,7 +268,7 @@ await mobile.locator('.account-form input[name="preferredName"]').fill("Mathéo 
 await mobile.locator('.account-form button[type="submit"]').click();
 await mobile.locator(".account-identity h2").filter({ hasText: "Mathéo Luma" }).waitFor();
 if (await mobile.locator(".settings-heading h1").textContent() !== "Compte") throw new Error("Le titre Compte est absent après enregistrement.");
-const accountScroll = await mobile.locator(".window-content").evaluate((element) => element.scrollTop);
+const accountScroll = await mobile.locator('.luma-window[aria-label="Paramètres"] .window-content').evaluate((element) => element.scrollTop);
 if (accountScroll !== 0) throw new Error("La vue Compte ne revient pas en haut après enregistrement.");
 await mobile.locator(".toast").waitFor({ state: "detached" });
 await mobile.locator('.luma-window[aria-label="Paramètres"] [data-window-action="minimize"]').click();
@@ -254,13 +281,8 @@ await mobile.waitForTimeout(600);
 if (!skipScreenshots) await mobile.screenshot({ path: `${outputDirectory}luma-orbit-mobile.png`, fullPage: true });
 await mobile.locator('.luma-window[aria-label="Luma Orbit"] [data-window-action="minimize"]').click();
 await mobile.evaluate(() => window.LumaOS.openApp("braindump"));
-const mobileBrainDump = mobile.locator('.luma-window[aria-label="BrainDump"]');
-await mobileBrainDump.locator(".braindump-app").waitFor();
-const mobileBrainDumpWidth = await mobileBrainDump.locator(".braindump-app").evaluate((element) => ({ width: element.scrollWidth, client: element.clientWidth }));
-if (mobileBrainDumpWidth.width > mobileBrainDumpWidth.client + 2) throw new Error("BrainDump déborde horizontalement sur mobile.");
-await mobile.waitForTimeout(350);
-if (!skipScreenshots) await mobile.screenshot({ path: `${outputDirectory}braindump-mobile.png`, fullPage: true });
-await mobileBrainDump.locator('[data-window-action="minimize"]').click();
+if (await mobile.locator('.luma-window[aria-label="BrainDump"]').count() !== 0) throw new Error("L’application incompatible BrainDump ne doit pas s’ouvrir sur mobile.");
+await mobile.locator(".toast").waitFor({ state: "detached" });
 await mobile.evaluate(() => window.LumaOS.openApp("matheo-systems"));
 const mobileMatheo = mobile.locator('.luma-window[aria-label="Matheo Systems"]');
 await mobileMatheo.locator(".matheo-systems-app").waitFor();

@@ -12,24 +12,24 @@ const catalog = [
         id: "braindump", name: "BrainDump", icon: "notepad", color: "#54b693", category: "Productivité",
         description: "Capturez une pensée et classez-la automatiquement par type, priorité, projet et échéance.",
         descriptionLongue: "BrainDump capture une pensée dans votre espace LUMA, puis la classe automatiquement par type, priorité, projet et échéance. Aucun token n’est conservé dans l’application : l’identité de votre session Luma OS suffit.",
-        status: "Disponible", action: "braindump"
+        status: "Incompatible", incompatible: true, action: "braindump"
     },
     {
         id: "harmonix", name: "Harmonix", icon: "music", color: "#b05fe0", category: "Audio",
         description: "La bibliothèque musicale reliée au lecteur de Luma OS.",
         descriptionLongue: "Harmonix rassemble votre bibliothèque musicale et la relie au lecteur de Luma OS. Une fois activée, vos pistes rejoignent la lecture du bureau et restent accessibles depuis le système.",
-        status: "Intégré", action: "harmonix"
+        status: "Incompatible", incompatible: true, action: "harmonix"
     },
     {
         id: "sonora-studio", name: "Sonora Studio", icon: "music", color: "#8b78ff", category: "Audio",
         description: "Administrez le catalogue Sonora, les imports, albums et playlists depuis Luma OS.",
         descriptionLongue: "Sonora Studio administre le catalogue Sonora depuis Luma OS : imports de morceaux, albums, playlists et rôles. Les permissions sont contrôlées par Sonora via votre identité de session, jamais par le navigateur.",
-        status: "Disponible", action: "sonora-studio"
+        status: "Incompatible", incompatible: true, action: "sonora-studio"
     },
     {
-        id: "arc", name: "A.R.C.", icon: "luma-network", color: "#3a9fd0", category: "Réseau",
-        description: "Une future porte d’entrée vers les services A.R.C.",
-        descriptionLongue: "A.R.C. doit devenir une porte d’entrée vers les services A.R.C. de l’écosystème LUMA. La forme précise du service reste à définir avec le produit.",
+        id: "narra", name: "Narra", icon: "luma-network", color: "#3a9fd0", category: "Réseau",
+        description: "Une future porte d’entrée vers les services Narra.",
+        descriptionLongue: "Narra doit devenir une porte d’entrée vers les services Narra de l’écosystème LUMA. La forme précise du service reste à définir avec le produit.",
         status: "Bientôt", available: false
     }
 ];
@@ -59,10 +59,12 @@ export function mount(root, { open, toast }) {
     const search = root.querySelector(".orbit-search input");
 
     function isInstalled(app) {
+        if (app.incompatible) return false;
         return app.available !== false && (app.action === "harmonix" ? harmonixEnabled : installed.has(app.id));
     }
 
     function actionLabel(app) {
+        if (app.incompatible) return "Incompatible";
         if (app.available === false) return "Bientôt disponible";
         if (app.action === "settings") return "Ouvrir le compte";
         if (app.action === "harmonix") return isInstalled(app) ? "Désactiver" : "Activer";
@@ -72,6 +74,7 @@ export function mount(root, { open, toast }) {
     }
 
     function statusLabel(app) {
+        if (app.incompatible) return "Incompatible";
         if (app.action === "harmonix") return isInstalled(app) ? "Intégré" : "Désactivé";
         return isInstalled(app) ? "Installé" : app.status;
     }
@@ -81,13 +84,13 @@ export function mount(root, { open, toast }) {
         const list = visible.length ? visible.map((app) => {
             const appInstalled = isInstalled(app);
             const showUninstall = appInstalled && app.available !== false && app.action !== "harmonix";
-            return `<article class="orbit-row${app.available === false ? " is-coming-soon" : ""}" data-orbit-open="${app.id}" tabindex="0" role="button" aria-label="Voir la fiche de ${app.name}">
+            return `<article class="orbit-row${app.available === false ? " is-coming-soon" : ""}${app.incompatible ? " is-incompatible" : ""}" data-orbit-open="${app.id}" tabindex="0" role="button" aria-label="Voir la fiche de ${app.name}">
                 ${appLogo(app)}
                 <div class="orbit-row__copy"><div><h3>${escapeHtml(app.name)}</h3><span>${escapeHtml(app.category)}</span></div><p>${escapeHtml(app.description)}</p></div>
                 <span class="orbit-row__status">${escapeHtml(statusLabel(app))}</span>
                 <div class="orbit-row__actions">
                     ${showUninstall ? `<button type="button" class="orbit-row__uninstall" data-orbit-uninstall="${app.id}" title="Désinstaller ${escapeHtml(app.name)}" aria-label="Désinstaller ${escapeHtml(app.name)}">${icon("trash")}</button>` : ""}
-                    <button type="button" data-orbit-action="${app.id}" ${app.available === false ? "disabled" : ""}>${actionLabel(app)}</button>
+                    <button type="button" data-orbit-action="${app.id}" ${app.available === false || app.incompatible ? "disabled" : ""}>${actionLabel(app)}</button>
                 </div>
             </article>`;
         }).join("")
@@ -112,6 +115,7 @@ export function mount(root, { open, toast }) {
         if (!app) { renderList(); return; }
         const comingSoon = app.available === false;
         const appInstalled = isInstalled(app);
+        const actionDisabled = comingSoon || app.incompatible;
         body.innerHTML = `
             <section class="orbit-detail" data-orbit-app="${app.id}">
                 <button type="button" class="orbit-detail__back" data-orbit-back aria-label="Retour au catalogue">${icon("previous")}<span>Retour au catalogue</span></button>
@@ -122,8 +126,8 @@ export function mount(root, { open, toast }) {
                         <p><span>${escapeHtml(app.category)}</span><i></i><span>${escapeHtml(statusLabel(app))}</span></p>
                     </div>
                     <div class="orbit-detail__actions">
-                        ${appInstalled && !comingSoon && app.action !== "harmonix" ? `<button type="button" class="orbit-detail__uninstall" data-orbit-uninstall="${app.id}" title="Désinstaller ${escapeHtml(app.name)}">${icon("trash")}<span>Désinstaller</span></button>` : ""}
-                        <button type="button" class="orbit-detail__install" data-orbit-action="${app.id}" ${comingSoon ? "disabled" : ""}>${icon(comingSoon ? "luma" : app.action && appInstalled ? "play" : "plus")}<span>${actionLabel(app)}</span></button>
+                        ${appInstalled && !comingSoon && !app.incompatible && app.action !== "harmonix" ? `<button type="button" class="orbit-detail__uninstall" data-orbit-uninstall="${app.id}" title="Désinstaller ${escapeHtml(app.name)}">${icon("trash")}<span>Désinstaller</span></button>` : ""}
+                        <button type="button" class="orbit-detail__install" data-orbit-action="${app.id}" ${actionDisabled ? "disabled" : ""}>${icon(actionDisabled ? "luma" : app.action && appInstalled ? "play" : "plus")}<span>${actionLabel(app)}</span></button>
                     </div>
                 </header>
                 <div class="orbit-detail__grid">
@@ -151,7 +155,7 @@ export function mount(root, { open, toast }) {
     }
 
     function performAction(app) {
-        if (app.available === false) return;
+        if (!app || app.available === false || app.incompatible) return;
         if (app.action === "settings") { open("settings"); return; }
         if (app.action === "harmonix") {
             harmonixEnabled = !harmonixEnabled;
@@ -170,7 +174,7 @@ export function mount(root, { open, toast }) {
     }
 
     function uninstall(app) {
-        if (app.available === false || !isInstalled(app)) return;
+        if (!app || app.available === false || app.incompatible || !isInstalled(app)) return;
         installed.delete(app.id);
         localStorage.setItem("luma.orbit.installed", JSON.stringify([...installed]));
         window.dispatchEvent(new CustomEvent("luma:apps-changed"));

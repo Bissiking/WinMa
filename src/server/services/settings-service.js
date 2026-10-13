@@ -10,13 +10,25 @@ const DEFAULT_SETTINGS = Object.freeze({
     accentColor: '#6d5ee8',
     density: 'comfortable',
     motion: 'system',
-    restoreSession: true
+    restoreSession: true,
+    startupApps: [],
+    startupDelayMs: 90,
+    startupMode: 'staggered',
+    startupProfiles: {},
+    startupActiveProfile: null,
+    startupOpenTrash: false,
+    startupOpenRecents: false,
+    startupRestoreFolder: false,
+    startupPresentation: false
 });
 const ALLOWED_THEMES = new Set(['light', 'dark', 'luma', 'system']);
 const ALLOWED_DENSITIES = new Set(['comfortable', 'compact']);
 const ALLOWED_MOTION = new Set(['full', 'reduced', 'system']);
+const ALLOWED_STARTUP_MODES = new Set(['staggered', 'simultaneous']);
 const WALLPAPER_PATTERN = /^\.\/images\/backgrounds\/(?:luma-aurora\.webp|background-(?:0[0-9]|1[0-2])\.jpg|4K\/background-4k-0[1-4]\.jpg)$/;
 const ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const APP_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const PROFILE_NAME_PATTERN = /^[\p{L}\p{M}\s.'’-]{1,40}$/u;
 const ALLOWED_FIELDS = new Set(Object.keys(DEFAULT_SETTINGS));
 
 function storageKey(subject) {
@@ -56,6 +68,50 @@ function validatePatch(patch) {
 
     if ('restoreSession' in patch && typeof patch.restoreSession !== 'boolean') {
         throw new HttpError(400, 'RESTORE_SESSION_INVALID', 'La réouverture au démarrage doit être un booléen.');
+    }
+
+    if ('startupApps' in patch) {
+        const apps = patch.startupApps;
+        if (!Array.isArray(apps) || apps.length > 20 || apps.some((id) => typeof id !== 'string' || !APP_ID_PATTERN.test(id))) {
+            throw new HttpError(400, 'STARTUP_APPS_INVALID', 'La liste des applications de démarrage est invalide.');
+        }
+    }
+
+    if ('startupDelayMs' in patch) {
+        const delay = patch.startupDelayMs;
+        if (!Number.isInteger(delay) || delay < 0 || delay > 5000) {
+            throw new HttpError(400, 'STARTUP_DELAY_INVALID', 'Le délai de démarrage doit être un entier entre 0 et 5000 ms.');
+        }
+    }
+
+    if ('startupMode' in patch && !ALLOWED_STARTUP_MODES.has(patch.startupMode)) {
+        throw new HttpError(400, 'STARTUP_MODE_INVALID', 'Le mode de démarrage demandé n’est pas autorisé.');
+    }
+
+    if ('startupProfiles' in patch) {
+        const profiles = patch.startupProfiles;
+        const isValidProfile = (profile) => profile && typeof profile === 'object' && !Array.isArray(profile) &&
+            Array.isArray(profile.apps) && profile.apps.length <= 20 &&
+            profile.apps.every((id) => typeof id === 'string' && APP_ID_PATTERN.test(id)) &&
+            (profile.delayMs === undefined || (Number.isInteger(profile.delayMs) && profile.delayMs >= 0 && profile.delayMs <= 5000)) &&
+            (profile.mode === undefined || ALLOWED_STARTUP_MODES.has(profile.mode));
+        if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles) ||
+            Object.entries(profiles).some(([name, profile]) => !PROFILE_NAME_PATTERN.test(name) || !isValidProfile(profile))) {
+            throw new HttpError(400, 'STARTUP_PROFILES_INVALID', 'Les profils de démarrage sont invalides.');
+        }
+    }
+
+    if ('startupActiveProfile' in patch) {
+        const active = patch.startupActiveProfile;
+        if (active !== null && (typeof active !== 'string' || !PROFILE_NAME_PATTERN.test(active))) {
+            throw new HttpError(400, 'STARTUP_PROFILE_INVALID', 'Le profil de démarrage actif est invalide.');
+        }
+    }
+
+    for (const field of ['startupOpenTrash', 'startupOpenRecents', 'startupRestoreFolder', 'startupPresentation']) {
+        if (field in patch && typeof patch[field] !== 'boolean') {
+            throw new HttpError(400, 'STARTUP_OPTION_INVALID', 'Les options de démarrage doivent être booléennes.');
+        }
     }
 
     return patch;

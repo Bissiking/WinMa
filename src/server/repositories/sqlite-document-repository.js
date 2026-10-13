@@ -76,12 +76,20 @@ function createSqliteDocumentRepository(databasePath) {
         return null;
     }
 
-    function list(ownerKey, { parentId = null, search = '', trash = false, type = null } = {}) {
+    function list(ownerKey, { parentId = null, search = '', trash = false, type = null, recent = false } = {}) {
         if (trash) {
             return database.prepare(`
                 SELECT * FROM document_items
                 WHERE owner_key = ? AND trashed_at IS NOT NULL AND id = trash_root_id
                 ORDER BY trashed_at DESC
+            `).all(ownerKey).map(map);
+        }
+        if (recent) {
+            return database.prepare(`
+                SELECT * FROM document_items
+                WHERE owner_key = ? AND trashed_at IS NULL AND kind = 'file'
+                ORDER BY updated_at DESC
+                LIMIT 50
             `).all(ownerKey).map(map);
         }
         if (search) {
@@ -199,7 +207,42 @@ function createSqliteDocumentRepository(databasePath) {
         return database.prepare("SELECT COALESCE(SUM(size), 0) AS total FROM document_items WHERE owner_key = ? AND kind = 'file'").get(ownerKey).total;
     }
 
-    return { findById, list, ancestors, folders, hasNameConflict, insert, update, updateFileMetadata, contains, trash, restore, filesForTrashRoots, permanentlyDelete, expiredTrash, usedBytes };
+    function statsByType(ownerKey) {
+        const order = ['image', 'video', 'audio', 'document', 'other'];
+        const categories = database.prepare(`
+            SELECT
+                CASE
+                    WHEN mime_type LIKE 'image/%' THEN 'image'
+                    WHEN mime_type LIKE 'video/%' THEN 'video'
+                    WHEN mime_type LIKE 'audio/%' THEN 'audio'
+                    WHEN mime_type LIKE 'text/%'
+                        OR mime_type IN (
+                            'application/pdf', 'application/rtf', 'application/msword',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                        ) THEN 'document'
+                    ELSE 'other'
+                END AS category,
+                COUNT(*) AS count,
+                COALESCE(SUM(size), 0) AS bytes
+            FROM document_items
+            WHERE owner_key = ? AND kind = 'file' AND trashed_at IS NULL
+            GROUP BY category
+        `).all(ownerKey)
+            .map((row) => ({ category: row.category, count: row.count, bytes: row.bytes }))
+            .sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
+
+        const trash = database.prepare(`
+            SELECT COUNT(*) AS count, COALESCE(SUM(size), 0) AS bytes
+            FROM document_items
+            WHERE owner_key = ? AND kind = 'file' AND trashed_at IS NOT NULL
+        `).get(ownerKey);
+
+        return { categories, trash: { count: trash.count, bytes: trash.bytes } };
+    }
+
+    return { findById, list, ancestors, folders, hasNameConflict, insert, update, updateFileMetadata, contains, trash, restore, filesForTrashRoots, permanentlyDelete, expiredTrash, usedBytes, statsByType };
 }
 
 module.exports = { createSqliteDocumentRepository };

@@ -1,4 +1,5 @@
 import { requestJson, patchJson } from "/assets/javascripts/luma-api.js";
+import { avatarMarkup, hydrateAvatars } from "/assets/javascripts/luma-avatar.js";
 
 const themes = [
     { id: "light", name: "Clair", description: "Des surfaces lumineuses et chaleureuses." },
@@ -21,8 +22,9 @@ const wallpapers = [
 ];
 const views = [
     { id: "home", label: "Accueil", icon: "luma", keywords: "accueil démarrer catégories" },
-    { id: "system", label: "Système", icon: "device", keywords: "appareil stockage version affichage" },
+    { id: "system", label: "Système", icon: "device", keywords: "appareil version affichage" },
     { id: "personalization", label: "Personnalisation", icon: "luma", keywords: "thème couleur fond densité mouvement" },
+    { id: "storage", label: "Stockage", icon: "folder", keywords: "espace quota corbeille images vidéos musique documents" },
     { id: "startup", label: "Démarrage", icon: "power", keywords: "réouverture applications session démarrage" },
     { id: "network", label: "Réseau Luma", icon: "luma-network", keywords: "local modules connexion synchronisation" },
     { id: "account", label: "Compte", icon: "user", keywords: "kyros profil quota langue fuseau synchronisation" }
@@ -30,6 +32,7 @@ const views = [
 const homeCards = [
     { id: "system", title: "Système", description: "État de votre environnement Luma OS", icon: "device" },
     { id: "personalization", title: "Personnalisation", description: "Thème, couleurs, arrière-plan et confort", icon: "luma" },
+    { id: "storage", title: "Stockage", description: "Espace Documents, répartition et Corbeille", icon: "folder" },
     { id: "startup", title: "Démarrage", description: "Applications réouvertes au lancement", icon: "power" },
     { id: "network", title: "Réseau Luma", description: "Services, modules et synchronisation", icon: "luma-network" },
     { id: "account", title: "Compte", description: "Identité Kyros, quota et préférences", icon: "user" }
@@ -119,7 +122,7 @@ function browserName() {
     return "Navigateur web";
 }
 
-function renderSystem(account, settings, systemInfo) {
+function renderSystem(settings, systemInfo) {
     const platform = navigator.userAgentData?.platform || navigator.platform || "Plateforme web";
     const viewport = `${window.innerWidth} × ${window.innerHeight}`;
     return `${heading("Système", "État de votre environnement Luma OS.")}
@@ -137,10 +140,45 @@ function renderSystem(account, settings, systemInfo) {
                 <div><dt>Thème actif</dt><dd>${escapeHtml(themes.find((theme) => theme.id === settings.theme)?.name || settings.theme)}</dd></div>
                 <div><dt>Densité</dt><dd>${settings.density === "compact" ? "Compacte" : "Confortable"}</dd></div>
             </dl>
+        </section>`;
+}
+
+const STORAGE_CATEGORY_META = {
+    image: { label: "Images", icon: "image" },
+    video: { label: "Vidéos", icon: "video" },
+    audio: { label: "Musique", icon: "music" },
+    document: { label: "Documents", icon: "notepad" },
+    other: { label: "Autres fichiers", icon: "folder" }
+};
+
+function renderStorage(stats) {
+    const rows = (stats?.categories || []).map((entry) => {
+        const meta = STORAGE_CATEGORY_META[entry.category] || STORAGE_CATEGORY_META.other;
+        return `<div>
+            <span class="connection-icon">${icon(meta.icon)}</span>
+            <span><strong>${meta.label}</strong><small>${entry.count} élément${entry.count > 1 ? "s" : ""}</small></span>
+            <span class="connection-state connection-amount">${formatBytes(entry.bytes)}</span>
+        </div>`;
+    }).join("");
+    const trash = stats?.trash || { count: 0, bytes: 0 };
+    return `${heading("Stockage", "Répartition de votre espace Documents personnel.")}
+        <section class="settings-section" aria-labelledby="storage-quota-heading">
+            <div class="settings-section__heading"><h2 id="storage-quota-heading">Espace utilisé</h2><p>Quota personnel calculé par le serveur Luma (1 Go).</p></div>
+            ${storageBlock(stats?.storage)}
         </section>
-        <section class="settings-section" aria-labelledby="system-storage-heading">
-            <div class="settings-section__heading"><h2 id="system-storage-heading">Stockage Documents</h2><p>Quota personnel calculé par le serveur Luma.</p></div>
-            ${storageBlock(account.storage)}
+        <section class="settings-section" aria-labelledby="storage-breakdown-heading">
+            <div class="settings-section__heading"><h2 id="storage-breakdown-heading">Répartition par type</h2><p>Classement des fichiers hors Corbeille par catégorie de contenu.</p></div>
+            <div class="connection-list">${rows || `<p class="settings-inline-empty">Aucun fichier n’occupe votre espace pour le moment.</p>`}</div>
+        </section>
+        <section class="settings-section" aria-labelledby="storage-trash-heading">
+            <div class="settings-section__heading"><h2 id="storage-trash-heading">Corbeille</h2><p>Les éléments supprimés restent récupérables pendant 30 jours.</p></div>
+            <div class="connection-list">
+                <div>
+                    <span class="connection-icon">${icon("trash")}</span>
+                    <span><strong>Corbeille</strong><small>${trash.count} élément${trash.count > 1 ? "s" : ""}</small></span>
+                    <span class="connection-state connection-amount">${formatBytes(trash.bytes)}</span>
+                </div>
+            </div>
         </section>`;
 }
 
@@ -150,19 +188,87 @@ function moduleLabel(type) {
     return "Lien externe";
 }
 
-function renderNetwork(session, account, applications) {
+function serviceStateLabel(service) {
+    if (service.status === "ok") return "OK";
+    if (service.status === "error") return "Erreur";
+    return "Non configuré";
+}
+
+function serviceStateClass(service) {
+    if (service.status === "ok") return "status-dot status-dot--ok";
+    if (service.status === "error") return "status-dot status-dot--error";
+    return "status-dot status-dot--muted";
+}
+
+function clientNetworkInfo() {
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const online = navigator.onLine;
+    if (!connection) {
+        return { online, lines: [{ label: "État", value: online ? "En ligne" : "Hors ligne" }, { label: "Liaison", value: "Non communiqué par le navigateur" }] };
+    }
+    const typeLabel = connection.type && connection.type !== "unknown" ? connection.type : null;
+    return {
+        online,
+        lines: [
+            { label: "État", value: online ? "En ligne" : "Hors ligne" },
+            { label: "Type de liaison", value: typeLabel || connection.effectiveType?.toUpperCase() || "Non communiqué par le navigateur" },
+            { label: "Latence estimée", value: Number.isFinite(connection.rtt) ? `${connection.rtt} ms` : "Non communiquée" },
+            { label: "Débit estimé", value: Number.isFinite(connection.downlink) ? `${connection.downlink} Mb/s` : "Non communiqué" }
+        ]
+    };
+}
+
+function formatAge(seconds) {
+    if (!Number.isFinite(seconds)) return "—";
+    if (seconds < 60) return `${seconds} s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+    return `${Math.floor(seconds / 3600)} h ${Math.floor((seconds % 3600) / 60)} min`;
+}
+
+function renderNetwork(network, session, account, applications) {
     const host = window.location.hostname || "localhost";
     const transport = window.location.protocol === "https:" ? "Connexion HTTPS" : "Connexion locale HTTP";
+    const sessionInfo = network?.session || {};
+    const expiry = sessionInfo.accessTokenExpiresAt
+        ? new Date(sessionInfo.accessTokenExpiresAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+        : "—";
+    const services = (network?.services || []).map((service) => `
+        <div>
+            <span class="connection-icon">${icon(service.id === "kyros" ? "user" : service.id === "harmonix" ? "music" : service.id === "braindump" ? "notepad" : "luma-network")}</span>
+            <span><strong>${escapeHtml(service.name)}</strong><small>${service.configured ? (Number.isFinite(service.latencyMs) ? `Latence ${service.latencyMs} ms` : "Sans latence mesurée") : "Aucune URL configurée"}</small></span>
+            <span class="connection-state">${serviceStateLabel(service)} <i class="${serviceStateClass(service)}" aria-hidden="true"></i></span>
+        </div>`).join("");
+    const device = clientNetworkInfo();
+    const deviceLines = device.lines.map((line) => `<div><dt>${line.label}</dt><dd>${escapeHtml(line.value)}</dd></div>`).join("");
     return `${heading("Réseau Luma", "Reliez les services et modules locaux de votre espace LUMA.")}
         <section class="luma-network-summary">
             <div class="luma-network-orbit" aria-hidden="true">${icon("luma-network")}</div>
             <div><h2>Réseau Luma local</h2><p>Actif sur ${escapeHtml(host)} · ${transport}</p></div>
-            <span class="status-badge status-badge--ok">Connecté</span>
+            <span class="status-badge status-badge--${sessionInfo.authenticated ? "ok" : "error"}">${sessionInfo.authenticated ? "Connecté" : "Session inactive"}</span>
+        </section>
+        <section class="settings-section" aria-labelledby="network-session-heading">
+            <div class="settings-section__heading"><h2 id="network-session-heading">Session en cours</h2><p>Identité et jetons de cette connexion.</p>
+                <button type="button" class="settings-secondary-button" data-network-refresh>${icon("refresh")}<span>Actualiser</span></button>
+            </div>
+            <dl class="settings-property-list">
+                <div><dt>Utilisateur</dt><dd>${sessionInfo.authenticated ? escapeHtml(session.user?.displayName || session.user?.username || "—") : "Non authentifié"}</dd></div>
+                <div><dt>Hôte</dt><dd>${escapeHtml(sessionInfo.host || host)}</dd></div>
+                <div><dt>Transport</dt><dd>${escapeHtml(sessionInfo.protocol || "http")}</dd></div>
+                <div><dt>Âge de la session</dt><dd>${formatAge(sessionInfo.ageSeconds)}</dd></div>
+                <div><dt>Jeton d’accès expire à</dt><dd>${escapeHtml(expiry)}</dd></div>
+                <div><dt>Jeton de rafraîchissement</dt><dd>${sessionInfo.refreshTokenPresent ? "Présent" : "Absent"}</dd></div>
+            </dl>
         </section>
         <section class="settings-section" aria-labelledby="network-services-heading">
             <div class="settings-section__heading"><h2 id="network-services-heading">Connexions de confiance</h2><p>État réel des services utilisés par cette session.</p></div>
+            <div class="connection-list">${services || `<p class="settings-inline-empty">Aucun service n’est déclaré.</p>`}</div>
+        </section>
+        <section class="settings-section" aria-labelledby="network-device-heading">
+            <div class="settings-section__heading"><h2 id="network-device-heading">Cet appareil</h2><p>Réseau du navigateur, mesuré côté client.</p></div>
+            <dl class="settings-property-list">${deviceLines}</dl>
+        </section>
+        <section class="settings-section" aria-labelledby="network-documents-heading">
             <div class="connection-list">
-                <div><span class="connection-icon">${icon("user")}</span><span><strong>Identité Kyros</strong><small>${session.authenticated ? `Session active pour ${escapeHtml(session.user?.username)}` : "Session indisponible"}</small></span><span class="connection-state">${session.authenticated ? "Active" : "Erreur"}</span></div>
                 <div><span class="connection-icon">${icon("folder")}</span><span><strong>Documents Luma</strong><small>${formatBytes(account.storage?.availableBytes || 0)} disponibles</small></span><span class="connection-state">Local</span></div>
                 <div><span class="connection-icon">${icon("sync")}</span><span><strong>Contexte partagé</strong><small>Profil ${account.preferences.syncProfile ? "autorisé" : "désactivé"}, apparence ${account.preferences.syncAppearance ? "autorisée" : "désactivée"}</small></span><span class="connection-state">Contrôlé</span></div>
             </div>
@@ -178,12 +284,12 @@ function timezoneOptions(current) {
     return [...new Set([current, ...options])].map((zone) => `<option value="${escapeHtml(zone)}" ${zone === current ? "selected" : ""}>${zone === "auto" ? "Automatique" : escapeHtml(zone)}</option>`).join("");
 }
 
-function renderAccount(account) {
+function renderAccount(account, avatarUrl) {
     const { identity, preferences, storage, synchronization } = account;
     const effectiveName = preferences.preferredName || identity.displayName;
     return `${heading("Compte", "Gérez ce que Luma OS conserve et partage avec ses modules.")}
         <section class="account-identity">
-            <span class="account-avatar account-avatar--large">${escapeHtml(effectiveName.charAt(0).toLocaleUpperCase("fr") || "L")}</span>
+            ${avatarMarkup(avatarUrl, effectiveName, { className: "account-avatar account-avatar--large" })}
             <div><h2>${escapeHtml(effectiveName)}</h2><p>@${escapeHtml(identity.username)} · Identité ${escapeHtml(identity.provider)}</p></div>
             <span class="status-badge">Kyros</span>
         </section>
@@ -228,7 +334,30 @@ function renderHome(settings) {
     </div>`;
 }
 
-function renderStartup(settings) {
+function startupEligibleApps(registry) {
+    return (registry || []).filter((app) => !app.hidden && !app.incompatible && !["trash", "image-viewer", "task-manager"].includes(app.id));
+}
+
+function renderStartup(settings, registry) {
+    const eligible = startupEligibleApps(registry);
+    const selected = new Set(settings.startupApps || []);
+    const ordered = [
+        ...(settings.startupApps || []).map((id) => eligible.find((app) => app.id === id)).filter(Boolean),
+        ...eligible.filter((app) => !selected.has(app.id))
+    ];
+    const profiles = settings.startupProfiles || {};
+    const profileNames = Object.keys(profiles);
+    const activeProfile = settings.startupActiveProfile;
+    const appRows = ordered.map((app, index) => `
+        <label class="startup-app-row">
+            <input type="checkbox" data-startup-toggle="${app.id}" ${selected.has(app.id) ? "checked" : ""}>
+            <span><strong>${escapeHtml(app.name)}</strong><small>${selected.has(app.id) ? "S’ouvre au démarrage" : "Ne s’ouvre pas"}</small></span>
+            <span class="startup-app-row__order">
+                <button type="button" data-startup-move="${app.id}" data-direction="up" ${index === 0 || !selected.has(app.id) ? "disabled" : ""} aria-label="Remonter ${escapeHtml(app.name)}">↑</button>
+                <button type="button" data-startup-move="${app.id}" data-direction="down" ${index === ordered.length - 1 || !selected.has(app.id) ? "disabled" : ""} aria-label="Descendre ${escapeHtml(app.name)}">↓</button>
+            </span>
+        </label>`).join("");
+    const profileOptions = profileNames.map((name) => `<option value="${escapeHtml(name)}" ${name === activeProfile ? "selected" : ""}>${escapeHtml(name)}</option>`).join("");
     return `${heading("Démarrage", "Décidez de ce qui se rouvre au lancement du bureau.")}
         <section class="settings-section" aria-labelledby="startup-session-heading">
             <div class="settings-section__heading"><h2 id="startup-session-heading">Réouverture des applications</h2><p>Quand vous fermez ou rechargez le bureau, vos fenêtres ouvertes peuvent revenir automatiquement au prochain démarrage.</p></div>
@@ -237,6 +366,38 @@ function renderStartup(settings) {
                 <input type="checkbox" data-setting="restoreSession" ${settings.restoreSession !== false ? "checked" : ""}>
                 <i class="settings-toggle" aria-hidden="true"></i>
             </label>
+        </section>
+        <section class="settings-section" aria-labelledby="startup-apps-heading">
+            <div class="settings-section__heading"><h2 id="startup-apps-heading">Applications au démarrage</h2><p>Cochez les applications qui s’ouvrent avec votre session. L’ordre ci-dessous définit la séquence.</p></div>
+            <div class="startup-list">${appRows || `<p class="settings-inline-empty">Aucune application n’est éligible.</p>`}</div>
+        </section>
+        <section class="settings-section" aria-labelledby="startup-timing-heading">
+            <div class="settings-section__heading"><h2 id="startup-timing-heading">Rythme de lancement</h2><p>Délai entre chaque ouverture et mode de lancement.</p></div>
+            <div class="comfort-settings">
+                <div><span>Délai entre applications</span><label class="startup-delay-field"><input type="number" min="0" max="5000" step="10" value="${settings.startupDelayMs ?? 90}" data-startup-delay><small>ms</small></label></div>
+                <div><span>Mode</span><div class="segmented-control"><button type="button" data-setting="startupMode" data-value="staggered">Progressif</button><button type="button" data-setting="startupMode" data-value="simultaneous">Simultané</button></div></div>
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="startup-profiles-heading">
+            <div class="settings-section__heading"><h2 id="startup-profiles-heading">Profils de démarrage</h2><p>Enregistrez des combinaisons d’applications et basculez entre elles.</p></div>
+            <div class="startup-profiles">
+                <select data-profile-select aria-label="Profil actif"><option value="">Aucun profil actif</option>${profileOptions}</select>
+                <span class="startup-profiles__actions">
+                    <button type="button" class="settings-secondary-button" data-profile-apply ${!activeProfile ? "disabled" : ""}>Appliquer</button>
+                    <button type="button" class="settings-secondary-button" data-profile-create>Enregistrer le scénario actuel</button>
+                    <button type="button" class="settings-secondary-button" data-profile-rename ${!activeProfile ? "disabled" : ""}>Renommer</button>
+                    <button type="button" class="settings-secondary-button" data-profile-delete ${!activeProfile ? "disabled" : ""}>Supprimer</button>
+                </span>
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="startup-options-heading">
+            <div class="settings-section__heading"><h2 id="startup-options-heading">Options</h2><p>Éléments supplémentaires à ouvrir ou restaurer au démarrage.</p></div>
+            <div class="sync-preferences">
+                <label><span><strong>Ouvrir la Corbeille</strong><small>Affiche la Corbeille au lancement.</small></span><input type="checkbox" data-setting="startupOpenTrash" ${settings.startupOpenTrash ? "checked" : ""}></label>
+                <label><span><strong>Ouvrir les Récents</strong><small>La vue Récents de Documents s’ouvre au démarrage.</small></span><input type="checkbox" data-setting="startupOpenRecents" ${settings.startupOpenRecents ? "checked" : ""}></label>
+                <label><span><strong>Restaurer le dernier dossier</strong><small>Documents rouvre le dossier dans lequel vous étiez.</small></span><input type="checkbox" data-setting="startupRestoreFolder" ${settings.startupRestoreFolder ? "checked" : ""}></label>
+                <label><span><strong>Mode présentation</strong><small>Les fenêtres de démarrage s’ouvrent maximisées.</small></span><input type="checkbox" data-setting="startupPresentation" ${settings.startupPresentation ? "checked" : ""}></label>
+            </div>
         </section>`;
 }
 
@@ -245,10 +406,13 @@ function updateSelection(root, settings) {
     root.querySelectorAll("[data-accent-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.accentValue.toLowerCase() === settings.accentColor.toLowerCase()));
     root.querySelectorAll("[data-wallpaper-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.wallpaperValue === settings.wallpaper));
     root.querySelectorAll("[data-setting]").forEach((button) => button.classList.toggle("is-selected", settings[button.dataset.setting] === button.dataset.value));
-    root.querySelectorAll('[data-setting="restoreSession"]').forEach((input) => { input.checked = settings.restoreSession !== false; });
+    root.querySelectorAll('input[type="checkbox"][data-setting]').forEach((input) => {
+        if (input.dataset.setting === "restoreSession") input.checked = settings.restoreSession !== false;
+        else input.checked = Boolean(settings[input.dataset.setting]);
+    });
 }
 
-export async function mount(root, { toast }) {
+export async function mount(root, { toast, registry }) {
     renderShell(root);
     const viewRoot = root.querySelector(".settings-view");
     const search = root.querySelector(".settings-search input");
@@ -258,11 +422,18 @@ export async function mount(root, { toast }) {
     let session;
     let applications;
     let systemInfo;
+    let documentStats;
+    let network;
 
     async function getAccount() { return account || (account = await requestJson("/api/users/me/account")); }
     async function getSession() { return session || (session = await requestJson("/api/session")); }
     async function getApplications() { return applications || (applications = await requestJson("/api/apps")); }
     async function getSystemInfo() { return systemInfo || (systemInfo = await requestJson("/api/health")); }
+    async function getDocumentStats() { return documentStats || (documentStats = await requestJson("/api/documents/stats")); }
+    async function getNetwork({ refresh = false } = {}) {
+        if (refresh) network = null;
+        return network || (network = await requestJson("/api/system/network"));
+    }
 
     function setStatus(message) {
         const status = viewRoot.querySelector(".settings-status");
@@ -287,16 +458,19 @@ export async function mount(root, { toast }) {
                 viewRoot.innerHTML = renderPersonalization(settings);
                 updateSelection(root, settings);
             } else if (view === "startup") {
-                viewRoot.innerHTML = renderStartup(settings);
+                viewRoot.innerHTML = renderStartup(settings, registry);
                 updateSelection(root, settings);
             } else if (view === "system") {
-                const data = await Promise.all([getAccount(), getSystemInfo()]);
-                viewRoot.innerHTML = renderSystem(data[0], settings, data[1]);
+                viewRoot.innerHTML = renderSystem(settings, await getSystemInfo());
+            } else if (view === "storage") {
+                viewRoot.innerHTML = renderStorage(await getDocumentStats());
             } else if (view === "network") {
-                const data = await Promise.all([getSession(), getAccount(), getApplications()]);
+                const data = await Promise.all([getNetwork(), getSession(), getAccount(), getApplications()]);
                 viewRoot.innerHTML = renderNetwork(...data);
             } else if (view === "account") {
-                viewRoot.innerHTML = renderAccount(await getAccount());
+                const [accountData, sessionData] = await Promise.all([getAccount(), getSession()]);
+                viewRoot.innerHTML = renderAccount(accountData, sessionData.user?.avatarUrl);
+                hydrateAvatars(viewRoot);
             }
             resetViewScroll();
             viewRoot.focus({ preventScroll: true });
@@ -337,17 +511,68 @@ export async function mount(root, { toast }) {
                 syncProfile: form.elements.syncProfile.checked,
                 syncAppearance: form.elements.syncAppearance.checked
             });
-            viewRoot.innerHTML = renderAccount(account);
+            viewRoot.innerHTML = renderAccount(account, session?.user?.avatarUrl);
+            hydrateAvatars(viewRoot);
             resetViewScroll();
             setStatus("Enregistré");
             const name = account.preferences.preferredName || account.identity.displayName;
             root.querySelector(".settings-account strong").textContent = name;
-            root.querySelector(".settings-account .account-avatar").textContent = name.charAt(0).toLocaleUpperCase("fr") || "L";
-            toast("Préférences du compte enregistrées.");
+            const sidebarAvatar = root.querySelector(".settings-account .account-avatar");
+            if (sidebarAvatar) {
+                sidebarAvatar.outerHTML = avatarMarkup(session?.user?.avatarUrl, name, { className: "account-avatar" });
+                hydrateAvatars(root.querySelector(".settings-account"));
+            }
+            if (account.profileSyncWarning) {
+                toast(account.profileSyncWarning);
+            } else {
+                toast("Préférences du compte enregistrées.");
+            }
         } catch (error) {
             submit.disabled = false;
             submit.textContent = "Enregistrer";
             toast(error.message);
+        }
+    }
+
+    async function saveStartup(patch, control) {
+        await saveSetting(patch, control);
+        if (currentView === "startup") await showView("startup");
+    }
+
+    async function promptProfileName(title, initial = "") {
+        return window.prompt(title, initial);
+    }
+
+    async function handleProfileAction(action) {
+        const profiles = { ...(settings.startupProfiles || {}) };
+        const active = settings.startupActiveProfile;
+        if (action === "apply") {
+            const profile = profiles[active];
+            if (!profile) return;
+            await saveStartup({ startupApps: [...(profile.apps || [])], startupDelayMs: profile.delayMs, startupMode: profile.mode }, viewRoot.querySelector("[data-profile-apply]"));
+            toast(`Profil « ${active} » appliqué.`);
+        } else if (action === "create") {
+            const name = (await promptProfileName("Nom du profil de démarrage :"))?.trim();
+            if (!name) return;
+            if (!/^[^\s]{1,40}$/.test(name)) { toast("Le nom du profil ne doit pas contenir d’espace (1 à 40 caractères)."); return; }
+            profiles[name] = { apps: [...(settings.startupApps || [])], delayMs: settings.startupDelayMs ?? 90, mode: settings.startupMode || "staggered" };
+            await saveStartup({ startupProfiles: profiles, startupActiveProfile: name }, viewRoot.querySelector("[data-profile-create]"));
+            toast(`Profil « ${name} » enregistré.`);
+        } else if (action === "rename") {
+            const profile = profiles[active];
+            if (!profile) return;
+            const name = (await promptProfileName("Nouveau nom du profil :", active))?.trim();
+            if (!name || name === active) return;
+            if (!/^[^\s]{1,40}$/.test(name)) { toast("Le nom du profil ne doit pas contenir d’espace (1 à 40 caractères)."); return; }
+            delete profiles[active];
+            profiles[name] = profile;
+            await saveStartup({ startupProfiles: profiles, startupActiveProfile: name }, viewRoot.querySelector("[data-profile-rename]"));
+            toast(`Profil renommé « ${name} ».`);
+        } else if (action === "delete") {
+            if (!active) return;
+            delete profiles[active];
+            await saveStartup({ startupProfiles: profiles, startupActiveProfile: null }, viewRoot.querySelector("[data-profile-delete]"));
+            toast(`Profil « ${active} » supprimé.`);
         }
     }
 
@@ -357,17 +582,50 @@ export async function mount(root, { toast }) {
         const accent = event.target.closest("[data-accent-value]");
         const wallpaper = event.target.closest("[data-wallpaper-value]");
         const preference = event.target.closest("[data-setting]");
+        const move = event.target.closest("[data-startup-move]");
+        const profileAction = event.target.closest("[data-profile-apply], [data-profile-create], [data-profile-rename], [data-profile-delete]");
         if (navigation) showView(navigation.dataset.settingsView);
         else if (event.target.closest("[data-settings-retry]")) showView(currentView);
+        else if (event.target.closest("[data-network-refresh]")) {
+            network = null;
+            showView("network");
+        }
+        else if (move) {
+            const list = [...(settings.startupApps || [])];
+            const index = list.indexOf(move.dataset.startupMove);
+            const target = move.dataset.direction === "up" ? index - 1 : index + 1;
+            if (index >= 0 && target >= 0 && target < list.length) {
+                [list[index], list[target]] = [list[target], list[index]];
+                saveStartup({ startupApps: list }, move);
+            }
+        }
+        else if (profileAction) {
+            const action = profileAction.hasAttribute("data-profile-apply") ? "apply"
+                : profileAction.hasAttribute("data-profile-create") ? "create"
+                    : profileAction.hasAttribute("data-profile-rename") ? "rename" : "delete";
+            handleProfileAction(action);
+        }
         else if (theme) saveSetting({ theme: theme.dataset.themeValue }, theme);
         else if (accent) saveSetting({ accentColor: accent.dataset.accentValue }, accent);
         else if (wallpaper) saveSetting({ wallpaper: wallpaper.dataset.wallpaperValue }, wallpaper);
         else if (preference && preference.dataset.value) saveSetting({ [preference.dataset.setting]: preference.dataset.value }, preference);
     };
     const change = (event) => {
-        const toggle = event.target.matches('[data-setting="restoreSession"]');
-        if (!toggle) return;
-        saveSetting({ restoreSession: event.target.checked }, event.target);
+        const target = event.target;
+        if (target.matches("[data-startup-toggle]")) {
+            const id = target.dataset.startupToggle;
+            const list = [...(settings.startupApps || [])];
+            if (target.checked) { if (!list.includes(id)) list.push(id); }
+            else { const index = list.indexOf(id); if (index >= 0) list.splice(index, 1); }
+            saveStartup({ startupApps: list }, target);
+        } else if (target.matches("[data-startup-delay]")) {
+            const value = Math.min(5000, Math.max(0, Math.round(Number(target.value) || 0)));
+            saveStartup({ startupDelayMs: value }, target);
+        } else if (target.matches("[data-profile-select]")) {
+            saveStartup({ startupActiveProfile: target.value || null }, target);
+        } else if (target.matches('input[type="checkbox"][data-setting]')) {
+            saveSetting({ [target.dataset.setting]: target.checked }, target);
+        }
     };
     const submit = (event) => {
         if (!event.target.matches(".account-form")) return;
@@ -391,7 +649,11 @@ export async function mount(root, { toast }) {
     getSession().then((data) => {
         const name = data.user?.displayName || data.user?.username || "Compte LUMA";
         root.querySelector(".settings-account strong").textContent = name;
-        root.querySelector(".settings-account .account-avatar").textContent = name.charAt(0).toLocaleUpperCase("fr") || "L";
+        const sidebarAvatar = root.querySelector(".settings-account .account-avatar");
+        if (sidebarAvatar) {
+            sidebarAvatar.outerHTML = avatarMarkup(data.user?.avatarUrl, name, { className: "account-avatar" });
+            hydrateAvatars(root.querySelector(".settings-account"));
+        }
     }).catch(() => {});
     await showView(currentView);
     return () => {

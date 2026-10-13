@@ -6,6 +6,7 @@
  */
 const player = document.querySelector("#harmonix-player");
 const HARMONIX_ENABLED_KEY = "luma.harmonix.enabled";
+const INCOMPATIBLE = true;
 
 if (player) {
     const slot = player.closest(".harmonix-player-slot");
@@ -50,7 +51,8 @@ if (player) {
         updatedAt: performance.now()
     };
     let catalogController;
-    let enabled = localStorage.getItem(HARMONIX_ENABLED_KEY) !== "false";
+    if (INCOMPATIBLE) localStorage.setItem(HARMONIX_ENABLED_KEY, "false");
+    let enabled = !INCOMPATIBLE && localStorage.getItem(HARMONIX_ENABLED_KEY) !== "false";
 
     const channel = "BroadcastChannel" in window ? new BroadcastChannel("harmonix") : null;
 
@@ -455,7 +457,7 @@ if (player) {
     }
 
     function setEnabled(nextEnabled, { persist = true } = {}) {
-        enabled = Boolean(nextEnabled);
+        enabled = !INCOMPATIBLE && Boolean(nextEnabled);
         if (persist) localStorage.setItem(HARMONIX_ENABLED_KEY, String(enabled));
         player.dataset.enabled = String(enabled);
         slot.hidden = !enabled;

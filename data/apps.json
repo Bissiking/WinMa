@@ -50,7 +50,7 @@
     "icon": "/images/interface-logo/applications/sonora-studio.svg",
     "entry": "/apps/sonora-studio/app.js",
     "type": "internal",
-    "enabled": true,
+    "enabled": false,
     "pinned": false,
     "window": {
       "width": 1120,
@@ -65,7 +65,7 @@
     "icon": "/images/interface-logo/applications/braindump.svg",
     "entry": "/apps/braindump/app.js",
     "type": "internal",
-    "enabled": true,
+    "enabled": false,
     "pinned": false,
     "window": {
       "width": 1040,

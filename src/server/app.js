@@ -2,8 +2,8 @@
 const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
-const createMemoryStore = require('memorystore');
 const { createSecurityMiddleware } = require('./config/security');
+const { createSqliteSessionStore } = require('./stores/sqlite-session-store');
 const { createKyrosService } = require('./services/kyros-service');
 const { createSessionService } = require('./services/session-service');
 const { createAppRegistryService } = require('./services/app-registry-service');
@@ -16,6 +16,7 @@ const { createWindowSessionService } = require('./services/window-session-servic
 const { createHarmonixService } = require('./services/harmonix-service');
 const { createSonoraStudioService } = require('./services/sonora-studio-service');
 const { createBrainDumpService } = require('./services/braindump-service');
+const { createNetworkService } = require('./services/network-service');
 const { createAuthController } = require('./controllers/auth-controller');
 const { createSessionController } = require('./controllers/session-controller');
 const { createWindowSessionController } = require('./controllers/window-session-controller');
@@ -49,14 +50,16 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     }
 
     const app = express();
-    const MemoryStore = createMemoryStore(session);
     const projectRoot = path.resolve(__dirname, '../..');
     const legacyPublicRoot = path.join(projectRoot, 'sources');
+    const sqlitePath = path.join(projectRoot, 'data/luma.sqlite');
+    const sessionStore = createSqliteSessionStore(sqlitePath);
+    sessionStore.prune();
     const appRegistryService = createAppRegistryService(path.join(projectRoot, 'data/apps.json'));
     const settingsService = createSettingsService(path.join(projectRoot, 'data/settings'));
     const accountService = createAccountService(path.join(projectRoot, 'data/accounts'));
-    const documentRepository = createSqliteDocumentRepository(path.join(projectRoot, 'data/luma.sqlite'));
-    const windowSessionRepository = createSqliteSessionRepository(path.join(projectRoot, 'data/luma.sqlite'));
+    const documentRepository = createSqliteDocumentRepository(sqlitePath);
+    const windowSessionRepository = createSqliteSessionRepository(sqlitePath);
     const documentService = createDocumentService({
         repository: documentRepository,
         storageRoot: path.join(projectRoot, 'storage/documents')
@@ -69,10 +72,16 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const brainDumpService = createBrainDumpService(config.brainDump || {
         baseUrl: 'https://note-orbis.mhemery.fr', timeoutMs: 10000
     }, fetchImplementation);
+    const networkService = createNetworkService({ config, fetchImplementation });
     const kyrosService = createKyrosService(config.kyros, fetchImplementation);
-    const sessionService = createSessionService(kyrosService);
+    const sessionService = createSessionService(kyrosService, {
+        // Pull Kyros → Luma : à chaque login/refresh, les préférences locales
+        // suivent le profil Kyros si la synchronisation est active.
+        onAuthenticated: (req, claims) =>
+            accountService.applyKyrosProfile(req.session.user.id, claims).catch(() => undefined)
+    });
     const authController = createAuthController({ config, kyrosService, sessionService });
-    const sessionController = createSessionController(sessionService, config);
+    const sessionController = createSessionController(sessionService, config, kyrosService);
     const windowSessionController = createWindowSessionController(windowSessionService);
     const appsController = createAppsController(appRegistryService);
     const settingsController = createSettingsController(settingsService);
@@ -80,7 +89,8 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
         accountService,
         settingsService,
         documentService,
-        appRegistryService
+        appRegistryService,
+        kyrosService
     });
     const documentsController = createDocumentsController(documentService);
     const harmonixController = createHarmonixController(harmonixService);
@@ -103,7 +113,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
         resave: false,
         saveUninitialized: false,
         rolling: true,
-        store: new MemoryStore({ checkPeriod: 60 * 60 * 1000 }),
+        store: sessionStore,
         cookie: {
             httpOnly: true,
             sameSite: 'lax',
@@ -113,7 +123,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     }));
 
     app.use(createAuthRoutes(authController, requireSameOrigin));
-    app.use(createSessionRoutes(sessionController));
+    app.use(createSessionRoutes(sessionController, requireSession));
     app.use(createWindowSessionRoutes(windowSessionController, requireSession, requireSameOrigin));
     app.use(createAppsRoutes(appsController, requireSession));
     app.use(createSettingsRoutes(settingsController, requireSession, requireSameOrigin));
@@ -122,7 +132,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     app.use(createHarmonixRoutes(harmonixController));
     app.use(createSonoraStudioRoutes(sonoraStudioController, requireSession, requireSameOrigin));
     app.use(createBrainDumpRoutes(brainDumpController, requireSession, requireSameOrigin));
-    app.use(createApiRoutes({ version: config.version, requireSession }));
+    app.use(createApiRoutes({ version: config.version, requireSession, networkService }));
     app.use(express.static(legacyPublicRoot, { index: false }));
     app.get('/', (req, res) => res.sendFile(path.join(projectRoot, 'index.html')));
     app.use(notFound);

@@ -1,4 +1,5 @@
 import { requestJson } from "/assets/javascripts/luma-api.js";
+import { avatarMarkup, hydrateAvatars } from "/assets/javascripts/luma-avatar.js";
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
@@ -22,12 +23,10 @@ function appMark(app) {
     return `<span class="task-app-mark task-app-mark--${app.icon}">${icon(symbols[app.icon] || "folder")}</span>`;
 }
 
-export async function mount(root, { apps, windowId, getWindows, closeWindow, toast }) {
+export async function mount(root, { apps, windowId, getWindows, closeWindow, toast, open }) {
     let view = "processes";
     let metrics = null;
     let metricsError = false;
-    let startupIds;
-    try { startupIds = new Set(JSON.parse(localStorage.getItem("luma.startup-apps") || "[]")); } catch { startupIds = new Set(); }
 
     root.innerHTML = `
         <div class="task-manager-app">
@@ -36,7 +35,6 @@ export async function mount(root, { apps, windowId, getWindows, closeWindow, toa
                 <nav aria-label="Sections du gestionnaire">
                     <button class="is-current" type="button" data-task-view="processes">${icon("device")}<span>Processus</span></button>
                     <button type="button" data-task-view="performance">${icon("activity")}<span>Performances</span></button>
-                    <button type="button" data-task-view="startup">${icon("play")}<span>Démarrage</span></button>
                     <button type="button" data-task-view="users">${icon("user")}<span>Utilisateurs</span></button>
                 </nav>
                 <small>Données système actualisées toutes les 2 secondes.</small>
@@ -85,24 +83,19 @@ export async function mount(root, { apps, windowId, getWindows, closeWindow, toa
             </div>`;
     }
 
-    function renderStartup() {
-        const eligible = apps.filter((app) => !["task-manager", "image-viewer"].includes(app.id));
-        viewRoot.innerHTML = `<div class="startup-list"><header><h2>Applications au démarrage</h2><p>Elles s’ouvriront automatiquement à la prochaine session Luma OS.</p></header>${eligible.map((app) => `<label>${appMark(app)}<span><strong>${escapeHtml(app.name)}</strong><small>${startupIds.has(app.id) ? "Activée" : "Désactivée"}</small></span><input type="checkbox" data-startup-app="${app.id}" ${startupIds.has(app.id) ? "checked" : ""}></label>`).join("")}</div>`;
-    }
-
     function renderUsers() {
         const user = metrics?.user;
-        viewRoot.innerHTML = `<div class="users-panel"><header><h2>Utilisateur actif</h2><p>Session authentifiée par Kyros.</p></header><div><span class="task-user-avatar">${escapeHtml((user?.displayName || user?.username || "L").charAt(0).toLocaleUpperCase("fr"))}</span><span><strong>${escapeHtml(user?.displayName || "Utilisateur Luma")}</strong><small>@${escapeHtml(user?.username || "session-active")}</small></span><span class="task-user-status"><i></i> Actif</span></div></div>`;
+        viewRoot.innerHTML = `<div class="users-panel"><header><h2>Utilisateur actif</h2><p>Session authentifiée par Kyros.</p></header><div>${avatarMarkup(user?.avatarUrl, user?.displayName || user?.username, { className: "task-user-avatar" })}<span><strong>${escapeHtml(user?.displayName || "Utilisateur Luma")}</strong><small>@${escapeHtml(user?.username || "session-active")}</small></span><span class="task-user-status"><i></i> Actif</span></div></div>`;
+        hydrateAvatars(viewRoot);
     }
 
     function render() {
         renderSummary();
         root.querySelectorAll("[data-task-view]").forEach((button) => button.classList.toggle("is-current", button.dataset.taskView === view));
-        const descriptions = { processes: "Applications ouvertes dans cette session.", performance: "Charge du serveur qui exécute Luma OS.", startup: "Applications lancées avec votre session.", users: "Identité actuellement connectée." };
+        const descriptions = { processes: "Applications ouvertes dans cette session.", performance: "Charge du serveur qui exécute Luma OS.", users: "Identité actuellement connectée." };
         description.textContent = descriptions[view];
         if (view === "processes") renderProcesses();
         else if (view === "performance") renderPerformance();
-        else if (view === "startup") renderStartup();
         else renderUsers();
     }
 
@@ -120,23 +113,14 @@ export async function mount(root, { apps, windowId, getWindows, closeWindow, toa
         else if (processId) { closeWindow(processId); toast?.("Application arrêtée."); }
         else if (event.target.closest("[data-task-refresh]")) loadMetrics();
     };
-    const onChange = (event) => {
-        const id = event.target.dataset.startupApp;
-        if (!id) return;
-        event.target.checked ? startupIds.add(id) : startupIds.delete(id);
-        localStorage.setItem("luma.startup-apps", JSON.stringify([...startupIds]));
-        renderStartup();
-    };
 
     window.addEventListener("luma:windows", onWindows);
     root.addEventListener("click", onClick);
-    root.addEventListener("change", onChange);
     await loadMetrics();
     const interval = window.setInterval(loadMetrics, 2000);
     return () => {
         window.clearInterval(interval);
         window.removeEventListener("luma:windows", onWindows);
         root.removeEventListener("click", onClick);
-        root.removeEventListener("change", onChange);
     };
 }

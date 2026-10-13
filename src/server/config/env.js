@@ -87,6 +87,16 @@ function loadConfig(environment = process.env) {
             'LUMA_KYROS_REVOKE_URL',
             { required: false }
         ) || (kyrosBaseUrl ? `${kyrosBaseUrl}/revoke` : null),
+        parUrl: parseUrl(
+            envWithFallback(environment, 'LUMA_KYROS_PAR_URL', 'KYROS_PAR_URL'),
+            'LUMA_KYROS_PAR_URL',
+            { required: false }
+        ) || (kyrosBaseUrl ? `${kyrosBaseUrl}/par` : null),
+        jwksUrl: parseUrl(
+            envWithFallback(environment, 'LUMA_KYROS_JWKS_URL', 'KYROS_JWKS_URL'),
+            'LUMA_KYROS_JWKS_URL',
+            { required: false }
+        ) || (kyrosBaseUrl ? `${kyrosBaseUrl}/sso/v4/jwks` : null),
         clientId: envWithFallback(environment, 'LUMA_KYROS_CLIENT_ID', 'KYROS_CLIENT_ID') || '',
         clientSecret: envWithFallback(environment, 'LUMA_KYROS_CLIENT_SECRET', 'KYROS_CLIENT_SECRET') || '',
         jwtSecret: envWithFallback(environment, 'LUMA_KYROS_JWT_SECRET', 'KYROS_JWT_SECRET') || '',
@@ -103,18 +113,19 @@ function loadConfig(environment = process.env) {
             if (kyrosSeconds !== undefined) return parseInteger(kyrosSeconds, 5, 'KYROS_TIMEOUT_SECONDS') * 1000;
             return 5000;
         })(),
-        ssoVersion: envWithFallback(environment, 'LUMA_KYROS_SSO_VERSION', 'KYROS_SSO_VERSION') || 'v3',
+        ssoVersion: envWithFallback(environment, 'LUMA_KYROS_SSO_VERSION', 'KYROS_SSO_VERSION') || 'v4',
         edition: envWithFallback(environment, 'LUMA_KYROS_EDITION', 'KYROS_EDITION') || 'standard',
         applicationScope: envWithFallback(environment, 'LUMA_KYROS_APPLICATION_SCOPE', 'KYROS_APPLICATION_SCOPE') || 'standard'
     };
 
+    kyros.ssoVersion = kyros.ssoVersion === 'v3' ? 'v3' : 'v4';
     kyros.enabled = Boolean(
         kyros.authorizeUrl &&
         kyros.tokenUrl &&
         kyros.clientId &&
         kyros.clientSecret &&
-        kyros.jwtSecret &&
-        kyros.resourceAudience
+        kyros.resourceAudience &&
+        (kyros.ssoVersion === 'v3' ? Boolean(kyros.jwtSecret) : Boolean(kyros.parUrl && kyros.jwksUrl))
     );
 
     if (isProduction && !kyros.enabled) {

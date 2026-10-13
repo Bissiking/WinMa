@@ -45,7 +45,7 @@ function renderShell(root, trashMode) {
                     <button type="button" data-location="video">${icon("device")}<span>Vidéos</span></button>
                     <button type="button" data-location="audio">${icon("volume")}<span>Musique</span></button>
                     <button type="button" data-location="document">${icon("notepad")}<span>Documents</span></button>
-                    <button type="button" data-location="recent" disabled>${icon("search")}<span>Récents</span><small>Bientôt</small></button>
+                    <button type="button" data-location="recent">${icon("search")}<span>Récents</span></button>
                 </nav>
                 <nav class="documents-nav" aria-label="Système">
                     <span class="documents-nav-label">Système</span>
@@ -110,8 +110,8 @@ function dialog(root, { title, description, field, options, confirm = "Valider",
 const QUICK_LOCATIONS = new Set(["image", "video", "audio", "document"]);
 const QUICK_LABELS = { image: "Images", video: "Vidéos", audio: "Musique", document: "Documents" };
 
-export async function mount(root, { app, toast, open }) {
-    const state = { trash: app.id === "trash", parentId: null, search: "", view: "list", selected: new Set(), data: null, type: null };
+export async function mount(root, { app, toast, open, options }) {
+    const state = { trash: app.id === "trash", parentId: null, search: "", view: "list", selected: new Set(), data: null, type: null, recent: options?.data?.view === "recent" };
     renderShell(root, state.trash);
     const shell = root.querySelector(".documents-app");
     const list = root.querySelector(".documents-list");
@@ -152,12 +152,14 @@ export async function mount(root, { app, toast, open }) {
         root.querySelectorAll(".view-controls [data-view]").forEach((button) => button.classList.toggle("is-selected", button.dataset.view === state.view));
         root.querySelectorAll(".documents-nav [data-location]").forEach((button) => {
             const location = button.dataset.location;
-            const current = location === "root" ? (!state.trash && !state.type) : location === "trash" ? state.trash : location === state.type;
+            const current = location === "recent" ? state.recent : location === "root" ? (!state.trash && !state.type && !state.recent) : location === "trash" ? state.trash : location === state.type;
             button.classList.toggle("is-current", current);
         });
         root.querySelector(".documents-path").innerHTML = state.trash
             ? `<strong>${icon("trash")} Corbeille</strong><span>Suppression automatique après ${state.data.retentionDays} jours</span>`
-            : state.type
+            : state.recent
+                ? `<strong>${icon("search")} Récents</strong><span>${state.data.items.length} fichier${state.data.items.length > 1 ? "s" : ""} modifié${state.data.items.length > 1 ? "s" : ""} récemment</span>`
+                : state.type
                 ? `<strong>${icon("folder")} ${QUICK_LABELS[state.type]}</strong><span>${state.data.items.length} élément${state.data.items.length > 1 ? "s" : ""}</span>`
                 : `<button type="button" data-breadcrumb="">Mes fichiers</button>${breadcrumbs.map((crumb) => `${icon("chevron")}<button type="button" data-breadcrumb="${crumb.id}">${escapeHtml(crumb.name)}</button>`).join("")}<span class="mobile-storage-label">${formatBytes(storage.usedBytes)} / 1 Go</span>`;
         const percent = Math.min(100, storage.usedBytes / storage.quotaBytes * 100);
@@ -170,7 +172,7 @@ export async function mount(root, { app, toast, open }) {
                 <time datetime="${item.updatedAt}">${formatDate(item.trashedAt || item.updatedAt)}</time>
                 <span>${typeLabel(item)}</span>
                 <span>${item.kind === "file" ? formatBytes(item.size) : "—"}</span>
-            </article>`).join("") : `<div class="documents-empty">${state.trash ? icon("trash") : icon(state.type || "folder")}<h2>${state.trash ? "La Corbeille est vide" : state.search ? "Aucun résultat" : state.type ? `Aucun fichier dans ${QUICK_LABELS[state.type].toLocaleLowerCase("fr")}` : "Ce dossier est prêt"}</h2><p>${state.trash ? "Les éléments supprimés apparaîtront ici pendant 30 jours." : state.search ? "Essayez un autre nom ou revenez à vos fichiers." : state.type ? "Importez des fichiers de ce type ou parcourez Mes fichiers." : "Créez un dossier ou importez votre premier fichier."}</p></div>`;
+            </article>`).join("") : `<div class="documents-empty">${state.trash ? icon("trash") : icon(state.recent ? "search" : state.type || "folder")}<h2>${state.trash ? "La Corbeille est vide" : state.recent ? "Aucun fichier récent" : state.search ? "Aucun résultat" : state.type ? `Aucun fichier dans ${QUICK_LABELS[state.type].toLocaleLowerCase("fr")}` : "Ce dossier est prêt"}</h2><p>${state.trash ? "Les éléments supprimés apparaîtront ici pendant 30 jours." : state.recent ? "Vos 50 derniers fichiers modifiés apparaîtront ici." : state.search ? "Essayez un autre nom ou revenez à vos fichiers." : state.type ? "Importez des fichiers de ce type ou parcourez Mes fichiers." : "Créez un dossier ou importez votre premier fichier."}</p></div>`;
         updateActions();
     }
 
@@ -181,9 +183,13 @@ export async function mount(root, { app, toast, open }) {
         if (state.search) params.set("search", state.search);
         if (state.type) params.set("type", state.type);
         if (state.trash) params.set("trash", "true");
+        if (state.recent) params.set("sort", "recent");
         try {
             state.data = await requestJson(`/api/documents?${params}`);
             state.selected.clear();
+            if (!state.trash) {
+                try { localStorage.setItem("luma.documents.last-folder", state.parentId || ""); } catch { /* stockage indisponible */ }
+            }
             render();
         } catch (error) {
             list.innerHTML = `<div class="documents-empty"><h2>Documents indisponible</h2><p>${escapeHtml(error.message)}</p><button type="button" data-action="reload">Réessayer</button></div>`;
@@ -261,13 +267,16 @@ export async function mount(root, { app, toast, open }) {
             else if (action === "select-all") {
                 state.selected = event.target.checked ? new Set(state.data.items.map((item) => item.id)) : new Set(); render();
             } else if (action) await perform(action);
-            else if (location === "recent") { /* bientôt */ }
+            else if (location === "recent") {
+                state.recent = true; state.trash = false; state.type = null; state.parentId = null; state.search = ""; search.value = ""; await load();
+            }
             else if (location) {
+                state.recent = false;
                 state.trash = location === "trash";
                 state.type = QUICK_LOCATIONS.has(location) ? location : null;
                 state.parentId = null; state.search = ""; search.value = ""; await load();
             }
-            else if (breadcrumb) { state.parentId = breadcrumb.dataset.breadcrumb || null; state.search = ""; state.type = null; search.value = ""; await load(); }
+            else if (breadcrumb) { state.recent = false; state.parentId = breadcrumb.dataset.breadcrumb || null; state.search = ""; state.type = null; search.value = ""; await load(); }
             else if (row && event.target.matches('input[type="checkbox"]')) { event.target.checked ? state.selected.add(row.dataset.itemId) : state.selected.delete(row.dataset.itemId); render(); }
         } catch (error) { toast(error.message); }
     };
@@ -275,7 +284,7 @@ export async function mount(root, { app, toast, open }) {
         const row = event.target.closest("[data-item-id]");
         if (!row || state.trash) return;
         const item = state.data.items.find((entry) => entry.id === row.dataset.itemId);
-        if (item.kind === "folder") { state.parentId = item.id; state.type = null; await load(); }
+        if (item.kind === "folder") { state.recent = false; state.parentId = item.id; state.type = null; await load(); }
         else openItem(item);
     };
     const uploadChange = async (event) => {
@@ -293,6 +302,15 @@ export async function mount(root, { app, toast, open }) {
     root.addEventListener("dblclick", doubleClick);
     root.querySelector(".document-upload").addEventListener("change", uploadChange);
     search.addEventListener("input", searchInput);
+    if (!state.trash && !state.recent) {
+        try {
+            const settings = await requestJson("/api/users/me/settings");
+            if (settings.startupRestoreFolder) {
+                const last = localStorage.getItem("luma.documents.last-folder");
+                if (last) state.parentId = last || null;
+            }
+        } catch { /* réglages indisponibles : démarrage à la racine */ }
+    }
     await load();
     return () => {
         window.clearTimeout(searchTimer);

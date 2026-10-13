@@ -9,6 +9,9 @@ function createDocumentsController(documentService) {
         async folders(req, res) {
             return sendSuccess(res, documentService.listFolders(req.user.id));
         },
+        async stats(req, res) {
+            return sendSuccess(res, documentService.getStats(req.user.id));
+        },
         async createFolder(req, res) {
             return sendSuccess(res, await documentService.createFolder(req.user.id, req.body), 'Dossier créé.', 201);
         },

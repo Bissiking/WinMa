@@ -75,17 +75,24 @@ function createDocumentService({ repository, storageRoot }) {
         return quota(ownerKey(subject));
     }
 
+    function getStats(subject) {
+        const key = ownerKey(subject);
+        const { categories, trash } = repository.statsByType(key);
+        return { categories, trash, storage: quota(key) };
+    }
+
     async function list(subject, query = {}) {
         await purgeExpired();
         const key = ownerKey(subject);
         const parentId = validId(query.parentId, 'identifiant du dossier');
         const trash = query.trash === true || query.trash === 'true';
         const type = validType(query.type);
+        const recent = query.sort === 'recent';
         const search = typeof query.search === 'string' ? query.search.trim().slice(0, 120) : '';
-        if (parentId && !trash && !search && !type) await ensureParent(key, parentId);
+        if (parentId && !trash && !search && !type && !recent) await ensureParent(key, parentId);
         return {
-            items: repository.list(key, { parentId, search, trash, type }),
-            breadcrumbs: parentId && !trash ? repository.ancestors(key, parentId) : [],
+            items: repository.list(key, { parentId: recent ? null : parentId, search, trash, type, recent }),
+            breadcrumbs: parentId && !trash && !recent ? repository.ancestors(key, parentId) : [],
             storage: quota(key),
             retentionDays: TRASH_RETENTION_DAYS
         };
@@ -277,7 +284,7 @@ function createDocumentService({ repository, storageRoot }) {
         return count;
     }
 
-    return { list, listFolders, getQuota, createFolder, upload, createText, readText, saveText, update, trash, restore, permanentlyDelete, emptyTrash, download, purgeExpired, quotaBytes: QUOTA_BYTES };
+    return { list, listFolders, getQuota, getStats, createFolder, upload, createText, readText, saveText, update, trash, restore, permanentlyDelete, emptyTrash, download, purgeExpired, quotaBytes: QUOTA_BYTES };
 }
 
 module.exports = { createDocumentService, QUOTA_BYTES, TRASH_RETENTION_DAYS, ownerKey };

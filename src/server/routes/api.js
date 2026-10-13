@@ -38,14 +38,17 @@ function systemMetrics(user) {
             uptimeSeconds: Math.round(process.uptime()),
             processMemoryBytes: process.memoryUsage().rss
         },
-        user: { id: user.id, username: user.username, displayName: user.displayName }
+        user: { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl || null }
     };
 }
 
-function createApiRoutes({ version, requireSession } = {}) {
+function createApiRoutes({ version, requireSession, networkService } = {}) {
     const router = express.Router();
     router.get('/api/health', (req, res) => sendSuccess(res, { status: 'ok', version }));
     if (requireSession) router.get('/api/system/metrics', requireSession, (req, res) => sendSuccess(res, systemMetrics(req.user)));
+    if (requireSession && networkService) {
+        router.get('/api/system/network', requireSession, async (req, res) => sendSuccess(res, await networkService.snapshot(req)));
+    }
     return router;
 }
 

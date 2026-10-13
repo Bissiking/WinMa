@@ -32,12 +32,9 @@ test('un patch conserve les champs qui ne sont pas modifiés', async () => {
     const updated = await service.update('usr_one', { accentColor: '#3366CC' });
 
     assert.deepEqual(updated, {
-        wallpaper: DEFAULT_SETTINGS.wallpaper,
+        ...DEFAULT_SETTINGS,
         theme: 'dark',
-        accentColor: '#3366CC',
-        density: 'comfortable',
-        motion: 'system',
-        restoreSession: true
+        accentColor: '#3366CC'
     });
 });
 
@@ -73,4 +70,55 @@ test('les collections Full HD et 4K peuvent être sélectionnées', async () => 
 
     assert.equal((await service.update('usr_one', { wallpaper: './images/backgrounds/background-12.jpg' })).wallpaper, './images/backgrounds/background-12.jpg');
     assert.equal((await service.update('usr_one', { wallpaper: './images/backgrounds/4K/background-4k-04.jpg' })).wallpaper, './images/backgrounds/4K/background-4k-04.jpg');
+});
+
+test('les options de démarrage sont validées', async () => {
+    const service = await createService();
+
+    await assert.rejects(service.update('usr_one', { startupDelayMs: 9999 }), (error) => error.code === 'STARTUP_DELAY_INVALID');
+    await assert.rejects(service.update('usr_one', { startupDelayMs: -1 }), (error) => error.code === 'STARTUP_DELAY_INVALID');
+    await assert.rejects(service.update('usr_one', { startupMode: 'chaotic' }), (error) => error.code === 'STARTUP_MODE_INVALID');
+    await assert.rejects(service.update('usr_one', { startupApps: 'documents' }), (error) => error.code === 'STARTUP_APPS_INVALID');
+    await assert.rejects(service.update('usr_one', { startupApps: ['../evil'] }), (error) => error.code === 'STARTUP_APPS_INVALID');
+    await assert.rejects(service.update('usr_one', { startupOpenTrash: 'oui' }), (error) => error.code === 'STARTUP_OPTION_INVALID');
+
+    const updated = await service.update('usr_one', {
+        startupApps: ['documents', 'settings'],
+        startupDelayMs: 250,
+        startupMode: 'simultaneous',
+        startupOpenTrash: true,
+        startupOpenRecents: true,
+        startupRestoreFolder: true,
+        startupPresentation: true
+    });
+    assert.deepEqual(updated.startupApps, ['documents', 'settings']);
+    assert.equal(updated.startupDelayMs, 250);
+    assert.equal(updated.startupMode, 'simultaneous');
+    assert.equal(updated.startupOpenTrash, true);
+});
+
+test('les profils de démarrage sont validés', async () => {
+    const service = await createService();
+
+    await assert.rejects(
+        service.update('usr_one', { startupProfiles: { '': { apps: [] } } }),
+        (error) => error.code === 'STARTUP_PROFILES_INVALID'
+    );
+    await assert.rejects(
+        service.update('usr_one', { startupProfiles: { Travail: { apps: 'documents' } } }),
+        (error) => error.code === 'STARTUP_PROFILES_INVALID'
+    );
+    await assert.rejects(
+        service.update('usr_one', { startupActiveProfile: 42 }),
+        (error) => error.code === 'STARTUP_PROFILE_INVALID'
+    );
+
+    const updated = await service.update('usr_one', {
+        startupProfiles: { Travail: { apps: ['documents'], delayMs: 0, mode: 'simultaneous' } },
+        startupActiveProfile: 'Travail'
+    });
+    assert.deepEqual(updated.startupProfiles.Travail, { apps: ['documents'], delayMs: 0, mode: 'simultaneous' });
+    assert.equal(updated.startupActiveProfile, 'Travail');
+
+    await service.update('usr_one', { startupActiveProfile: null });
 });

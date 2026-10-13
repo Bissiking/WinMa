@@ -26,6 +26,7 @@ function createDocumentsRoutes(controller, requireSession, requireSameOrigin) {
     const router = express.Router();
     router.get('/api/documents', requireSession, asyncHandler(controller.index));
     router.get('/api/documents/folders', requireSession, asyncHandler(controller.folders));
+    router.get('/api/documents/stats', requireSession, asyncHandler(controller.stats));
     router.get('/api/documents/:id/download', requireSession, asyncHandler(controller.download));
     router.get('/api/documents/:id/preview', requireSession, asyncHandler(controller.preview));
     router.get('/api/documents/:id/content', requireSession, asyncHandler(controller.readText));

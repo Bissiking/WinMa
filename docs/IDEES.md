@@ -21,10 +21,6 @@ Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour 
 - **Effort** : moyen-élevé.
 - **Bonus** : fond d'écran album en cours de lecture, mini-lecteur en barre des tâches (à la Harmonix).
 
-### 4. Gestionnaire de fichiers
-- **Description** : l'explorateur Documents sert à la fois de gestionnaire de fichiers. Un onglet « stockage » montrerait le quota, les types dominants, la corbeille, et un tri/dupliqués.
-- **Effort** : moyen (repose sur l'API Documents existante).
-
 ### 5. App Météo
 - **Description** : météo locale avec fond d'écran dynamique (ciel nuageux → paysage sombre). Nécessite une source de données — compatible avec l'isolation « aucune connexion externe » si elle passe par un proxy serveur.
 - **Effort** : moyen.
@@ -36,10 +32,6 @@ Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour 
 
 ### 7. Bloc-notes enrichi (Notes LUMA)
 - **Description** : le Bloc-notes est un éditeur Markdown avec aperçu. Ajouter : listes à puces cliquables, case à cocher, recherche dans les notes, dossiers de notes, épinglage.
-- **Effort** : moyen.
-
-### 8. Panneau d'administration / Tableau de bord LUMA
-- **Description** : vue d'ensemble de l'écosystème (Kyros, Harmonix, Sonora, BrainDump, Documents) : statut, latence, sessions actives. Complète `luma-orbit` (catalogue) et `task-manager` (métriques machine).
 - **Effort** : moyen.
 
 ### 11. App de flux RSS / Actualités LUMA
@@ -54,10 +46,6 @@ Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour 
 ### 13. Visualiseur Markdown / HTML dans Documents
 - **Description** : avant de télécharger, prévisualiser un `.md` ou `.html` directement dans Documents (le rendu Markdown du Bloc-notes est réutilisable).
 - **Effort** : faible.
-
-### 14. App « Réseau Luma » interactive
-- **Description** : la vue Réseau de Paramètres est en lecture seule. En faire une app dédiée : tester les connexions, voir les services joignables, relancer un proxy.
-- **Effort** : moyen.
 
 ### 15. App Contact / Annuaire LUMA
 - **Description** : carnets de contacts locaux (nom, email, liens), épinglables au bureau. Données en `localStorage` ou SQLite.
@@ -87,12 +75,8 @@ Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour 
 - **Effort** : élevé (i18n de toutes les apps).
 - **Note** : infrastructure serveur déjà prête.
 
-### 20. Démarrage : apps au démarrage
-- **Description** : le Gestionnaire des tâches propose déjà des apps au démarrage (`luma.startup-apps`). L'élever dans Paramètres avec un ordre et une attente entre chaque lancement.
-- **Effort** : faible.
-
 ### 21. Compte : avatar et photo de profil
-- **Description** : permettre de choisir une image locale pour l'avatar (actuellement initiale du nom). Stockage local ou serveur.
+- **Description** : permettre de choisir une image locale pour l'avatar (actuellement initiale du nom ou avatar Kyros proxifié). Stockage local ou serveur.
 - **Effort** : faible-moyen.
 
 ### 22. Confidentialité
@@ -181,10 +165,6 @@ Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour 
 - **Description** : `script-src` autorise `'unsafe-inline'` et `cdn.jsdelivr.net` (héritage Axios). Retirer une fois le code hérité purgé.
 - **Effort** : faible.
 
-### 44. Magasin de session persistant
-- **Description** : `express-session` utilise `memorystore` (perdu au redémarrage). Passer à SQLite pour des sessions persistantes en production.
-- **Effort** : moyen.
-
 ### 45. Écrans de verrouillage dédoublonnés
 - **Description** : `session-select/` ET `renderSessionScreen` dans `luma-shell.js` font la même chose. Fusionner en un seul rendu.
 - **Effort** : faible-moyen.
@@ -210,7 +190,7 @@ Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour 
 
 ## Prioritaires (recommandation)
 
-3. **#16 + #48 Fonds/thème avancé** (faible-moyen) — impact visuel immédiat.
+3. **#16 Fonds/thème avancé** (moyen) — impact visuel immédiat (partiel : lock screen fait, reste opacité/arrondi/contraste).
 4. **#1 Visionneuse PDF** (moyen) — comble le format manquant le plus courant.
 5. **#19 Langue de l'UI** (élevé) — infra serveur déjà prête, gros gain.
 6. **#27 Presse-papiers partagé** (moyen) — fonctionnalité différenciante et concrète.
