@@ -17,7 +17,7 @@ export function createWindowManager({ layer, taskbar, apps, version = "3.1.0", o
     function loadPinned() {
         try {
             const stored = JSON.parse(localStorage.getItem(TASKBAR_PIN_KEY));
-            if (Array.isArray(stored)) return stored.filter((id) => apps.some((item) => item.id === id && !item.incompatible));
+            if (Array.isArray(stored)) return stored.filter((id) => apps.some((item) => item.id === id && !item.hidden && !item.incompatible));
         } catch { /* valeurs invalides ignorées */ }
         return [...DEFAULT_PINNED];
     }
@@ -410,6 +410,9 @@ export function createWindowManager({ layer, taskbar, apps, version = "3.1.0", o
     }
 
     async function mountContent(record) {
+        const listedApps = apps
+            .filter((item) => !item.hidden && !item.incompatible)
+            .map(({ module, ...item }) => ({ ...item }));
         record.content.setAttribute("aria-busy", "true");
         record.content.innerHTML = '<p class="app-loading">Ouverture de l’application…</p>';
         try {
@@ -419,8 +422,8 @@ export function createWindowManager({ layer, taskbar, apps, version = "3.1.0", o
                 app: record.app,
                 close: () => close(record.id),
                 open: openApp,
-                apps: apps.filter((item) => !item.hidden).map(({ module, ...item }) => ({ ...item })),
-                registry: apps.map(({ module, ...item }) => ({ ...item })),
+                apps: listedApps,
+                registry: listedApps,
                 windowId: record.id,
                 getWindows: snapshot,
                 closeWindow: close,

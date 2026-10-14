@@ -554,6 +554,34 @@ select:focus-visible,
 .battery-button.is-low .icon { color: #f0a85c; }
 .battery-button:focus-visible { outline: 2px solid var(--luma-accent); outline-offset: 1px; }
 
+.update-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    color: inherit;
+    background: transparent;
+}
+.update-button:hover { background: color-mix(in srgb, var(--taskbar-ink) 9%, transparent); }
+.update-button:focus-visible { outline: 2px solid var(--luma-accent); outline-offset: 1px; }
+.update-button[data-update-state="checking"] { opacity: .6; }
+.update-button[data-update-state="available"] { color: #f0a85c; }
+.update-button[data-update-state="updating"] { color: var(--luma-accent, #6d5ee8); }
+.update-button[data-update-state="error"] { color: #d64545; }
+.update-button[data-update-state="available"] .update-button__dot,
+.update-button[data-update-state="updating"] .update-button__dot,
+.update-button[data-update-state="error"] .update-button__dot {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 7px;
+    height: 7px;
+    border: 1.5px solid var(--taskbar-bg, #111827);
+    border-radius: 50%;
+    background: currentColor;
+}
+
 .clock {
     min-width: 72px;
     height: 40px;

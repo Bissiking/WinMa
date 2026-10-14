@@ -176,6 +176,10 @@
             <circle cx="12" cy="13" r="8" />
             <path d="M12 9v4l2.5 2M9 2h6M12 2v2" />
         </symbol>
+        <symbol id="icon-update" viewBox="0 0 24 24">
+            <path d="M12 3v10m-4-4 4 4 4-4" />
+            <path d="M4 17a8 8 0 0 0 16 0" />
+        </symbol>
     </svg>
 
     <main id="session-root" class="session-root" aria-live="polite"></main>
@@ -312,6 +316,11 @@
             </button>
             <div id="taskbar-apps" class="taskbar-apps" aria-label="Applications ouvertes"></div>
             <div class="taskbar-status">
+                <button id="taskbar-update" class="status-button update-button" type="button"
+                    aria-label="Mise à jour de Luma OS" data-update-state="idle" hidden>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-update" /></svg>
+                    <span class="update-button__dot" aria-hidden="true"></span>
+                </button>
                 <button id="taskbar-battery" class="status-button battery-button" type="button"
                     aria-label="Alimentation : batterie" aria-pressed="false" hidden>
                     <svg class="icon" aria-hidden="true"><use href="#icon-power" /></svg>
@@ -325,6 +334,7 @@
 
     <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
     <script type="module" src="./apps/harmonix-player/app.js"></script>
+    <script type="module" src="./assets/javascripts/luma-sw-update.js"></script>
     <script type="module" src="./assets/javascripts/luma-shell.js"></script>
 </body>
 

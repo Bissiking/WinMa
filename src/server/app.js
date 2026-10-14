@@ -1,4 +1,5 @@
 // src/server/app.js
+const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
@@ -16,6 +17,7 @@ const { createWindowSessionService } = require('./services/window-session-servic
 const { createHarmonixService } = require('./services/harmonix-service');
 const { createSonoraStudioService } = require('./services/sonora-studio-service');
 const { createBrainDumpService } = require('./services/braindump-service');
+const { createBuildVersionService, renderServiceWorker } = require('./services/build-version-service');
 const { createNetworkService } = require('./services/network-service');
 const { createAuthController } = require('./controllers/auth-controller');
 const { createSessionController } = require('./controllers/session-controller');
@@ -52,6 +54,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const app = express();
     const projectRoot = path.resolve(__dirname, '../..');
     const legacyPublicRoot = path.join(projectRoot, 'sources');
+    const buildVersionService = createBuildVersionService({ projectRoot });
     const sqlitePath = path.join(projectRoot, 'data/luma.sqlite');
     const sessionStore = createSqliteSessionStore(sqlitePath);
     sessionStore.prune();
@@ -132,7 +135,23 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     app.use(createHarmonixRoutes(harmonixController));
     app.use(createSonoraStudioRoutes(sonoraStudioController, requireSession, requireSameOrigin));
     app.use(createBrainDumpRoutes(brainDumpController, requireSession, requireSameOrigin));
-    app.use(createApiRoutes({ version: config.version, requireSession, networkService }));
+    app.use(createApiRoutes({ version: config.version, requireSession, networkService, buildVersionService }));
+    app.get('/sw.js', (req, res) => {
+        let source;
+        try {
+            source = fs.readFileSync(path.join(legacyPublicRoot, 'sw.js'), 'utf8');
+        } catch {
+            res.status(404).type('text/plain').end();
+            return;
+        }
+        res.set({
+            'Content-Type': 'application/javascript; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0'
+        });
+        res.send(renderServiceWorker(source, buildVersionService.get()));
+    });
     app.use(express.static(legacyPublicRoot, { index: false }));
     app.get('/', (req, res) => res.sendFile(path.join(projectRoot, 'index.html')));
     app.use(notFound);

@@ -1,6 +1,6 @@
 {
   "name": "luma-os",
-  "version": "3.2.0",
+  "version": "3.2.7",
   "description": "Bureau web modulaire pour l'écosystème LUMA",
   "main": "src/server/server.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "start": "node src/server/server.js",
     "test": "node --test",
     "test:watch": "node --test --watch",
+    "test:sw": "node scripts/sw-update-cycle.mjs",
     "test:visual": "node scripts/visual-check.mjs"
   },
   "author": "",

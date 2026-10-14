@@ -16,8 +16,7 @@ const COMMANDS = {
 
 const FALLBACK_IDS = [
     "documents", "calculator", "terminal", "calendar", "settings", "task-manager",
-    "luma-orbit", "sonora-studio", "braindump", "notepad", "power", "timer", "trash",
-    "image-viewer", "music-player", "video-player", "matheo-systems",
+    "luma-orbit", "notepad", "timer", "trash",
 ];
 
 export function mount(root, context = {}) {

@@ -3,6 +3,7 @@ import { createWindowManager } from "./luma-window-manager.js";
 import { showContextMenu } from "./luma-context-menu.js";
 import { welcomeMessage } from "./luma-welcome.js";
 import { avatarMarkup, hydrateAvatars } from "./luma-avatar.js";
+import { setAvatarOwner, clearAvatarCache } from "./luma-avatar-store.js";
 
 const apps = [
     { id: "documents", name: "Documents", taskbarName: "Docs", icon: "documents", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
@@ -235,6 +236,20 @@ function persistSessionRemotely(windows) {
     }, 600);
 }
 
+function flushSession() {
+    if (!windowManager) return;
+    windowManager.saveSession();
+    try {
+        fetch("/api/users/me/windows", {
+            method: "PUT",
+            keepalive: true,
+            credentials: "same-origin",
+            headers: { accept: "application/json", "content-type": "application/json" },
+            body: JSON.stringify({ windows: windowManager.getWindows() })
+        }).catch(() => { /* synchro best-effort */ });
+    } catch { /* synchro best-effort */ }
+}
+
 async function fetchSavedWindows() {
     try {
         const controller = new AbortController();
@@ -252,6 +267,7 @@ async function fetchSavedWindows() {
 
 async function loadDesktopSession(user) {
     currentUser = user;
+    setAvatarOwner(user?.id || null);
     try { localStorage.setItem("luma.last-user", JSON.stringify({ displayName: user?.displayName || "", username: user?.username || "", avatarUrl: user?.avatarUrl || null })); } catch { /* stockage indisponible */ }
     const startedAt = performance.now();
     desktop.hidden = true;
@@ -271,7 +287,7 @@ async function loadDesktopSession(user) {
     const name = user?.displayName || user?.username || "Utilisateur Luma";
     document.getElementById("account-name").textContent = name;
     document.getElementById("account-avatar").outerHTML = avatarMarkup(user?.avatarUrl, name, { className: "account-avatar", id: "account-avatar" });
-    hydrateAvatars(document.querySelector(".taskbar"));
+    hydrateAvatars(document);
     try {
         progress(36, "Chargement de votre environnement…");
         const [settings, health] = await Promise.all([
@@ -300,7 +316,8 @@ async function loadDesktopSession(user) {
             closeWindow: windowManager.close,
             getWindows: windowManager.getWindows,
             setWindowState: windowManager.setAppState,
-            setWindowTitle: windowManager.setTitle
+            setWindowTitle: windowManager.setTitle,
+            saveSession: flushSession
         });
     }
     if (restoreSessionEnabled) {
@@ -325,7 +342,6 @@ async function loadDesktopSession(user) {
 
 async function bootstrap() {
     renderStartApps();
-    registerServiceWorker();
     try {
         const session = await requestJson("/api/session");
         if (session.authenticated) await loadDesktopSession(session.user);
@@ -337,15 +353,6 @@ async function bootstrap() {
             message: unreachable ? "Le serveur Luma est injoignable." : "Le service de session est indisponible. Rechargez la page pour réessayer."
         });
     }
-}
-
-async function registerServiceWorker() {
-    if (!("serviceWorker" in navigator)) return;
-    try {
-        const probe = await fetch("./sw.js", { method: "HEAD" });
-        if (!probe.ok) return;
-        await navigator.serviceWorker.register("./sw.js");
-    } catch { /* service worker indisponible : ignoré */ }
 }
 
 launcher.addEventListener("click", () => setStartPanel(startPanel.hidden));
@@ -413,6 +420,8 @@ document.addEventListener("click", async (event) => {
     if (action === "logout") {
         try { await postJson("/api/auth/logout"); } catch { toast("La révocation Kyros n’a pas pu être confirmée."); }
         currentUser = null;
+        clearAvatarCache();
+        setAvatarOwner(null);
         renderSessionScreen({ authentication: { available: true }, message: "Vous êtes déconnecté." });
     } else {
         renderSessionScreen({ authenticated: true, user: currentUser, message: "Session verrouillée." });
@@ -460,5 +469,31 @@ async function startBatteryIndicator() {
 batteryButton?.addEventListener("click", () => windowManager?.openApp("power"));
 
 startBatteryIndicator();
+
+const updateButton = document.getElementById("taskbar-update");
+const UPDATE_BUTTON_LABELS = {
+    idle: "Mise à jour de Luma OS",
+    checking: "Recherche de mises à jour en cours",
+    available: "Mise à jour de Luma OS disponible",
+    updating: "Installation de la mise à jour en cours",
+    error: "La mise à jour de Luma OS a échoué",
+    "up-to-date": "Luma OS est à jour",
+    unsupported: "Mise à jour non prise en charge par ce navigateur"
+};
+const UPDATE_BUTTON_STATES = new Set(["checking", "available", "updating", "error"]);
+
+function applyUpdateButtonState(detail) {
+    if (!updateButton) return;
+    updateButton.dataset.updateState = detail.phase;
+    updateButton.setAttribute("aria-label", UPDATE_BUTTON_LABELS[detail.phase] || UPDATE_BUTTON_LABELS.idle);
+    updateButton.hidden = !UPDATE_BUTTON_STATES.has(detail.phase);
+}
+
+window.LumaSwUpdate?.attachIndicator?.(applyUpdateButtonState);
+
+updateButton?.addEventListener("click", () => {
+    windowManager?.openApp("settings", { instanceKey: "settings", data: { view: "update" } });
+    window.dispatchEvent(new CustomEvent("luma:settings-view", { detail: { view: "update" } }));
+});
 
 bootstrap();

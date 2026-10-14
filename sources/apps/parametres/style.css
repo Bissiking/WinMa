@@ -241,6 +241,13 @@
 .status-badge--ok { color: #187a55; background: color-mix(in srgb, #2eab74 14%, var(--surface-raised)); }
 :root[data-theme="dark"] .status-badge--ok,
 :root[data-theme="luma"] .status-badge--ok { color: #8ee1bd; }
+.status-badge--warning { color: #96591a; background: color-mix(in srgb, #e6962f 16%, var(--surface-raised)); }
+:root[data-theme="dark"] .status-badge--warning,
+:root[data-theme="luma"] .status-badge--warning { color: #f5c27b; }
+.status-badge--error { color: #a52f2f; background: color-mix(in srgb, #df5f5f 14%, var(--surface-raised)); }
+:root[data-theme="dark"] .status-badge--error,
+:root[data-theme="luma"] .status-badge--error { color: #f0a8a8; }
+.status-badge--muted { color: var(--ink-muted); background: var(--surface-raised); }
 
 .settings-property-list { margin: 0; }
 .settings-property-list > div {
@@ -337,6 +344,23 @@
 }
 .settings-secondary-button:hover { background: color-mix(in srgb, var(--luma-accent) 8%, var(--surface-muted)); }
 .settings-secondary-button .icon { width: 14px; height: 14px; }
+
+.update-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 17px; }
+.update-actions .settings-primary-button,
+.update-actions .settings-secondary-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+}
+.update-actions .settings-primary-button .icon { width: 14px; height: 14px; }
+.update-actions .settings-secondary-button:disabled,
+.update-actions .settings-primary-button:disabled { cursor: default; opacity: .55; }
+.update-note { max-width: 62ch; margin: 14px 0 0; color: var(--ink-muted); font-size: 11px; line-height: 1.55; }
+.update-assets { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.update-assets li { padding: 9px 0; border-top: 1px solid var(--line); font-size: 11px; }
+.update-assets li:first-child { border-top: 0; }
+.update-assets code { color: var(--ink-muted); font-family: inherit; overflow-wrap: anywhere; }
 
 .settings-error { max-width: 52ch; padding: 28px 0; }
 .settings-error h2 { margin: 0 0 7px; font-size: 18px; }

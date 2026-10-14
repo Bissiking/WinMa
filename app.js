@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { createBuildVersionService, renderServiceWorker } = require('./src/server/services/build-version-service');
 const app = express();
 const port = 3000;
 
@@ -10,11 +11,30 @@ if (!fs.existsSync('users')) {
     });
 }
 
+const buildVersionService = createBuildVersionService({ projectRoot: __dirname });
+
 // Middleware pour le corps de la demande
 app.use(express.json());
 app.use(express.urlencoded({
     extended: true
 }));
+
+app.get('/sw.js', (req, res) => {
+    let source;
+    try {
+        source = fs.readFileSync(path.join(__dirname, 'sources', 'sw.js'), 'utf8');
+    } catch {
+        res.status(404).type('text/plain').end();
+        return;
+    }
+    res.set({
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0'
+    });
+    res.send(renderServiceWorker(source, buildVersionService.get()));
+});
 
 // Définir le répertoire des fichiers statiques (comme les fichiers HTML, CSS, etc.)
 app.use(express.static(path.join(__dirname, 'sources')));

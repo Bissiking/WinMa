@@ -4,12 +4,14 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) : chaque v
 
 ## 3.3.0-alpha — Survol
 
-> Stockage, Réseau Luma et Démarrage enrichi.
+> Stockage, Réseau Luma, Démarrage enrichi et mises à jour automatiques.
 
 - **Stockage** : nouvelle vue Paramètres > Stockage (quota 1 Go, répartition par type de fichier, espace Corbeille).
 - **Réseau Luma** : nouvelle vue Paramètres > Réseau Luma (santé des services avec latence, session en cours, réseau de l'appareil).
 - **Démarrage enrichi** : applications au démarrage réordonnables, délai et mode de lancement, profils nommés, options (Corbeille, Récents, dernier dossier, présentation) — gestion migrée du Gestionnaire des tâches vers Paramètres.
 - **Documents Récents** : vue « Récents » dans la barre latérale de Documents (50 derniers fichiers modifiés), utilisée par l'option de démarrage.
+- **Mises à jour automatiques** : le Service Worker se versionne à chaque déploiement, se vérifie au démarrage, au retour sur l'onglet et toutes les 30 minutes, et propose « Mettre à jour » avant d'activer la nouvelle version. Un déploiement à chaud (`git pull`, redémarrage du serveur) est signalé en direct à chaque onglet ouvert, sans rechargement de la page.
+- **Centre de mise à jour** : nouvelle vue Paramètres > Mise à jour (version de Luma OS, build installé vs build disponible, périmètre) et icône d'état dans la barre des tâches.
 - **Gestionnaire des tâches** : l'onglet Démarrage est retiré (configuration déplacée dans Paramètres).
 
 ## 3.3.0-alpha — Détails
@@ -25,11 +27,34 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) : chaque v
   - options : ouvrir la Corbeille, ouvrir les Récents, restaurer le dernier dossier de Documents, mode présentation (fenêtres maximisées).
 - **Documents — vue Récents** : les 50 derniers fichiers modifiés, accessible depuis la barre latérale ; utilisée par l'option de démarrage « Ouvrir les Récents ».
 - **Restauration du dernier dossier** : si l'option est active, Documents rouvre le dossier dans lequel l'utilisateur se trouvait (localStorage `luma.documents.last-folder`).
+- **Mise à jour automatique du Service Worker** (`sources/assets/javascripts/luma-sw-update.js`, chargé par `index.html` avant le shell) :
+  - détection d'une nouvelle version au démarrage, au retour sur l'onglet (`visibilitychange`), à la reconnexion et toutes les 30 minutes via `registration.update()` ;
+  - **déploiement à chaud** : `GET /api/system/build-events` diffuse l'empreinte de build en Server-Sent Events ; chaque onglet connecté compare l'empreinte reçue à celle de `sw.js` et relance `registration.update()` dès qu'un déploiement la change. Le flux se reconnecte tout seul après un redémarrage du serveur, et `/api/health` expose la même empreinte sous le nom `build` ;
+  - notification « Mise à jour disponible » dans la région de toasts existante, avec les actions « Mettre à jour » et « Plus tard » ;
+  - activation du nouveau worker par `skipWaiting()` uniquement après confirmation de l'utilisateur, puis rechargement unique après `controllerchange` (drapeau en mémoire + horodatage anti-boucle, sauvegarde de la session avant le rechargement) ;
+  - récupération en cas d'échec : notification « La mise à jour n'a pas pu être installée » avec « Réessayer », plus des re-essais automatiques à backoff exponentiel.
+- **Version de build injectée dans `sw.js`** : `GET /sw.js` est servi par le serveur avec `Cache-Control: no-cache` et l'empreinte sha256 des ressources de `sources/`, de `index.html` et de `package.json` à la place du marqueur `__LUMA_BUILD__` (`src/server/services/build-version-service.js`) ; le cache devient `luma-shell-<empreinte>` et change à chaque déploiement.
+- **Paramètres > Mise à jour** : nouveau centre de mise à jour Luma OS.
+  - état courant (À jour, Mise à jour disponible, Installation en cours, Échec) avec badge dédié ;
+  - version de Luma OS, build installé et build disponible côte à côte, service worker et dernière vérification ;
+  - actions « Installer la mise à jour » et « Rechercher » — rien ne s'installe sans confirmation explicite ;
+  - applications locales servies par le Service Worker et liste des ressources préchargées pour le hors ligne.
+- **Icône de mise à jour dans la barre des tâches** (`#taskbar-update`) : visible uniquement quand une action est requise, avec les états `checking`, `available`, `updating` et `error`, une pastille d'alerte et une distinction par couleur (aucune animation). Un clic ouvre Paramètres directement sur la vue Mise à jour.
+- **Avatars hors ligne** : l'avatar Kyros est d'abord lu dans un Cache Storage dédié (`luma-avatar-v1`), puis rafraîchi depuis le réseau en arrière-plan. Les bytes personnels ne traversent jamais le cache partagé du Service Worker, seules les réponses 200 de type image sont écrites, et la copie est purgée à la déconnexion ou au changement de compte. La balise d'émet plus de `src` immédiat : une session non authentifiée n'émet donc plus de requête — et plus de 401 — sur `/api/users/me/avatar`.
+- **API de mise à jour exposée** : `window.LumaSwUpdate` gère désormais `subscribe`, `refresh`, `requestAssets` et `getState` enrichi (`phase`, `currentVersion`, `targetVersion`, `lastCheckedAt`, `assets`) ; le Service Worker répond aux messages `PING` et `GET_ASSETS`.
 
 ### Changements
 
+- **Service Worker** : le HTML, le JavaScript et le CSS passent en **Network First** avec repli sur le cache hors ligne ; les images et polices restent en Cache First. La purge à l'activation ne concerne plus que les caches `luma-shell-*`, les autres caches du domaine sont préservés. `skipWaiting()` n'est plus appelé à l'installation.
+- **Shell** : l'enregistrement du Service Worker est délégué au module de mise à jour ; `window.LumaOS.saveSession()` sauvegarde la session localement et à distance (`fetch` avec `keepalive`) avant un rechargement. La barre des tâches abrite un indicateur de mise à jour piloté par `window.LumaSwUpdate.subscribe()`.
 - **Gestionnaire des tâches** : l'onglet Démarrage est supprimé ; la configuration des applications au démarrage vit dans Paramètres > Démarrage.
 - Le shell lit désormais les réglages de démarrage côté serveur (`/api/users/me/settings`) ; la liste `localStorage["luma.startup-apps"]` est migrée une fois vers le serveur puis supprimée.
+
+### Correctifs
+
+- **401 sur `/api/users/me/avatar`** : l'écran de session affichait l'avatar du dernier compte connu alors qu'aucune session n'était active, ce qui déclenchait un appel systématiquement refusé. Le `src` n'est plus émis avant la résolution : l'initiale s'affiche immédiatement et le réseau n'est sollicité que pour un compte réellement connecté.
+- **Applications bloquées résiduelles** : les listes d'applications transmises aux applications au montage (`apps` et `registry`) excluent désormais les applications masquées (`hidden`) et incompatibles — le Terminal, Paramètres et tout consommateur futur ne peuvent plus afficher Sonora Studio, BrainDump, Alimentation ou les apps masquées. Un épinglage restauré depuis `localStorage` filtre de la même façon.
+- **Menu Démarrer périmé après un déploiement** : les applications bloquées réapparaissaient lorsque le Service Worker précédent (cache-first) servait encore l'ancien bundle. La mise à jour automatique du Service Worker (notification « Mettre à jour ») remplace ce bundle obsolète ; scénario reproduit et couvert par `npm run test:sw`.
 
 ---
 

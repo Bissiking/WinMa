@@ -23,6 +23,7 @@ const wallpapers = [
 const views = [
     { id: "home", label: "Accueil", icon: "luma", keywords: "accueil démarrer catégories" },
     { id: "system", label: "Système", icon: "device", keywords: "appareil version affichage" },
+    { id: "update", label: "Mise à jour", icon: "update", keywords: "mise à jour version build service worker installation installateur" },
     { id: "personalization", label: "Personnalisation", icon: "luma", keywords: "thème couleur fond densité mouvement" },
     { id: "storage", label: "Stockage", icon: "folder", keywords: "espace quota corbeille images vidéos musique documents" },
     { id: "startup", label: "Démarrage", icon: "power", keywords: "réouverture applications session démarrage" },
@@ -31,6 +32,7 @@ const views = [
 ];
 const homeCards = [
     { id: "system", title: "Système", description: "État de votre environnement Luma OS", icon: "device" },
+    { id: "update", title: "Mise à jour", description: "Version installée, version disponible et périmètre", icon: "update" },
     { id: "personalization", title: "Personnalisation", description: "Thème, couleurs, arrière-plan et confort", icon: "luma" },
     { id: "storage", title: "Stockage", description: "Espace Documents, répartition et Corbeille", icon: "folder" },
     { id: "startup", title: "Démarrage", description: "Applications réouvertes au lancement", icon: "power" },
@@ -140,6 +142,88 @@ function renderSystem(settings, systemInfo) {
                 <div><dt>Thème actif</dt><dd>${escapeHtml(themes.find((theme) => theme.id === settings.theme)?.name || settings.theme)}</dd></div>
                 <div><dt>Densité</dt><dd>${settings.density === "compact" ? "Compacte" : "Confortable"}</dd></div>
             </dl>
+        </section>`;
+}
+
+const UPDATE_PHASE_META = {
+    idle: { label: "En attente", badge: "muted" },
+    checking: { label: "Recherche en cours", badge: "muted" },
+    available: { label: "Mise à jour disponible", badge: "warning" },
+    updating: { label: "Installation en cours", badge: "warning" },
+    error: { label: "Échec de l’installation", badge: "error" },
+    "up-to-date": { label: "À jour", badge: "ok" },
+    unsupported: { label: "Non pris en charge", badge: "error" }
+};
+
+function shortBuild(build) {
+    return typeof build === "string" && build.length ? build.slice(0, 12) : "—";
+}
+
+function formatCheckTime(value) {
+    if (!value) return "Jamais";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function updateApplications(registry) {
+    return (registry || []).filter((app) => String(app.module || "").startsWith("/apps/"));
+}
+
+function renderUpdate(detail, systemInfo, registry) {
+    const meta = UPDATE_PHASE_META[detail.phase] || UPDATE_PHASE_META.idle;
+    const installed = detail.currentVersion;
+    const available = detail.targetVersion;
+    const pending = Boolean(detail.waiting) || Boolean(installed && available && installed !== available);
+    const applications = updateApplications(registry);
+    const assets = detail.assets || [];
+    const canInstall = pending && !detail.confirmed && !detail.reloading;
+    const applyLabel = detail.reloading ? "Redémarrage…"
+        : detail.confirmed ? "Installation en cours…"
+            : pending ? "Installer la mise à jour"
+                : "Luma OS est à jour";
+    return `${heading("Mise à jour", "Version installée, version disponible et périmètre de la mise à jour.")}
+        <section class="settings-section" aria-labelledby="update-state-heading">
+            <div class="system-device">
+                <span class="system-device__mark">${icon("update")}</span>
+                <div>
+                    <h2 id="update-state-heading">${escapeHtml(systemInfo?.version ? `Luma OS ${systemInfo.version}` : "Luma OS")}</h2>
+                    <p>Build ${escapeHtml(shortBuild(installed))} · ${escapeHtml(meta.label)}</p>
+                </div>
+                <span class="status-badge status-badge--${meta.badge}">${escapeHtml(meta.label)}</span>
+            </div>
+            <div class="update-actions">
+                <button type="button" class="settings-primary-button" data-update-apply ${canInstall ? "" : "disabled"}>
+                    ${icon("update")}<span>${escapeHtml(applyLabel)}</span>
+                </button>
+                <button type="button" class="settings-secondary-button" data-update-check ${detail.phase === "updating" ? "disabled" : ""}>
+                    ${icon("refresh")}<span>Rechercher</span>
+                </button>
+            </div>
+            <p class="update-note">La mise à jour remplace le Service Worker qui fournit Luma OS et son cache hors ligne. Rien n’est installé sans votre confirmation.</p>
+        </section>
+        <section class="settings-section" aria-labelledby="update-versions-heading">
+            <div class="settings-section__heading"><h2 id="update-versions-heading">Versions</h2><p>Comparaison entre le bundle exécuté et celui publié par le serveur.</p></div>
+            <dl class="settings-property-list">
+                <div><dt>Version de Luma OS</dt><dd>${escapeHtml(systemInfo?.version || "—")}</dd></div>
+                <div><dt>Build installé</dt><dd>${escapeHtml(shortBuild(installed))}</dd></div>
+                <div><dt>Build disponible</dt><dd>${escapeHtml(shortBuild(available))}</dd></div>
+                <div><dt>Service worker</dt><dd>${detail.hasRegistration ? (detail.waiting ? "Nouvelle version en attente d’activation" : "Actif") : "Non enregistré"}</dd></div>
+                <div><dt>Dernière vérification</dt><dd>${escapeHtml(formatCheckTime(detail.lastCheckedAt))}</dd></div>
+            </dl>
+        </section>
+        <section class="settings-section" aria-labelledby="update-apps-heading">
+            <div class="settings-section__heading"><h2 id="update-apps-heading">Applications servies par le Service Worker</h2><p>Chargées en réseau d’abord, puis conservées localement pour le mode hors ligne.</p></div>
+            <div class="connection-list">
+                ${applications.map((app) => `<div>
+                    <span class="connection-icon">${icon(app.icon || "luma")}</span>
+                    <span><strong>${escapeHtml(app.name)}</strong><small>${escapeHtml(app.module)}</small></span>
+                    <span class="connection-state">Réseau d’abord</span>
+                </div>`).join("") || `<p class="settings-inline-empty">Aucune application locale n’est déclarée.</p>`}
+            </div>
+        </section>
+        <section class="settings-section" aria-labelledby="update-cache-heading">
+            <div class="settings-section__heading"><h2 id="update-cache-heading">Ressources mises en cache</h2><p>Emplacements préchargés par le Service Worker pour le démarrage et le hors ligne.</p></div>
+            <ul class="update-assets">${assets.map((asset) => `<li><code>${escapeHtml(asset)}</code></li>`).join("") || `<li class="settings-inline-empty">Le manifeste de précache n’a pas pu être lu.</li>`}</ul>
         </section>`;
 }
 
@@ -412,11 +496,12 @@ function updateSelection(root, settings) {
     });
 }
 
-export async function mount(root, { toast, registry }) {
+export async function mount(root, { toast, registry, options }) {
     renderShell(root);
     const viewRoot = root.querySelector(".settings-view");
     const search = root.querySelector(".settings-search input");
-    let currentView = "home";
+    let currentView = options?.data?.view || "home";
+    let unsubscribeUpdates = null;
     let settings = await requestJson("/api/users/me/settings");
     let account;
     let session;
@@ -438,6 +523,26 @@ export async function mount(root, { toast, registry }) {
     function setStatus(message) {
         const status = viewRoot.querySelector(".settings-status");
         if (status) status.textContent = message;
+    }
+
+    async function getUpdateState() {
+        const api = window.LumaSwUpdate;
+        if (!api?.getState) {
+            return { supported: false, phase: "unsupported", hasRegistration: false, assets: null };
+        }
+        await api.requestAssets?.().catch?.(() => null);
+        return (await api.refresh?.()) || api.getState();
+    }
+
+    function watchUpdateView() {
+        unsubscribeUpdates?.();
+        unsubscribeUpdates = null;
+        const api = window.LumaSwUpdate;
+        if (!api?.subscribe) return;
+        unsubscribeUpdates = api.subscribe((detail) => {
+            if (currentView !== "update" || !detail.supported) return;
+            viewRoot.innerHTML = renderUpdate(detail, systemInfo, registry);
+        });
     }
 
     function resetViewScroll() {
@@ -462,6 +567,10 @@ export async function mount(root, { toast, registry }) {
                 updateSelection(root, settings);
             } else if (view === "system") {
                 viewRoot.innerHTML = renderSystem(settings, await getSystemInfo());
+            } else if (view === "update") {
+                systemInfo = await getSystemInfo();
+                viewRoot.innerHTML = renderUpdate(await getUpdateState(), systemInfo, registry);
+                watchUpdateView();
             } else if (view === "storage") {
                 viewRoot.innerHTML = renderStorage(await getDocumentStats());
             } else if (view === "network") {
@@ -590,6 +699,15 @@ export async function mount(root, { toast, registry }) {
             network = null;
             showView("network");
         }
+        else if (event.target.closest("[data-update-check]")) {
+            setStatus("Recherche en cours…");
+            Promise.resolve(window.LumaSwUpdate?.refresh?.())
+                .then(() => window.LumaSwUpdate?.check?.())
+                .catch(() => setStatus("Vérification impossible"));
+        }
+        else if (event.target.closest("[data-update-apply]")) {
+            window.LumaSwUpdate?.apply?.();
+        }
         else if (move) {
             const list = [...(settings.startupApps || [])];
             const index = list.indexOf(move.dataset.startupMove);
@@ -642,10 +760,16 @@ export async function mount(root, { toast, registry }) {
         root.querySelector(".settings-search-empty").hidden = visible > 0;
     };
 
+    const requestView = (event) => {
+        const view = event.detail?.view;
+        if (view && view !== currentView) showView(view);
+    };
+
     root.addEventListener("click", click);
     root.addEventListener("change", change);
     root.addEventListener("submit", submit);
     search.addEventListener("input", input);
+    window.addEventListener("luma:settings-view", requestView);
     getSession().then((data) => {
         const name = data.user?.displayName || data.user?.username || "Compte LUMA";
         root.querySelector(".settings-account strong").textContent = name;
@@ -657,9 +781,11 @@ export async function mount(root, { toast, registry }) {
     }).catch(() => {});
     await showView(currentView);
     return () => {
+        unsubscribeUpdates?.();
         root.removeEventListener("click", click);
         root.removeEventListener("change", change);
         root.removeEventListener("submit", submit);
         search.removeEventListener("input", input);
+        window.removeEventListener("luma:settings-view", requestView);
     };
 }
