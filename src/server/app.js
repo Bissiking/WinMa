@@ -21,6 +21,7 @@ const { createBrainDumpService } = require('./services/braindump-service');
 const { createBackupService } = require('./services/backup-service');
 const { createBuildVersionService, renderServiceWorker } = require('./services/build-version-service');
 const { createNetworkService } = require('./services/network-service');
+const { createSystemMetricsService } = require('./services/system-metrics-service');
 const { createAuthController } = require('./controllers/auth-controller');
 const { createSessionController } = require('./controllers/session-controller');
 const { createWindowSessionController } = require('./controllers/window-session-controller');
@@ -116,6 +117,7 @@ async function createApp({ config, fetchImplementation = globalThis.fetch, datab
         baseUrl: 'https://note-orbis.mhemery.fr', timeoutMs: 10000
     }, fetchImplementation);
     const networkService = createNetworkService({ config, fetchImplementation });
+    const systemMetricsService = createSystemMetricsService();
     const kyrosService = createKyrosService(config.kyros, fetchImplementation);
     const sessionService = createSessionService(kyrosService, {
         // Pull Kyros → Luma : à chaque login/refresh, les préférences locales
@@ -182,7 +184,7 @@ async function createApp({ config, fetchImplementation = globalThis.fetch, datab
     app.use(createHarmonixRoutes(harmonixController));
     app.use(createSonoraStudioRoutes(sonoraStudioController, requireSession, requireSameOrigin));
     app.use(createBrainDumpRoutes(brainDumpController, requireSession, requireSameOrigin));
-    app.use(createApiRoutes({ version: config.version, requireSession, networkService, buildVersionService }));
+    app.use(createApiRoutes({ version: config.version, requireSession, networkService, buildVersionService, metricsService: systemMetricsService }));
     app.get('/sw.js', (req, res) => {
         let source;
         try {

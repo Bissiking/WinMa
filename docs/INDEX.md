@@ -184,7 +184,7 @@ WinMa/
 | Méthode | Route | Session | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Non | État du serveur + version |
-| `GET` | `/api/system/metrics` | Oui | CPU, mémoire, uptime, utilisateur actif |
+| `GET` | `/api/system/metrics` | Oui | CPU, mémoire, uptime, utilisateur actif — périmètre explicite (`meta.scope` : machine hôte, conteneur ou collecteur cgroups), « indisponible » si non fiable |
 
 ## 4. Contrôleurs (`src/server/controllers/`)
 
@@ -217,6 +217,7 @@ WinMa/
 | `harmonix-service.js` | Normalisation des pistes, streaming `Range`, couvertures — proxifie vers Harmonix |
 | `sonora-studio-service.js` | Proxy API Sonora avec Bearer token Kyros serveur (morceaux, albums, playlists, rôles, upload) |
 | `braindump-service.js` | Proxy API BrainDump avec Bearer token Kyros (notes, analyse) |
+| `system-metrics-service.js` | Métriques du Gestionnaire des tâches : périmètre `host`/`container`/`probe`, limites effectives via cgroups v2/v1 (remontée des ancêtres), « indisponible » en conteneur sans limite, collecteur `LUMA_METRICS_PROBE_ROOT` (lecture seule) |
 
 ## 6. Middlewares (`src/server/middlewares/`)
 
@@ -319,10 +320,12 @@ WinMa/
 | `tests/e2e/backup.e2e.test.js` | E2E | Sauvegarde : export téléchargé, contrôle du fichier, import avec restauration |
 | `tests/e2e/workspaces.e2e.test.js` | E2E | Espaces : création, bascule avec rechargement du bureau, fenêtres restaurées |
 | `tests/e2e/search.e2e.test.js` | E2E | Recherche globale : les quatre groupes, ouverture des résultats, état vide, reset du champ |
+| `tests/e2e/task-manager.e2e.test.js` | E2E | Gestionnaire des tâches : contrat `/api/system/metrics`, vue Performances, périmètre affiché |
 | `tests/integration/auth.test.js` | Intégration | Flux SSO : login, callback, state, session, logout (JWT simulés) |
 | `tests/integration/backup.test.js` | Intégration | `/api/users/me/backup` : 401, export agrégé, restauration, refus, réinitialisation |
 | `tests/integration/workspaces.test.js` | Intégration | `/api/users/me/workspaces` : 401, cycle de vie, validations, CSRF |
 | `tests/integration/search.test.js` | Intégration | Recherche Documents : 401, isolation par sujet, exclusion de la Corbeille |
+| `tests/integration/system-metrics.test.js` | Intégration | `/api/system/metrics` : 401, périmètre `meta`, sources, valeurs bornées |
 | `tests/integration/apps.test.js` | Intégration | `/api/apps` : 401, métadonnées, 400/404 |
 | `tests/integration/harmonix.test.js` | Intégration | Proxy Harmonix : catalogue, streaming, couvertures |
 | `tests/integration/postgres.test.js` | Intégration | Persistance PostgreSQL (TEST_DATABASE_URL) |
@@ -338,6 +341,7 @@ WinMa/
 | `tests/unit/settings.test.js` | Unitaire | Service paramètres : liste blanche, validation |
 | `tests/unit/sonora-studio.test.js` | Unitaire | Service Sonora (fake fetch) |
 | `tests/unit/system-metrics.test.js` | Unitaire | Métriques CPU/mémoire/uptime |
+| `tests/unit/system-metrics-service.test.js` | Unitaire | Supervision conteneur : cgroups v2/v1, ancêtres LXC, collecteur, « indisponible » |
 | `tests/unit/workspaces.test.js` | Unitaire | Service espaces : nom, unicité, limite, capture, bascule, suppression protégée |
 | `tests/unit/search.test.js` | Unitaire | Recherche globale : normalisation, éligibilité, événements, réglages |
 
