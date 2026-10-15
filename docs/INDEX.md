@@ -39,7 +39,7 @@ WinMa/
 │   ├── db/                            # Adapters SQLite/PostgreSQL + migrator
 │   ├── controllers/                 # 10 contrôleurs HTTP
 │   ├── middlewares/                 # 5 middlewares
-│   ├── repositories/                 # Contrat SQL commun sqlite/pg (sessions, fenêtres, préférences, documents)
+│   ├── repositories/                 # Contrat SQL commun sqlite/pg (sessions, fenêtres, préférences, documents, espaces)
 │   ├── routes/                      # 11 fichiers de routes
 │   ├── services/                    # 10 services métier
 │   ├── stores/                      # Session store express-session générique
@@ -110,6 +110,17 @@ WinMa/
 | `GET` | `/api/users/me/backup` | Oui | Export agrégé : paramètres, compte, fenêtres, notes texte |
 | `POST` | `/api/users/me/backup` | Oui | Import d'une sauvegarde (body JSON 8 Mo, recrée/mett à jour sans supprimer) |
 | `POST` | `/api/users/me/backup/reset` | Oui | Réinitialisation ciblée (`settings`, `account`, `windows`, `notes`) |
+
+### Espaces de travail
+
+| Méthode | Route | Session | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/users/me/workspaces` | Oui | Liste les espaces (id, nom, fenêtres, actif, dates) |
+| `POST` | `/api/users/me/workspaces` | Oui | Crée un espace depuis la disposition courante (devient actif) |
+| `PATCH` | `/api/users/me/workspaces/:id` | Oui | Renomme un espace |
+| `PUT` | `/api/users/me/workspaces/:id` | Oui | Enregistre la disposition courante dans l'espace |
+| `POST` | `/api/users/me/workspaces/:id/activate` | Oui | Bascule : la courante est enregistrée, la cible chargée |
+| `DELETE` | `/api/users/me/workspaces/:id` | Oui | Supprime (refusée si actif ou dernier espace) |
 
 ### Documents et Corbeille
 
@@ -185,6 +196,7 @@ WinMa/
 | `settings-controller.js` | Lecture et patch des paramètres du bureau |
 | `account-controller.js` | Compte (identité, préférences, quota, sync) et contexte inter-modules |
 | `backup-controller.js` | Export, import et réinitialisation des données personnelles |
+| `workspace-controller.js` | Liste, création, renommage, enregistrement de disposition, bascule et suppression des espaces |
 | `documents-controller.js` | CRUD Documents, upload, Corbeille, téléchargement, aperçu |
 | `harmonix-controller.js` | Proxy catalogue/flux/covers Harmonix (pass-through d'en-têtes) |
 | `sonora-studio-controller.js` | Proxy Sonora : morceaux, albums, playlists, accès, upload |
@@ -200,6 +212,7 @@ WinMa/
 | `settings-service.js` | Lecture/écriture atomique des paramètres par sujet hashé, liste blanche de champs |
 | `account-service.js` | Préférences de compte Luma (nom, langue, fuseau, sync profile/apparence) en écriture atomique |
 | `backup-service.js` | Export/import/réinitialisation agrégés (paramètres, compte, fenêtres, notes texte), format `luma-backup` v1 |
+| `workspace-service.js` | Espaces de travail nommés : 20 max/utilisateur, capture de la disposition, bascule, codes `WORKSPACE_*` |
 | `document-service.js` | Quota 1 Gio, arborescence, upload, texte, Corbeille 30 jours, purge |
 | `harmonix-service.js` | Normalisation des pistes, streaming `Range`, couvertures — proxifie vers Harmonix |
 | `sonora-studio-service.js` | Proxy API Sonora avec Bearer token Kyros serveur (morceaux, albums, playlists, rôles, upload) |
@@ -303,8 +316,10 @@ WinMa/
 | `tests/e2e/apps.e2e.test.js` | E2E | Parcours métier : Documents (dossier, import, corbeille, quota), Bloc-notes, Calendrier, Terminal (commandes, easter egg `sudo reboot`) |
 | `tests/e2e/lock.e2e.test.js` | E2E | Verrouillage de session : verrou manuel, inactivité simulée, propagation multi-onglets, 401 serveur |
 | `tests/e2e/backup.e2e.test.js` | E2E | Sauvegarde : export téléchargé, contrôle du fichier, import avec restauration |
+| `tests/e2e/workspaces.e2e.test.js` | E2E | Espaces : création, bascule avec rechargement du bureau, fenêtres restaurées |
 | `tests/integration/auth.test.js` | Intégration | Flux SSO : login, callback, state, session, logout (JWT simulés) |
 | `tests/integration/backup.test.js` | Intégration | `/api/users/me/backup` : 401, export agrégé, restauration, refus, réinitialisation |
+| `tests/integration/workspaces.test.js` | Intégration | `/api/users/me/workspaces` : 401, cycle de vie, validations, CSRF |
 | `tests/integration/apps.test.js` | Intégration | `/api/apps` : 401, métadonnées, 400/404 |
 | `tests/integration/harmonix.test.js` | Intégration | Proxy Harmonix : catalogue, streaming, couvertures |
 | `tests/integration/postgres.test.js` | Intégration | Persistance PostgreSQL (TEST_DATABASE_URL) |
@@ -320,6 +335,7 @@ WinMa/
 | `tests/unit/settings.test.js` | Unitaire | Service paramètres : liste blanche, validation |
 | `tests/unit/sonora-studio.test.js` | Unitaire | Service Sonora (fake fetch) |
 | `tests/unit/system-metrics.test.js` | Unitaire | Métriques CPU/mémoire/uptime |
+| `tests/unit/workspaces.test.js` | Unitaire | Service espaces : nom, unicité, limite, capture, bascule, suppression protégée |
 
 ## 11. Scripts, données et documentation
 

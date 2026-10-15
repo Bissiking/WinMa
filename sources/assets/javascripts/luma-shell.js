@@ -88,6 +88,11 @@ let idleTimer = null;
 let lastIdleResetAt = 0;
 let locked = false;
 
+// Bascule d'espace de travail : la synchro de disposition est suspendue pendant
+// que le serveur applique un autre espace, sinon le debounce (600 ms) réécrirait
+// l'ancienne disposition par-dessus la nouvelle au retour du timer.
+let suspendSessionSync = false;
+
 // Synchro multi-onglets : verrouillage et déconnexion se propagent à tous les
 // onglets du même navigateur. Les sessions serveur multi-appareils sont
 // couvertes par le 401 → luma:session-expired (luma-api.js).
@@ -352,6 +357,7 @@ function endSessionLocally(message) {
 }
 
 function persistSessionRemotely(windows) {
+    if (suspendSessionSync) return;
     window.clearTimeout(remoteSessionTimer);
     remoteSessionTimer = window.setTimeout(async () => {
         try { await putJson("/api/users/me/windows", { windows }); } catch { /* synchro best-effort */ }
@@ -359,7 +365,7 @@ function persistSessionRemotely(windows) {
 }
 
 function flushSession() {
-    if (!windowManager) return;
+    if (!windowManager || suspendSessionSync) return;
     windowManager.saveSession();
     try {
         fetch("/api/users/me/windows", {
@@ -370,6 +376,22 @@ function flushSession() {
             body: JSON.stringify({ windows: windowManager.getWindows() })
         }).catch(() => { /* synchro best-effort */ });
     } catch { /* synchro best-effort */ }
+}
+
+// Bascule d'espace : flush attendu de la disposition courante puis suspension
+// de la synchro (le serveur applique la disposition de la cible ; un éventuel
+// debounce en vol ne doit pas l'écraser).
+async function suspendSessionForWorkspaceSwitch() {
+    if (windowManager) {
+        try { await putJson("/api/users/me/windows", { windows: windowManager.getWindows() }); } catch { /* best-effort */ }
+    }
+    window.clearTimeout(remoteSessionTimer);
+    remoteSessionTimer = null;
+    suspendSessionSync = true;
+}
+
+function resumeSessionSync() {
+    suspendSessionSync = false;
 }
 
 async function fetchSavedWindows() {
@@ -444,7 +466,9 @@ async function loadDesktopSession(user) {
             setWindowState: windowManager.setAppState,
             setWindowTitle: windowManager.setTitle,
             saveSession: flushSession,
-            lock: lockSession
+            lock: lockSession,
+            suspendSessionSync: suspendSessionForWorkspaceSwitch,
+            resumeSessionSync
         });
     }
     if (restoreSessionEnabled) {

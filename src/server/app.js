@@ -14,6 +14,7 @@ const { createSettingsService } = require('./services/settings-service');
 const { createAccountService } = require('./services/account-service');
 const { createDocumentService } = require('./services/document-service');
 const { createWindowSessionService } = require('./services/window-session-service');
+const { createWorkspaceService } = require('./services/workspace-service');
 const { createHarmonixService } = require('./services/harmonix-service');
 const { createSonoraStudioService } = require('./services/sonora-studio-service');
 const { createBrainDumpService } = require('./services/braindump-service');
@@ -23,6 +24,7 @@ const { createNetworkService } = require('./services/network-service');
 const { createAuthController } = require('./controllers/auth-controller');
 const { createSessionController } = require('./controllers/session-controller');
 const { createWindowSessionController } = require('./controllers/window-session-controller');
+const { createWorkspaceController } = require('./controllers/workspace-controller');
 const { createAppsController } = require('./controllers/apps-controller');
 const { createSettingsController } = require('./controllers/settings-controller');
 const { createAccountController } = require('./controllers/account-controller');
@@ -34,6 +36,7 @@ const { createBackupController } = require('./controllers/backup-controller');
 const { createAuthRoutes } = require('./routes/auth-routes');
 const { createSessionRoutes } = require('./routes/session-routes');
 const { createWindowSessionRoutes } = require('./routes/window-session-routes');
+const { createWorkspaceRoutes } = require('./routes/workspace-routes');
 const { createAppsRoutes } = require('./routes/apps-routes');
 const { createSettingsRoutes } = require('./routes/settings-routes');
 const { createAccountRoutes } = require('./routes/account-routes');
@@ -94,6 +97,10 @@ async function createApp({ config, fetchImplementation = globalThis.fetch, datab
         storageRoot: path.join(projectRoot, 'storage/documents')
     });
     const windowSessionService = createWindowSessionService(repositories.windowSessions);
+    const workspaceService = createWorkspaceService({
+        workspaceRepository: repositories.workspaces,
+        windowSessionService
+    });
     const backupService = createBackupService({
         settingsService,
         accountService,
@@ -119,6 +126,7 @@ async function createApp({ config, fetchImplementation = globalThis.fetch, datab
     const authController = createAuthController({ config, kyrosService, sessionService });
     const sessionController = createSessionController(sessionService, config, kyrosService);
     const windowSessionController = createWindowSessionController(windowSessionService);
+    const workspaceController = createWorkspaceController(workspaceService);
     const appsController = createAppsController(appRegistryService);
     const settingsController = createSettingsController(settingsService);
     const accountController = createAccountController({
@@ -165,6 +173,7 @@ async function createApp({ config, fetchImplementation = globalThis.fetch, datab
     app.use(createAuthRoutes(authController, requireSameOrigin));
     app.use(createSessionRoutes(sessionController, requireSession));
     app.use(createWindowSessionRoutes(windowSessionController, requireSession, requireSameOrigin));
+    app.use(createWorkspaceRoutes(workspaceController, requireSession, requireSameOrigin));
     app.use(createAppsRoutes(appsController, requireSession));
     app.use(createSettingsRoutes(settingsController, requireSession, requireSameOrigin));
     app.use(createAccountRoutes(accountController, requireSession, requireSameOrigin));

@@ -36,7 +36,7 @@ test('les migrations SQLite s\u2019appliquent une seule fois et préservent les 
     const tables = (await database.query(
         "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
     )).rows.map((row) => row.name);
-    for (const expected of ['auth_sessions', 'window_sessions', 'document_items', 'user_settings', 'account_preferences', 'schema_migrations']) {
+    for (const expected of ['auth_sessions', 'window_sessions', 'document_items', 'user_settings', 'account_preferences', 'workspaces', 'schema_migrations']) {
         assert.ok(tables.includes(expected), `table ${expected} absente`);
     }
 
@@ -47,7 +47,7 @@ test('les migrations SQLite s\u2019appliquent une seule fois et préservent les 
 
     const second = await runMigrations(database, { migrationsDir: MIGRATIONS_DIR });
     assert.deepEqual(second.applied, []);
-    assert.equal(second.alreadyApplied.length, 4);
+    assert.equal(second.alreadyApplied.length, 5);
 
     const rows = (await database.query('SELECT owner_key FROM window_sessions WHERE owner_key = ?', ['usr_keep'])).rows;
     assert.equal(rows.length, 1, 'une ré-application ne doit jamais effacer les données');
@@ -86,13 +86,13 @@ test('les migrations PostgreSQL s\u2019appliquent une seule fois et préservent 
     const tables = (await database.query(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
     )).rows.map((row) => row.table_name);
-    for (const expected of ['auth_sessions', 'window_sessions', 'document_items', 'user_settings', 'account_preferences', 'schema_migrations']) {
+    for (const expected of ['auth_sessions', 'window_sessions', 'document_items', 'user_settings', 'account_preferences', 'workspaces', 'schema_migrations']) {
         assert.ok(tables.includes(expected), `table ${expected} absente`);
     }
 
     const second = await runMigrations(database, { migrationsDir: MIGRATIONS_DIR });
     assert.deepEqual(second.applied, []);
-    assert.equal(second.alreadyApplied.length, 4);
+    assert.equal(second.alreadyApplied.length, 5);
 });
 
 test('une base PostgreSQL vierge démarre uniquement avec ses migrations', async (t) => {
@@ -112,9 +112,9 @@ test('une base PostgreSQL vierge démarre uniquement avec ses migrations', async
         await database.ping();
 
         const result = await runMigrations(database, { migrationsDir: MIGRATIONS_DIR });
-        assert.equal(result.applied.length, 4);
+        assert.equal(result.applied.length, 5);
         const applied = (await database.query('SELECT version FROM schema_migrations ORDER BY version')).rows;
-        assert.equal(applied.length, 4);
+        assert.equal(applied.length, 5);
     } catch (error) {
         if (error.code === 'PG_UNAVAILABLE' || /injoignable/.test(error.message)) {
             return t.skip(postgresSkipReason());

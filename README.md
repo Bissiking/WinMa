@@ -83,7 +83,8 @@ Ajouter une entrée validée dans `data/apps.json` : c'est le registre unique, s
 - `POST /api/documents/folders` et `POST /api/documents/upload` ;
 - `PATCH /api/documents/:id` et `GET /api/documents/:id/download` ;
 - `POST /api/documents/actions/trash`, `/restore`, `/delete` et `/empty-trash` ;
-- `GET /api/users/me/backup`, `POST /api/users/me/backup` et `POST /api/users/me/backup/reset` (sauvegarde, restauration et réinitialisation ciblée — voir [`docs/BACKUP.md`](docs/BACKUP.md)).
+- `GET /api/users/me/backup`, `POST /api/users/me/backup` et `POST /api/users/me/backup/reset` (sauvegarde, restauration et réinitialisation ciblée — voir [`docs/BACKUP.md`](docs/BACKUP.md)) ;
+- `GET`, `POST /api/users/me/workspaces` et `GET/PATCH/PUT/DELETE /api/users/me/workspaces/:id` avec `POST /:id/activate` (espaces de travail : dispositions nommées du bureau, bascule avec rechargement).
 
 Les routes privées utilisent exclusivement l'utilisateur de la session. Un identifiant fourni par le navigateur n'est jamais utilisé pour choisir le fichier d'un utilisateur.
 

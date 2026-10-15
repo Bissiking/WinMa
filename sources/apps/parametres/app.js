@@ -1,4 +1,4 @@
-import { requestJson, patchJson, postJson } from "/assets/javascripts/luma-api.js";
+import { requestJson, patchJson, postJson, putJson, deleteJson } from "/assets/javascripts/luma-api.js";
 import { avatarMarkup, hydrateAvatars } from "/assets/javascripts/luma-avatar.js";
 
 const themes = [
@@ -27,6 +27,7 @@ const views = [
     { id: "personalization", label: "Personnalisation", icon: "luma", keywords: "thème couleur fond densité mouvement" },
     { id: "storage", label: "Stockage", icon: "folder", keywords: "espace quota corbeille images vidéos musique documents" },
     { id: "backup", label: "Sauvegarde", icon: "folder", keywords: "export import restauration réinitialisation sauvegarde données notes" },
+    { id: "workspaces", label: "Espaces", icon: "grid", keywords: "espace travail bureau nommé disposition fenêtres bascule" },
     { id: "startup", label: "Démarrage", icon: "power", keywords: "réouverture applications session démarrage" },
     { id: "network", label: "Réseau Luma", icon: "luma-network", keywords: "local modules connexion synchronisation" },
     { id: "account", label: "Compte", icon: "user", keywords: "kyros profil quota langue fuseau synchronisation" }
@@ -37,6 +38,7 @@ const homeCards = [
     { id: "personalization", title: "Personnalisation", description: "Thème, couleurs, arrière-plan et confort", icon: "luma" },
     { id: "storage", title: "Stockage", description: "Espace Documents, répartition et Corbeille", icon: "folder" },
     { id: "backup", title: "Sauvegarde", description: "Exporter, restaurer et réinitialiser vos données", icon: "folder" },
+    { id: "workspaces", title: "Espaces de travail", description: "Bureaux nommés : disposition et fenêtres par espace", icon: "grid" },
     { id: "startup", title: "Démarrage", description: "Applications réouvertes au lancement", icon: "power" },
     { id: "network", title: "Réseau Luma", description: "Services, modules et synchronisation", icon: "luma-network" },
     { id: "account", title: "Compte", description: "Identité Kyros, quota et préférences", icon: "user" }
@@ -548,6 +550,34 @@ function renderBackup() {
         </section>`;
 }
 
+function renderWorkspaces(data) {
+    const formatDate = (value) => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+    };
+    const rows = (data.workspaces || []).map((workspace) => `
+        <div class="workspace-row${workspace.isActive ? " is-active" : ""}" data-workspace-id="${escapeHtml(workspace.id)}">
+            <span class="workspace-row__text">
+                <strong>${escapeHtml(workspace.name)}${workspace.isActive ? ` <span class="connection-state">Actif</span>` : ""}</strong>
+                <small>${workspace.windowCount} fenêtre(s) · mis à jour le ${formatDate(workspace.updatedAt)}</small>
+            </span>
+            <span class="startup-profiles__actions">
+                ${workspace.isActive ? "" : `<button type="button" class="settings-secondary-button" data-ws-activate="${escapeHtml(workspace.id)}">Appliquer</button>`}
+                <button type="button" class="settings-secondary-button" data-ws-save="${escapeHtml(workspace.id)}" ${!workspace.isActive ? "disabled" : ""}>Enregistrer la disposition</button>
+                <button type="button" class="settings-secondary-button" data-ws-rename="${escapeHtml(workspace.id)}">Renommer</button>
+                <button type="button" class="settings-secondary-button" data-ws-delete="${escapeHtml(workspace.id)}" ${workspace.isActive ? "disabled" : ""}>Supprimer</button>
+            </span>
+        </div>`).join("");
+    return `${heading("Espaces de travail", "Des bureaux nommés, chacun avec sa disposition de fenêtres — identiques sur tous vos appareils.")}
+        <section class="settings-section" aria-labelledby="workspaces-heading">
+            <div class="settings-section__heading"><h2 id="workspaces-heading">Vos espaces</h2><p>Enregistrez la disposition actuelle dans un nouvel espace, puis basculez d’un espace à l’autre : la fenêtre se recharge avec les applications de l’espace choisi. Avant une bascule, la disposition courante est enregistrée dans l’espace actif.</p></div>
+            <span class="startup-profiles__actions">
+                <button type="button" class="settings-secondary-button" data-ws-create>Nouvel espace à partir de la disposition actuelle</button>
+            </span>
+            <div class="workspace-list">${rows || `<p class="settings-inline-empty">Aucun espace pour l’instant. Créez votre premier espace à partir de la disposition actuelle.</p>`}</div>
+        </section>`;
+}
+
 function updateSelection(root, settings) {
     root.querySelectorAll("[data-theme-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.themeValue === settings.theme));
     root.querySelectorAll("[data-accent-value]").forEach((button) => button.classList.toggle("is-selected", button.dataset.accentValue.toLowerCase() === settings.accentColor.toLowerCase()));
@@ -638,6 +668,8 @@ export async function mount(root, { toast, registry, options }) {
                 viewRoot.innerHTML = renderStorage(await getDocumentStats());
             } else if (view === "backup") {
                 viewRoot.innerHTML = renderBackup();
+            } else if (view === "workspaces") {
+                viewRoot.innerHTML = renderWorkspaces(await requestJson("/api/users/me/workspaces"));
             } else if (view === "network") {
                 const data = await Promise.all([getNetwork(), getSession(), getAccount(), getApplications()]);
                 viewRoot.innerHTML = renderNetwork(...data);
@@ -823,6 +855,91 @@ export async function mount(root, { toast, registry, options }) {
         }
     }
 
+    let workspaceConfirm = null;
+
+    async function refreshWorkspacesView() {
+        if (currentView === "workspaces") await showView("workspaces");
+    }
+
+    async function createWorkspaceFromLayout() {
+        const name = (await window.prompt("Nom du nouvel espace :"))?.trim();
+        if (!name) return;
+        // Flush attendu : le serveur doit capturer la disposition courante réelle,
+        // pas une version en attente dans le debounce de synchro.
+        await window.LumaOS?.suspendSessionSync?.();
+        try {
+            const created = await postJson("/api/users/me/workspaces", { name });
+            toast(`Espace « ${created.name} » créé et appliqué.`);
+            await refreshWorkspacesView();
+        } catch (error) { toast(error.message); }
+        finally { window.LumaOS?.resumeSessionSync?.(); }
+    }
+
+    async function activateWorkspace(button) {
+        // La synchro de disposition est suspendue pendant la bascule : le
+        // serveur applique la cible, un debounce en vol ne doit pas l'écraser.
+        await window.LumaOS?.suspendSessionSync?.();
+        try {
+            const result = await postJson(`/api/users/me/workspaces/${button.dataset.wsActivate}/activate`);
+            if (!result.layoutApplied) {
+                window.LumaOS?.resumeSessionSync?.();
+                return;
+            }
+            toast(`Espace « ${result.name} » appliqué. Le bureau va se recharger.`);
+            window.setTimeout(() => window.location.reload(), 1200);
+        } catch (error) {
+            window.LumaOS?.resumeSessionSync?.();
+            toast(error.message);
+        }
+    }
+
+    async function saveWorkspaceLayout(button) {
+        await window.LumaOS?.suspendSessionSync?.();
+        try {
+            const result = await putJson(`/api/users/me/workspaces/${button.dataset.wsSave}`, {});
+            toast(`Disposition enregistrée dans « ${result.name} » (${result.windowCount} fenêtre(s)).`);
+            await refreshWorkspacesView();
+        } catch (error) { toast(error.message); }
+        finally { window.LumaOS?.resumeSessionSync?.(); }
+    }
+
+    async function renameWorkspace(button) {
+        const id = button.dataset.wsRename;
+        try {
+            const list = await requestJson("/api/users/me/workspaces");
+            const current = (list.workspaces || []).find((item) => item.id === id);
+            const name = (await window.prompt("Nouveau nom de l’espace :", current?.name || ""))?.trim();
+            if (!name || name === current?.name) return;
+            await patchJson(`/api/users/me/workspaces/${id}`, { name });
+            toast("Espace renommé.");
+            await refreshWorkspacesView();
+        } catch (error) { toast(error.message); }
+    }
+
+    async function deleteWorkspace(button) {
+        const id = button.dataset.wsDelete;
+        if (workspaceConfirm?.id === id) {
+            window.clearTimeout(workspaceConfirm.timer);
+            workspaceConfirm = null;
+            try {
+                const result = await deleteJson(`/api/users/me/workspaces/${id}`);
+                toast(result.removed ? "Espace supprimé." : "Espace non supprimé.");
+                await refreshWorkspacesView();
+            } catch (error) { toast(error.message); }
+            return;
+        }
+        if (workspaceConfirm?.timer) window.clearTimeout(workspaceConfirm.timer);
+        workspaceConfirm = {
+            id,
+            timer: window.setTimeout(() => {
+                workspaceConfirm = null;
+                const row = viewRoot.querySelector(`[data-ws-delete="${id}"]`);
+                if (row) row.textContent = "Supprimer";
+            }, 6000)
+        };
+        button.textContent = "Confirmer la suppression";
+    }
+
     const click = async (event) => {
         const navigation = event.target.closest("[data-settings-view]");
         const theme = event.target.closest("[data-theme-value]");
@@ -869,6 +986,21 @@ export async function mount(root, { toast, registry, options }) {
         }
         else if (event.target.closest("[data-backup-reset]")) {
             await resetBackupTargets(event.target.closest("[data-backup-reset]"));
+        }
+        else if (event.target.closest("[data-ws-create]")) {
+            await createWorkspaceFromLayout();
+        }
+        else if (event.target.closest("[data-ws-activate]")) {
+            await activateWorkspace(event.target.closest("[data-ws-activate]"));
+        }
+        else if (event.target.closest("[data-ws-save]")) {
+            await saveWorkspaceLayout(event.target.closest("[data-ws-save]"));
+        }
+        else if (event.target.closest("[data-ws-rename]")) {
+            await renameWorkspace(event.target.closest("[data-ws-rename]"));
+        }
+        else if (event.target.closest("[data-ws-delete]")) {
+            await deleteWorkspace(event.target.closest("[data-ws-delete]"));
         }
         else if (preference && preference.dataset.value) saveSetting({ [preference.dataset.setting]: preference.dataset.value }, preference);
     };
