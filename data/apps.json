@@ -1,0 +1,349 @@
+[
+  {
+    "id": "documents",
+    "name": "Documents",
+    "icon": "documents",
+    "entry": "/apps/documents/app.js",
+    "module": "/apps/documents/app.js",
+    "type": "system",
+    "enabled": true,
+    "taskbarName": "Docs",
+    "window": {
+      "width": 980,
+      "height": 700,
+      "minWidth": 640,
+      "minHeight": 420
+    },
+    "position": {
+      "left": 0.28,
+      "top": 0.14
+    }
+  },
+  {
+    "id": "calculator",
+    "name": "Calculatrice",
+    "icon": "calculator",
+    "entry": "/apps/calculator/app.js",
+    "module": "/apps/calculator/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Calc.",
+    "window": {
+      "width": 420,
+      "height": 620,
+      "minWidth": 340,
+      "minHeight": 480
+    },
+    "position": {
+      "left": 0.34,
+      "top": 0.1
+    }
+  },
+  {
+    "id": "terminal",
+    "name": "Terminal",
+    "icon": "terminal",
+    "entry": "/apps/terminal/app.js",
+    "module": "/apps/terminal/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Term.",
+    "window": {
+      "width": 760,
+      "height": 520,
+      "minWidth": 480,
+      "minHeight": 320
+    },
+    "position": {
+      "left": 0.15,
+      "top": 0.2
+    }
+  },
+  {
+    "id": "calendar",
+    "name": "Calendrier",
+    "icon": "calendar",
+    "entry": "/apps/calendar/app.js",
+    "module": "/apps/calendar/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Agenda",
+    "window": {
+      "width": 940,
+      "height": 660,
+      "minWidth": 600,
+      "minHeight": 460
+    },
+    "position": {
+      "left": 0.22,
+      "top": 0.12
+    }
+  },
+  {
+    "id": "settings",
+    "name": "Paramètres",
+    "icon": "settings",
+    "entry": "/apps/parametres/app.js",
+    "module": "/apps/parametres/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Config",
+    "window": {
+      "width": 1040,
+      "height": 720,
+      "minWidth": 680,
+      "minHeight": 440
+    },
+    "position": {
+      "left": 0.07,
+      "top": 0.07
+    }
+  },
+  {
+    "id": "task-manager",
+    "name": "Gestionnaire des tâches",
+    "icon": "activity",
+    "entry": "/apps/task-manager/app.js",
+    "module": "/apps/task-manager/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Tâches",
+    "window": {
+      "width": 920,
+      "height": 650,
+      "minWidth": 660,
+      "minHeight": 440
+    },
+    "position": {
+      "left": 0.12,
+      "top": 0.08
+    }
+  },
+  {
+    "id": "luma-orbit",
+    "name": "Luma Orbit",
+    "icon": "orbit",
+    "entry": "/apps/luma-orbit/app.js",
+    "module": "/apps/luma-orbit/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Orbit",
+    "window": {
+      "width": 1040,
+      "height": 720,
+      "minWidth": 680,
+      "minHeight": 480
+    },
+    "position": {
+      "left": 0.09,
+      "top": 0.06
+    }
+  },
+  {
+    "id": "sonora-studio",
+    "name": "Sonora Studio",
+    "icon": "music",
+    "logo": "/images/interface-logo/applications/sonora-studio.svg",
+    "entry": "/apps/sonora-studio/app.js",
+    "module": "/apps/sonora-studio/app.js",
+    "type": "internal",
+    "enabled": false,
+    "taskbarName": "Sonora",
+    "storeManaged": true,
+    "incompatible": true,
+    "window": {
+      "width": 1120,
+      "height": 740,
+      "minWidth": 700,
+      "minHeight": 480
+    },
+    "position": {
+      "left": 0.06,
+      "top": 0.04
+    }
+  },
+  {
+    "id": "braindump",
+    "name": "BrainDump",
+    "icon": "notepad",
+    "logo": "/images/interface-logo/applications/braindump.svg",
+    "entry": "/apps/braindump/app.js",
+    "module": "/apps/braindump/app.js",
+    "type": "internal",
+    "enabled": false,
+    "taskbarName": "Brain",
+    "storeManaged": true,
+    "incompatible": true,
+    "window": {
+      "width": 1040,
+      "height": 700,
+      "minWidth": 620,
+      "minHeight": 440
+    },
+    "position": {
+      "left": 0.1,
+      "top": 0.06
+    }
+  },
+  {
+    "id": "matheo-systems",
+    "name": "Matheo Systems",
+    "icon": "chip",
+    "entry": "/apps/matheo-systems/app.js",
+    "module": "/apps/matheo-systems/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Matheo",
+    "hidden": true,
+    "window": {
+      "width": 1060,
+      "height": 730,
+      "minWidth": 700,
+      "minHeight": 500
+    },
+    "position": {
+      "left": 0.08,
+      "top": 0.05
+    }
+  },
+  {
+    "id": "notepad",
+    "name": "Bloc-notes",
+    "icon": "notepad",
+    "entry": "/apps/notepad/app.js",
+    "module": "/apps/notepad/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Notes",
+    "window": {
+      "width": 800,
+      "height": 640,
+      "minWidth": 520,
+      "minHeight": 400
+    },
+    "position": {
+      "left": 0.18,
+      "top": 0.1
+    }
+  },
+  {
+    "id": "image-viewer",
+    "name": "Photos Luma",
+    "icon": "image",
+    "entry": "/apps/image-viewer/app.js",
+    "module": "/apps/image-viewer/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Photos",
+    "hidden": true,
+    "window": {
+      "width": 900,
+      "height": 680,
+      "minWidth": 480,
+      "minHeight": 360
+    },
+    "position": {
+      "left": 0.16,
+      "top": 0.08
+    }
+  },
+  {
+    "id": "music-player",
+    "name": "Lecteur de musique",
+    "icon": "music",
+    "entry": "/apps/music-player/app.js",
+    "module": "/apps/music-player/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Musique",
+    "hidden": true,
+    "window": {
+      "width": 640,
+      "height": 720,
+      "minWidth": 420,
+      "minHeight": 480
+    },
+    "position": {
+      "left": 0.2,
+      "top": 0.06
+    }
+  },
+  {
+    "id": "video-player",
+    "name": "Lecteur vidéo",
+    "icon": "video",
+    "entry": "/apps/video-player/app.js",
+    "module": "/apps/video-player/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Vidéo",
+    "hidden": true,
+    "window": {
+      "width": 980,
+      "height": 700,
+      "minWidth": 560,
+      "minHeight": 400
+    },
+    "position": {
+      "left": 0.12,
+      "top": 0.08
+    }
+  },
+  {
+    "id": "power",
+    "name": "Alimentation",
+    "icon": "power",
+    "entry": "/apps/power/app.js",
+    "module": "/apps/power/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Alim.",
+    "hidden": true,
+    "window": {
+      "width": 480,
+      "height": 560,
+      "minWidth": 380,
+      "minHeight": 420
+    },
+    "position": {
+      "left": 0.3,
+      "top": 0.12
+    }
+  },
+  {
+    "id": "timer",
+    "name": "Minuteur",
+    "icon": "timer",
+    "entry": "/apps/timer/app.js",
+    "module": "/apps/timer/app.js",
+    "type": "internal",
+    "enabled": true,
+    "taskbarName": "Min.",
+    "window": {
+      "width": 520,
+      "height": 620,
+      "minWidth": 380,
+      "minHeight": 440
+    },
+    "position": {
+      "left": 0.32,
+      "top": 0.1
+    }
+  },
+  {
+    "id": "trash",
+    "name": "Corbeille",
+    "icon": "trash",
+    "entry": "/apps/documents/app.js",
+    "module": "/apps/documents/app.js",
+    "type": "system",
+    "enabled": true,
+    "taskbarName": "Corb.",
+    "window": {
+      "width": 980,
+      "height": 660,
+      "minWidth": 620,
+      "minHeight": 400
+    }
+  }
+]

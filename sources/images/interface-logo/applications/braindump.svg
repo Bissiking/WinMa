@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BrainDump">
+  <defs>
+    <linearGradient id="bg" x1="10" y1="7" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#58c9a0"/>
+      <stop offset="1" stop-color="#267e68"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="17" fill="url(#bg)"/>
+  <path d="M20 15h20a7 7 0 0 1 7 7v20a7 7 0 0 1-7 7H20a7 7 0 0 1-7-7V22a7 7 0 0 1 7-7Z" fill="none" stroke="#fff" stroke-width="3"/>
+  <path d="M22 26h20M22 33h15M22 40h10" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="3"/>
+  <path d="m43 37 1.6 4.4L49 43l-4.4 1.6L43 49l-1.6-4.4L37 43l4.4-1.6L43 37Z" fill="#fff"/>
+</svg>

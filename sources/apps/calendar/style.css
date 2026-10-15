@@ -1,0 +1,181 @@
+.calendar-app {
+    --calendar-weekdays: repeat(7, 1fr);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 100%;
+    padding: 14px 18px 18px;
+}
+
+.calendar-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.calendar-header h1 { font-size: 20px; font-weight: 660; }
+.calendar-month-title { color: var(--ink-muted); font-size: 13px; text-transform: capitalize; margin-top: 2px; }
+
+.calendar-nav { display: flex; gap: 6px; align-items: center; }
+.calendar-nav-button {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border: 0; border-radius: 8px;
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 7%, var(--surface-raised));
+    cursor: pointer;
+}
+.calendar-nav-button .icon { width: 15px; height: 15px; }
+.calendar-nav-button:last-child .icon { transform: rotate(180deg); }
+.calendar-nav-button:hover { background: color-mix(in srgb, var(--ink) 12%, var(--surface-raised)); }
+.calendar-nav-button--today { width: auto; padding: 0 12px; font-size: 13px; font-weight: 560; }
+
+.calendar-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 18px;
+    min-height: 0;
+}
+
+.calendar-grid-section { display: flex; flex-direction: column; min-height: 0; }
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: var(--calendar-weekdays);
+    gap: 6px;
+    padding: 0 6px 8px;
+    color: var(--ink-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: var(--calendar-weekdays);
+    grid-auto-rows: 1fr;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+}
+.calendar-cell {
+    position: relative;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 4px 5px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--surface) 55%, var(--surface-raised));
+    cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease;
+}
+.calendar-cell:hover:not(.calendar-cell--empty) { border-color: color-mix(in srgb, var(--luma-accent) 45%, var(--line)); }
+.calendar-cell--empty { background: transparent; border-color: transparent; }
+.calendar-cell.is-today { border-color: var(--luma-accent); }
+.calendar-cell.is-selected { background: color-mix(in srgb, var(--luma-accent) 16%, var(--surface-raised)); border-color: var(--luma-accent); }
+
+.calendar-day-number {
+    font-size: 13px;
+    font-weight: 600;
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+}
+.calendar-cell.is-today .calendar-day-number { background: var(--luma-accent); color: var(--surface); }
+
+.calendar-cell-events { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; width: 100%; }
+.calendar-dot {
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--luma-accent) 22%, transparent);
+    color: var(--luma-accent);
+    font-weight: 600;
+}
+.calendar-more { color: var(--ink-muted); font-size: 9px; }
+
+.calendar-side { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.calendar-side-date { color: var(--ink-muted); font-size: 13px; text-transform: capitalize; }
+.calendar-add-button {
+    display: inline-flex; align-items: center; gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0; border-radius: 10px;
+    background: var(--luma-accent);
+    color: var(--surface);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+}
+.calendar-add-button .icon { width: 14px; height: 14px; }
+.calendar-add-button:hover { filter: brightness(1.06); }
+
+.calendar-events { list-style: none; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; }
+.calendar-event {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-raised);
+}
+.calendar-event-time { color: var(--ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.calendar-event-title { font-size: 13px; }
+.calendar-event--empty { color: var(--ink-muted); border-style: dashed; font-size: 13px; }
+.calendar-event-remove {
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    border: 0; border-radius: 7px;
+    background: transparent; color: var(--ink-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+.calendar-event:hover .calendar-event-remove { opacity: 1; }
+.calendar-event-remove:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.calendar-event-remove .icon { width: 12px; height: 12px; }
+
+.calendar-dialog {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    width: min(340px, calc(100vw - 40px));
+    background: var(--surface-raised);
+    color: var(--ink);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+.calendar-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.calendar-dialog h2 { font-size: 17px; font-weight: 650; margin-bottom: 16px; }
+.calendar-field { display: grid; gap: 6px; margin-bottom: 12px; }
+.calendar-field span { font-size: 12px; color: var(--ink-muted); }
+.calendar-field small { color: var(--ink-muted); }
+.calendar-field input {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 13px;
+}
+.calendar-field input:focus { outline: 2px solid var(--luma-accent); outline-offset: 0; }
+.calendar-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.calendar-dialog-actions button {
+    padding: 8px 16px;
+    border: 0; border-radius: 9px;
+    font-size: 13px; font-weight: 560;
+    cursor: pointer;
+}
+.calendar-dialog-cancel { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.calendar-dialog-submit { background: var(--luma-accent); color: var(--surface); }
+
+@container (max-width: 720px) {
+    .calendar-body { grid-template-columns: 1fr; }
+    .calendar-side { max-height: 220px; }
+    .calendar-cell { min-height: 44px; }
+}

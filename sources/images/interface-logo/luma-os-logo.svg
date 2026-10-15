@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="ring" x1="90" y1="410" x2="420" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.28" stop-color="#19B9FF"/>
+      <stop offset="0.58" stop-color="#4A72FF"/>
+      <stop offset="0.82" stop-color="#7B5CFF"/>
+      <stop offset="1" stop-color="#D56BFF"/>
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Transparent background -->
+  <circle
+    cx="256"
+    cy="256"
+    r="190"
+    stroke="url(#ring)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-dasharray="1125 70"
+    stroke-dashoffset="-28"
+    filter="url(#softGlow)"
+  />
+</svg>

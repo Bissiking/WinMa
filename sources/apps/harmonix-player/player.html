@@ -1,0 +1,61 @@
+<!-- Fragment de référence. La version montée par Luma OS se trouve dans /index.html. -->
+<div class="harmonix-player-slot">
+<section id="harmonix-player" class="harmonix-player" aria-label="Lecteur Harmonix"
+    data-connected="false" data-expanded="false">
+    <div class="harmonix-player__compact">
+        <div class="harmonix-player__cover" aria-hidden="true">
+            <img id="harmonix-cover" src="./images/favicon/logo-luma.png" alt="" hidden>
+            <svg class="icon harmonix-player__cover-placeholder"><use href="#icon-music" /></svg>
+        </div>
+        <div class="harmonix-player__track" aria-live="polite">
+            <div class="harmonix-player__marquee"><strong id="harmonix-title">En attente d’Harmonix</strong></div>
+            <span id="harmonix-artist">Aucun titre en lecture</span>
+        </div>
+        <button id="harmonix-play" class="harmonix-player__button harmonix-player__button--primary"
+            type="button" aria-label="Lire" disabled><svg class="icon"><use href="#icon-play" /></svg></button>
+        <button id="harmonix-expand" class="harmonix-player__button harmonix-player__expand"
+            type="button" aria-label="Développer le lecteur" aria-expanded="false" aria-controls="harmonix-details">
+            <svg class="icon"><use href="#icon-expand" /></svg>
+        </button>
+    </div>
+
+    <div id="harmonix-details" class="harmonix-player__details" hidden>
+        <div class="harmonix-player__now-playing">
+            <div class="harmonix-player__hero-cover" aria-hidden="true">
+                <img id="harmonix-hero-cover" src="./images/favicon/logo-luma.png" alt="" hidden>
+                <svg class="icon harmonix-player__hero-placeholder"><use href="#icon-music" /></svg>
+            </div>
+            <div class="harmonix-player__hero-copy">
+                <strong id="harmonix-hero-title">En attente d’Harmonix</strong>
+                <span id="harmonix-hero-artist">Aucun titre en lecture</span>
+            </div>
+        </div>
+        <div class="harmonix-player__timeline">
+            <input id="harmonix-progress" type="range" min="0" max="100" value="0" step="0.1"
+                aria-label="Position dans le titre" disabled>
+            <div><span id="harmonix-current-time">0:00</span><span id="harmonix-duration">0:00</span></div>
+        </div>
+        <div class="harmonix-player__transport" aria-label="Commandes de lecture">
+            <button id="harmonix-previous" class="harmonix-player__button" type="button"
+                aria-label="Titre précédent" disabled><svg class="icon"><use href="#icon-previous" /></svg></button>
+            <button id="harmonix-play-expanded"
+                class="harmonix-player__button harmonix-player__button--primary harmonix-player__button--large"
+                type="button" aria-label="Lire" disabled><svg class="icon"><use href="#icon-play" /></svg></button>
+            <button id="harmonix-next" class="harmonix-player__button" type="button"
+                aria-label="Titre suivant" disabled><svg class="icon"><use href="#icon-next" /></svg></button>
+        </div>
+        <label class="harmonix-player__volume">
+            <svg class="icon" aria-hidden="true"><use href="#icon-volume" /></svg>
+            <span class="sr-only">Volume</span>
+            <input id="harmonix-volume" type="range" min="0" max="1" value="0.8" step="0.05" disabled>
+        </label>
+        <div class="harmonix-player__queue-heading">
+            <h2>À suivre</h2><span id="harmonix-queue-count">0 titre</span>
+        </div>
+        <ol id="harmonix-queue" class="harmonix-player__queue">
+            <li class="harmonix-player__empty">La liste de lecture apparaîtra dès qu’Harmonix sera connecté.</li>
+        </ol>
+    </div>
+    <audio id="harmonix-audio" preload="metadata"></audio>
+</section>
+</div>

@@ -1,0 +1,65 @@
+// tests/helpers/test-config.js
+const os = require('node:os');
+const path = require('node:path');
+
+function createTestConfig(overrides = {}) {
+    const kyrosOverrides = overrides.kyros || {};
+
+    return {
+        nodeEnv: 'test',
+        isProduction: false,
+        host: '127.0.0.1',
+        port: 0,
+        appBaseUrl: 'http://127.0.0.1:3000',
+        version: '3.1.0',
+        sessionSecret: 'test-session-secret-with-at-least-32-characters',
+        sessionMaxAgeMs: 60 * 60 * 1000,
+        ...overrides,
+        harmonix: {
+            baseUrl: 'https://harmonix.test',
+            timeoutMs: 1000,
+            ...(overrides.harmonix || {})
+        },
+        brainDump: {
+            baseUrl: 'https://braindump.test',
+            timeoutMs: 1000,
+            ...(overrides.brainDump || {})
+        },
+        // Base isolée par processus de test : aucune donnée de développement
+        // n'est lue ni écrite par les tests d'intégration.
+        database: {
+            provider: 'sqlite',
+            sqlite: {
+                filePath: path.join(os.tmpdir(), `luma-tests-${process.pid}`, 'database.sqlite')
+            },
+            postgres: {},
+            migrationsDir: path.resolve(__dirname, '../../migrations'),
+            ...(overrides.database || {})
+        },
+        kyros: {
+            enabled: true,
+            baseUrl: 'https://kyros.test',
+            authorizeUrl: 'https://kyros.test/authorize',
+            tokenUrl: 'https://kyros.test/token',
+            revokeUrl: 'https://kyros.test/revoke',
+            parUrl: 'https://kyros.test/par',
+            jwksUrl: 'https://kyros.test/sso/v4/jwks',
+            clientId: 'cli_luma_os',
+            clientSecret: 'test-client-secret',
+            jwtSecret: 'test-jwt-secret-with-enough-entropy',
+            issuer: 'kyros',
+            audience: 'kyros-modules',
+            resourceAudience: 'kyros:sso:luma-os',
+            requestedScopes: ['profile', 'email'],
+            requiredScopes: ['profile', 'email'],
+            callbackUrl: 'http://127.0.0.1:3000/auth/callback',
+            timeoutMs: 1000,
+            ssoVersion: 'v4',
+            edition: 'standard',
+            applicationScope: 'standard',
+            ...kyrosOverrides
+        }
+    };
+}
+
+module.exports = { createTestConfig };

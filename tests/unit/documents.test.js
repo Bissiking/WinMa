@@ -1,0 +1,185 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { afterEach, test } = require('node:test');
+const { createSqliteTestDatabase } = require('../helpers/db');
+const { createSqliteDocumentRepository } = require('../../src/server/repositories/sqlite-document-repository');
+const { createDocumentService, QUOTA_BYTES } = require('../../src/server/services/document-service');
+
+const testContexts = [];
+let currentDirectory = null;
+
+async function createService() {
+    const context = await createSqliteTestDatabase('luma-documents-test-');
+    testContexts.push(context);
+    currentDirectory = context.directory;
+    const repository = createSqliteDocumentRepository(context.database);
+    return createDocumentService({ repository, storageRoot: path.join(context.directory, 'storage') });
+}
+
+afterEach(async () => {
+    for (const context of testContexts.splice(0)) {
+        await context.cleanup();
+    }
+});
+
+test('un utilisateur peut créer une arborescence isolée', async () => {
+    const service = await createService();
+    const folder = await service.createFolder('usr_one', { name: 'Projets' });
+    await service.createFolder('usr_one', { name: 'Luma', parentId: folder.id });
+
+    assert.equal((await service.list('usr_one')).items[0].name, 'Projets');
+    assert.equal((await service.list('usr_one', { parentId: folder.id })).items[0].name, 'Luma');
+    assert.equal((await service.list('usr_two')).items.length, 0);
+});
+
+test('un fichier utilise le quota et traverse la Corbeille', async () => {
+    const service = await createService();
+    const directory = currentDirectory;
+    const temporaryFile = path.join(directory, 'upload.tmp');
+    await fs.writeFile(temporaryFile, 'Luma document');
+    const item = await service.upload('usr_one', {}, {
+        path: temporaryFile,
+        originalname: 'vision.txt',
+        mimetype: 'text/plain',
+        size: 13
+    });
+
+    let listing = await service.list('usr_one');
+    assert.equal(listing.storage.quotaBytes, QUOTA_BYTES);
+    assert.equal(listing.storage.usedBytes, 13);
+    assert.equal(listing.items[0].name, 'vision.txt');
+
+    await service.trash('usr_one', [item.id]);
+    listing = await service.list('usr_one', { trash: true });
+    assert.equal(listing.items.length, 1);
+    assert.equal(listing.storage.usedBytes, 13);
+
+    await service.restore('usr_one', [item.id]);
+    assert.equal((await service.list('usr_one')).items.length, 1);
+
+    await service.trash('usr_one', [item.id]);
+    await service.permanentlyDelete('usr_one', [item.id]);
+    assert.equal((await service.list('usr_one', { trash: true })).storage.usedBytes, 0);
+});
+
+test('un dossier ne peut pas être déplacé dans son descendant', async () => {
+    const service = await createService();
+    const parent = await service.createFolder('usr_one', { name: 'Parent' });
+    const child = await service.createFolder('usr_one', { name: 'Enfant', parentId: parent.id });
+
+    await assert.rejects(
+        service.update('usr_one', parent.id, { parentId: child.id }),
+        (error) => error.code === 'DOCUMENT_MOVE_CYCLE'
+    );
+});
+
+async function uploadFixture(service, directory, { name, mimetype, content }) {
+    const file = path.join(directory, `${name}.tmp`);
+    await fs.writeFile(file, content);
+    return service.upload('usr_one', {}, { path: file, originalname: name, mimetype, size: Buffer.byteLength(content) });
+}
+
+test('les statistiques catégorisent les fichiers et la Corbeille', async () => {
+    const service = await createService();
+    const directory = currentDirectory;
+
+    const image = await uploadFixture(service, directory, { name: 'aurore.png', mimetype: 'image/png', content: 'img' });
+    await uploadFixture(service, directory, { name: 'b.jpg', mimetype: 'image/jpeg', content: 'img2' });
+    await uploadFixture(service, directory, { name: 'clip.mp4', mimetype: 'video/mp4', content: 'vid' });
+    await uploadFixture(service, directory, { name: 'son.mp3', mimetype: 'audio/mpeg', content: 'aud' });
+    await uploadFixture(service, directory, { name: 'note.md', mimetype: 'text/markdown', content: '# note' });
+    await uploadFixture(service, directory, { name: 'blob.bin', mimetype: 'application/octet-stream', content: 'bin' });
+    await service.createFolder('usr_one', { name: 'Dossier' });
+
+    let stats = await service.getStats('usr_one');
+    assert.deepEqual(stats.categories, [
+        { category: 'image', count: 2, bytes: 7 },
+        { category: 'video', count: 1, bytes: 3 },
+        { category: 'audio', count: 1, bytes: 3 },
+        { category: 'document', count: 1, bytes: 6 },
+        { category: 'other', count: 1, bytes: 3 }
+    ]);
+    assert.deepEqual(stats.trash, { count: 0, bytes: 0 });
+    assert.equal(stats.storage.usedBytes, 22);
+
+    await service.trash('usr_one', [image.id]);
+    stats = await service.getStats('usr_one');
+    assert.deepEqual(stats.categories.find((entry) => entry.category === 'image'), { category: 'image', count: 1, bytes: 4 });
+    assert.deepEqual(stats.trash, { count: 1, bytes: 3 });
+    assert.equal(stats.storage.usedBytes, 22);
+});
+
+test('les statistiques sont isolées par utilisateur', async () => {
+    const service = await createService();
+    const directory = currentDirectory;
+    await uploadFixture(service, directory, { name: 'secret.png', mimetype: 'image/png', content: 'img' });
+
+    assert.equal((await service.getStats('usr_one')).categories.length, 1);
+    assert.deepEqual((await service.getStats('usr_two')).categories, []);
+});
+
+test('vider la Corbeille supprime tous les groupes appartenant à l’utilisateur', async () => {
+    const service = await createService();
+    const first = await service.createFolder('usr_one', { name: 'Premier' });
+    const second = await service.createFolder('usr_one', { name: 'Second' });
+    await service.trash('usr_one', [first.id, second.id]);
+
+    assert.equal((await service.emptyTrash('usr_one')).count, 2);
+    assert.equal((await service.list('usr_one', { trash: true })).items.length, 0);
+});
+
+test('un document Markdown peut être créé, relu et enregistré', async () => {
+    const service = await createService();
+    const item = await service.createText('usr_one', { name: 'journal.md', content: '# Bonjour' });
+
+    assert.equal(item.mimeType, 'text/markdown');
+    assert.equal(item.size, 9);
+    assert.equal((await service.readText('usr_one', item.id)).content, '# Bonjour');
+
+    const updated = await service.saveText('usr_one', item.id, { content: '# Bonjour Luma' });
+    assert.equal(updated.size, 14);
+    assert.equal((await service.readText('usr_one', item.id)).content, '# Bonjour Luma');
+});
+
+test('le Bloc-notes refuse de modifier un fichier binaire', async () => {
+    const service = await createService();
+    const directory = currentDirectory;
+    const temporaryFile = path.join(directory, 'image.tmp');
+    await fs.writeFile(temporaryFile, Buffer.from([0, 1, 2]));
+    const item = await service.upload('usr_one', {}, {
+        path: temporaryFile,
+        originalname: 'image.png',
+        mimetype: 'image/png',
+        size: 3
+    });
+
+    await assert.rejects(
+        service.readText('usr_one', item.id),
+        (error) => error.code === 'DOCUMENT_NOT_TEXT'
+    );
+});
+
+test('le filtre de type retourne uniquement les fichiers correspondants', async () => {
+    const service = await createService();
+    const directory = currentDirectory;
+    const uploadFixture = async (name, mimetype) => {
+        const temporaryFile = path.join(directory, `${name}.tmp`);
+        await fs.writeFile(temporaryFile, name);
+        return service.upload('usr_one', {}, { path: temporaryFile, originalname: name, mimetype, size: name.length });
+    };
+    const image = await uploadFixture('photo.png', 'image/png');
+    await uploadFixture('film.mp4', 'video/mp4');
+    await uploadFixture('piste.mp3', 'audio/mpeg');
+    await uploadFixture('rapport.pdf', 'application/pdf');
+
+    assert.deepEqual((await service.list('usr_one', { type: 'image' })).items.map((item) => item.id), [image.id]);
+    assert.equal((await service.list('usr_one', { type: 'video' })).items.length, 1);
+    assert.equal((await service.list('usr_one', { type: 'audio' })).items.length, 1);
+    assert.equal((await service.list('usr_one', { type: 'document' })).items.length, 1);
+
+    await assert.rejects(
+        service.list('usr_one', { type: 'musique' }),
+        (error) => error.code === 'DOCUMENT_TYPE_INVALID'
+    );
+});

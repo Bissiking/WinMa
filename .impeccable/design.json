@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-05T17:47:09Z",
+  "title": "Design System: Luma OS",
+  "extensions": {
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Identité de session et moments d’entrée rares." },
+      "headline": { "displayName": "Headline", "purpose": "Titre principal d’une application ou d’un panneau de premier niveau." },
+      "title": { "displayName": "Title", "purpose": "Sections, dialogues et états vides." },
+      "body": { "displayName": "Body", "purpose": "Descriptions, statuts, données et texte d’interface courant." },
+      "label": { "displayName": "Label", "purpose": "Métadonnées, compteurs, dates et commandes compactes." }
+    },
+    "shadows": [
+      { "name": "window-ambient", "value": "0 22px 70px rgba(13, 18, 46, .24), 0 3px 12px rgba(13, 18, 46, .12)", "purpose": "Élévation normale d’une fenêtre acrylique." },
+      { "name": "window-active", "value": "0 26px 76px rgba(4, 8, 30, .32), 0 3px 14px rgba(4, 8, 30, .16)", "purpose": "Renforce exclusivement le plan de travail focalisé." },
+      { "name": "panel-floating", "value": "0 18px 54px rgba(13, 18, 46, .25), 0 2px 8px rgba(13, 18, 46, .12)", "purpose": "Menu principal, dialogue et toast." },
+      { "name": "taskbar-floating", "value": "0 16px 38px rgba(4, 8, 30, .28), 0 2px 8px rgba(4, 8, 30, .12)", "purpose": "Détache l’acrylique persistant du papier peint." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Arrivée des fenêtres et panneaux, indicateurs actifs et progression." },
+      { "name": "window-arrive", "value": "360ms cubic-bezier(.16, 1, .3, 1)", "purpose": "Entrée d’une nouvelle fenêtre." },
+      { "name": "panel-arrive", "value": "280ms cubic-bezier(.16, 1, .3, 1)", "purpose": "Entrée du menu principal." },
+      { "name": "reduced", "value": ".01ms", "purpose": "Réduit animations et transitions à un changement pratiquement instantané." }
+    ],
+    "breakpoints": [
+      { "name": "narrow-desktop", "value": "720px" },
+      { "name": "compact-taskbar", "value": "430px" },
+      { "name": "documents-rail-collapse", "value": "680px" },
+      { "name": "documents-details-collapse", "value": "900px" },
+      { "name": "settings-rail-collapse", "value": "780px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Action principale de session, de barre d’outils ou de dialogue.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Nouveau dossier</button>",
+      "css": ".ds-btn-primary { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; color: #fff; background: var(--luma-accent); font: 600 12px/1.35 \"Luma Sans\", sans-serif; transition: background 180ms var(--ease-out); } .ds-btn-primary:hover { background: color-mix(in srgb, var(--luma-accent), white 9%); } .ds-btn-primary:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: 2px; } .ds-btn-primary:active { filter: brightness(.96); }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Recherche compacte dans le menu, Paramètres et Documents.",
+      "html": "<label class=\"ds-search\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m15.5 15.5 5 5\"/></svg><input type=\"search\" placeholder=\"Rechercher dans Documents\"></label>",
+      "css": ".ds-search { min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 9px; color: var(--ink); background: var(--surface-muted); } .ds-search svg { width: 16px; height: 16px; fill: none; stroke: var(--ink-muted); stroke-width: 1.7; stroke-linecap: round; } .ds-search input { min-width: 0; width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font: 400 11px/1.5 \"Luma Sans\", sans-serif; } .ds-search input::placeholder { color: var(--ink-muted); opacity: 1; } .ds-search:focus-within { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: 2px; }"
+    },
+    {
+      "name": "Taskbar Application",
+      "kind": "nav",
+      "description": "Application ouverte, active ou réduite dans la barre des tâches persistante.",
+      "html": "<button class=\"ds-task-app is-active\" type=\"button\" aria-pressed=\"true\"><span class=\"ds-task-icon\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M3 7.5h7l2-2h9v14H3zM3 10h18\"/></svg></span><span>Documents</span></button>",
+      "css": ".ds-task-app { position: relative; min-width: 118px; height: 40px; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 11px; color: var(--taskbar-ink); background: transparent; font: 400 12px/1.35 \"Luma Sans\", sans-serif; } .ds-task-app:hover { background: color-mix(in srgb, var(--taskbar-ink) 9%, transparent); } .ds-task-app:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: 2px; } .ds-task-app::after { content: \"\"; position: absolute; left: 50%; bottom: 2px; width: 24px; height: 3px; border-radius: 4px; background: var(--luma-accent); transform: translateX(-50%) scaleX(.22); transition: transform 180ms var(--ease-out); } .ds-task-app.is-active::after { transform: translateX(-50%) scaleX(1); } .ds-task-app.is-minimized { opacity: .76; } .ds-task-icon { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 8px; color: #fff; background: linear-gradient(145deg, #42bde7, #5271df); } .ds-task-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }"
+    },
+    {
+      "name": "Window Frame",
+      "kind": "custom",
+      "refersTo": "window",
+      "description": "Cadre acrylique commun aux applications superposées, focalisées et snappées.",
+      "html": "<article class=\"ds-window\"><header class=\"ds-window-bar\"><strong>Documents</strong><span></span><button aria-label=\"Réduire\">−</button><button aria-label=\"Agrandir\">□</button><button class=\"ds-window-close\" aria-label=\"Fermer\">×</button></header><div class=\"ds-window-body\">Plan de travail LUMA</div></article>",
+      "css": ".ds-window { width: min(520px, 100%); overflow: hidden; border-radius: 15px; color: var(--ink); background: var(--surface); box-shadow: var(--window-shadow); backdrop-filter: blur(28px) saturate(128%); } .ds-window-bar { height: 46px; display: grid; grid-template-columns: auto 1fr 46px 46px 46px; align-items: center; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface-solid) 54%, transparent); font: 600 13px/1.35 \"Luma Sans\", sans-serif; } .ds-window-bar strong { padding-left: 13px; } .ds-window-bar button { align-self: stretch; border: 0; color: inherit; background: transparent; font-size: 17px; } .ds-window-bar button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); } .ds-window-bar button:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: -3px; } .ds-window-bar .ds-window-close:hover { color: #fff; background: #d83a52; } .ds-window-body { min-height: 150px; padding: 24px; background: var(--surface-solid); font: 400 12px/1.5 \"Luma Sans\", sans-serif; }"
+    },
+    {
+      "name": "Settings Navigation Item",
+      "kind": "nav",
+      "description": "Destination courante dans le rail de Paramètres.",
+      "html": "<button class=\"ds-settings-nav is-current\" type=\"button\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M12 2v20M2 12h20M5 5l14 14M19 5 5 19\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>Personnalisation</button>",
+      "css": ".ds-settings-nav { min-height: 40px; display: flex; align-items: center; gap: 11px; padding: 0 10px; border: 0; border-radius: 10px; color: var(--ink); text-align: left; background: transparent; font: 400 12px/1.35 \"Luma Sans\", sans-serif; } .ds-settings-nav svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; } .ds-settings-nav:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); } .ds-settings-nav.is-current { background: color-mix(in srgb, var(--luma-accent) 16%, var(--surface-raised)); } .ds-settings-nav.is-current svg { color: color-mix(in srgb, var(--luma-accent), white 12%); } .ds-settings-nav:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: 2px; }"
+    },
+    {
+      "name": "Theme Option",
+      "kind": "card",
+      "description": "Carte de choix de thème avec aperçu et sélection explicite.",
+      "html": "<button class=\"ds-theme-option is-selected\" type=\"button\"><span class=\"ds-theme-preview\"><i></i><i></i><i></i></span><span><strong>Luma</strong><small>La profondeur bleue signature de LUMA.</small></span></button>",
+      "css": ".ds-theme-option { min-width: 250px; display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px; border: 1px solid transparent; border-radius: 13px; color: var(--ink); text-align: left; background: var(--surface-muted); font-family: \"Luma Sans\", sans-serif; } .ds-theme-option:hover { background: color-mix(in srgb, var(--surface-muted), var(--ink) 4%); } .ds-theme-option.is-selected { border-color: var(--luma-accent); background: color-mix(in srgb, var(--luma-accent) 12%, var(--surface-muted)); } .ds-theme-option:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: 2px; } .ds-theme-option > span:last-child { display: grid; gap: 2px; } .ds-theme-option strong { font-size: 13px; } .ds-theme-option small { color: var(--ink-muted); font-size: 10px; line-height: 1.35; } .ds-theme-preview { height: 46px; display: grid; grid-template-columns: 16px 1fr; grid-template-rows: repeat(2, 1fr); gap: 4px; padding: 6px; border-radius: 8px; overflow: hidden; background: #0d214a; box-shadow: inset 0 0 0 1px rgba(80, 82, 110, .14); } .ds-theme-preview i { display: block; border-radius: 3px; background: #32589b; } .ds-theme-preview i:first-child { grid-row: 1 / -1; } .ds-theme-preview i:last-child { background: #6d5ee8; }"
+    },
+    {
+      "name": "Document Row",
+      "kind": "custom",
+      "description": "Ligne de données sélectionnable dans la vue liste de Documents.",
+      "html": "<article class=\"ds-document-row is-selected\" tabindex=\"0\"><input type=\"checkbox\" checked aria-label=\"Sélectionner Rapport.pdf\"><span class=\"ds-document-name\"><i><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M6 2h8l4 4v16H6zM14 2v5h5M9 13h6M9 17h5\"/></svg></i><strong>Rapport.pdf</strong></span><time>05 août 2026</time><span>Document PDF</span><span>2,4 Mo</span></article>",
+      "css": ".ds-document-row { min-width: 650px; min-height: 48px; display: grid; grid-template-columns: 32px minmax(210px, 1.8fr) minmax(140px, 1fr) minmax(100px, .8fr) 80px; align-items: center; gap: 8px; padding: 0 16px; color: var(--ink-muted); border-bottom: 1px solid color-mix(in srgb, var(--line) 62%, transparent); background: var(--surface-solid); font: 400 11px/1.35 \"Luma Sans\", sans-serif; } .ds-document-row:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); } .ds-document-row.is-selected { background: color-mix(in srgb, var(--luma-accent) 13%, var(--surface-solid)); } .ds-document-row:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: -3px; } .ds-document-row input { width: 15px; height: 15px; accent-color: var(--luma-accent); } .ds-document-name { min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--ink); } .ds-document-name i { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #7180a5; background: var(--surface-muted); } .ds-document-name svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; } .ds-document-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }"
+    },
+    {
+      "name": "Dialog",
+      "kind": "custom",
+      "description": "Confirmation compacte pour créer, renommer, déplacer ou supprimer.",
+      "html": "<section class=\"ds-dialog\" role=\"dialog\" aria-labelledby=\"ds-dialog-title\"><h2 id=\"ds-dialog-title\">Nouveau dossier</h2><p>Donnez un nom clair à ce nouvel espace.</p><label>Nom du dossier<input value=\"Projets\"></label><div><button>Annuler</button><button class=\"is-primary\">Créer</button></div></section>",
+      "css": ".ds-dialog { width: min(420px, 100%); padding: 24px; border-radius: 15px; color: var(--ink); background: var(--surface-raised); box-shadow: var(--panel-shadow); font-family: \"Luma Sans\", sans-serif; } .ds-dialog h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: -.025em; } .ds-dialog p { margin: 0 0 18px; color: var(--ink-muted); font-size: 12px; line-height: 1.5; } .ds-dialog label { display: grid; gap: 7px; color: var(--ink-muted); font-size: 11px; } .ds-dialog input { min-height: 41px; padding: 0 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-muted); } .ds-dialog input:focus-visible, .ds-dialog button:focus-visible { outline: 3px solid color-mix(in srgb, var(--luma-accent), white 24%); outline-offset: 2px; } .ds-dialog > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; } .ds-dialog button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; color: var(--ink); background: var(--surface-muted); } .ds-dialog button:hover { filter: brightness(1.04); } .ds-dialog button.is-primary { color: #fff; background: var(--luma-accent); } .ds-dialog button:active { filter: brightness(.96); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le bureau sous l’aurore",
+    "overview": "LUMA Fluent transforme le bureau en champ de lumière nocturne : une aurore bleu-violet traverse des couches d’acrylique marine et révèle des plans de travail précis. Le système reste familier dans sa structure, mais son papier lumineux, ses coutures actives et ses icônes linéaires originales lui donnent une présence propre.\n\nLa densité est compacte sans être austère. Les fenêtres, commandes et applications partagent une même géométrie dans les thèmes Clair, Sombre et Luma ; la matière et le contraste changent, jamais l’organisation ni le comportement. Cette documentation canonise exclusivement l’expérience desktop LUMA Fluent. Nothing OS n’est pas une référence de ce système et reste réservé à une éventuelle direction mobile future.",
+    "keyCharacteristics": [
+      "Aurore bleu nuit visible comme scène persistante du bureau.",
+      "Surfaces translucides aux teintes chaudes ou marine selon le thème.",
+      "Accent violet rare, consacré au focus, à la sélection et à l’action primaire.",
+      "Typographie Open Sans compacte, nette et légèrement resserrée dans les titres.",
+      "Icônes originales en traits fins, avec états de fenêtre explicites.",
+      "Une même architecture pour la superposition, le focus et le snap."
+    ],
+    "rules": [
+      { "name": "The Aurora Signal Rule", "body": "Le violet d’aurore indique une intention ou un état ; il ne remplit pas les grandes surfaces de contenu.", "section": "colors" },
+      { "name": "The Theme Geometry Rule", "body": "Clair, Sombre et Luma changent la matière et les encres, jamais la géométrie, la hiérarchie ou la signification des états.", "section": "colors" },
+      { "name": "The One Sans Rule", "body": "Toute l’interface desktop utilise Luma Sans ; la hiérarchie vient de la taille, du poids et du rythme, pas d’une seconde famille décorative.", "section": "typography" },
+      { "name": "The Compact Data Rule", "body": "Les petites tailles servent aux données secondaires et restent accompagnées d’un contraste, d’un espacement et d’un libellé suffisants.", "section": "typography" },
+      { "name": "The Three States Rule", "body": "Superposition, focus et snap sont trois états réversibles d’une même fenêtre, jamais trois compositions indépendantes.", "section": "layout" },
+      { "name": "The Working Plane Rule", "body": "Le plan de contenu s’adapte avant de compresser les commandes essentielles : masquer les détails secondaires, puis le rail, puis empiler la recherche.", "section": "layout" },
+      { "name": "The Acrylic Before Shadow Rule", "body": "La hiérarchie commence par la teinte, la transparence et le flou ; l’ombre confirme seulement un plan réellement flottant.", "section": "elevation" },
+      { "name": "The Nested Curve Rule", "body": "Un enfant interactif garde un rayon inférieur à son conteneur ; les 15–18 px appartiennent aux grands plans, les 7–11 px aux commandes.", "section": "shapes" },
+      { "name": "The Original Line Rule", "body": "Les pictogrammes desktop sont des SVG linéaires originaux, compacts et cohérents ; aucun logo propriétaire ni police d’icônes ne remplace ce vocabulaire.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do faire porter au Violet d’aurore le focus, la sélection, la progression et l’action primaire.",
+      "Do conserver les mêmes rayons, dimensions et états entre Clair, Sombre et Luma.",
+      "Do préserver les trois états réversibles des fenêtres et la récupération des fenêtres réduites depuis la barre des tâches.",
+      "Do réduire le mouvement à `.01ms` quand la préférence système ou Luma demande un mouvement réduit.",
+      "Do adapter d’abord les plans secondaires et les libellés avant de réduire les cibles essentielles."
+    ],
+    "donts": [
+      "Don't étendre l’accent violet en grand aplat décoratif sans signification d’état.",
+      "Don't ajouter une ombre à chaque carte ; réserver l’élévation aux plans qui flottent réellement.",
+      "Don't copier les logos, icônes exactes ou actifs propriétaires des systèmes de bureau de référence.",
+      "Don't introduire de motifs Nothing OS dans LUMA Fluent desktop ; cette piste n’est pas canonisée et reste réservée à une future exploration mobile.",
+      "Don't casser les libellés français nets avec des kickers, sourcils décoratifs ou capitales systématiques."
+    ]
+  }
+}
