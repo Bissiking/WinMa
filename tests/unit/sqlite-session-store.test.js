@@ -1,19 +1,19 @@
 // tests/unit/sqlite-session-store.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+const { createSqliteTestDatabase } = require('../helpers/db');
+const { createSqliteSessionStoreRepository } = require('../../src/server/repositories/sqlite-session-store-repository');
+const { createSessionStore } = require('../../src/server/stores/session-store');
 const { createSqliteSessionStore } = require('../../src/server/stores/sqlite-session-store');
 
 async function withTempDatabase(callback) {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'luma-session-store-'));
-    const store = createSqliteSessionStore(path.join(directory, 'sessions.sqlite'));
+    const context = await createSqliteTestDatabase('luma-session-store-');
+    const store = createSessionStore(createSqliteSessionStoreRepository(context.database));
 
     try {
-        return await callback(store);
+        return await callback(store, context);
     } finally {
-        fs.rmSync(directory, { recursive: true, force: true });
+        await context.cleanup();
     }
 }
 
@@ -22,6 +22,23 @@ function toPromise(method, ...args) {
         method(...args, (error, value) => (error ? reject(error) : resolve(value)));
     });
 }
+
+test('la fabrique historique construit aussi un magasin opérationnel', async () => {
+    const context = await createSqliteTestDatabase('luma-session-store-factory-');
+    let factoryStore = null;
+    try {
+        factoryStore = createSqliteSessionStore(context.database.filePath);
+        await toPromise(factoryStore.set.bind(factoryStore), 'sid-factory', {
+            user: { id: 'usr_1' },
+            cookie: { expires: new Date(Date.now() + 60_000) }
+        });
+        const loaded = await toPromise(factoryStore.get.bind(factoryStore), 'sid-factory');
+        assert.equal(loaded.user.id, 'usr_1');
+    } finally {
+        await factoryStore?.repository.database.close().catch(() => undefined);
+        await context.cleanup();
+    }
+});
 
 test('une session enregistrée est relue avec ses données', async () => {
     await withTempDatabase(async (store) => {
@@ -79,7 +96,7 @@ test('prune supprime uniquement les sessions expirées', async () => {
         const past = new Date(Date.now() - 1_000);
         await toPromise(store.set.bind(store), 'alive', { user: { id: 'a' }, cookie: { expires: future } });
         await toPromise(store.set.bind(store), 'dead', { user: { id: 'b' }, cookie: { expires: past } });
-        store.prune();
+        await store.prune();
 
         assert.notEqual(await toPromise(store.get.bind(store), 'alive'), null);
         assert.equal(await toPromise(store.get.bind(store), 'dead'), null);

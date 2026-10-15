@@ -38,7 +38,7 @@ function sanitizeWindows(windows) {
 
 function createWindowSessionService(repository) {
     async function read(ownerKey) {
-        const stored = repository.find(ownerKey);
+        const stored = await repository.find(ownerKey);
         if (!stored) return { windows: [], updatedAt: null };
         let windows;
         try {
@@ -52,12 +52,12 @@ function createWindowSessionService(repository) {
     async function update(ownerKey, raw) {
         const windows = sanitizeWindows(raw?.windows);
         const updatedAt = new Date().toISOString();
-        repository.upsert(ownerKey, JSON.stringify(windows), updatedAt);
+        await repository.upsert(ownerKey, JSON.stringify(windows), updatedAt);
         return { windows, updatedAt };
     }
 
     async function clear(ownerKey) {
-        repository.remove(ownerKey);
+        await repository.remove(ownerKey);
         return { windows: [], updatedAt: null };
     }
 

@@ -1,9 +1,13 @@
 // src/server/config/env.js
 const crypto = require('node:crypto');
+const path = require('node:path');
 const dotenv = require('dotenv');
 const { version } = require('../../../package.json');
 
 dotenv.config({ quiet: true });
+
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const DB_PROVIDERS = new Set(['sqlite', 'postgresql']);
 
 function parseInteger(value, fallback, name) {
     const parsed = Number.parseInt(value ?? fallback, 10);
@@ -42,6 +46,49 @@ function envWithFallback(env, lumaKey, kyrosKey) {
     return undefined;
 }
 
+// DB_PROVIDER=sqlite|postgresql. SQLite est réservé au développement ;
+// PostgreSQL est obligatoire en production et ne bascule jamais silencieusement.
+function buildDatabaseConfig(environment, { isProduction }) {
+    const provider = String(environment.DB_PROVIDER || 'sqlite').trim().toLowerCase();
+
+    if (!DB_PROVIDERS.has(provider)) {
+        throw new Error('DB_PROVIDER doit valoir "sqlite" ou "postgresql".');
+    }
+
+    if (isProduction && provider !== 'postgresql') {
+        throw new Error('DB_PROVIDER doit valoir "postgresql" en production : SQLite est réservé au développement.');
+    }
+
+    const sqlitePath = environment.SQLITE_PATH
+        ? path.resolve(PROJECT_ROOT, environment.SQLITE_PATH)
+        : path.join(PROJECT_ROOT, 'data/luma.sqlite');
+
+    const postgres = {
+        connectionString: environment.DATABASE_URL || null,
+        host: environment.PGHOST || null,
+        port: environment.PGPORT ? parseInteger(environment.PGPORT, 5432, 'PGPORT') : null,
+        user: environment.PGUSER || null,
+        password: environment.PGPASSWORD || null,
+        database: environment.PGDATABASE || null,
+        poolMax: parseInteger(environment.DB_POOL_MAX, 10, 'DB_POOL_MAX'),
+        connectTimeoutMs: parseInteger(environment.DB_CONNECT_TIMEOUT_MS, 5000, 'DB_CONNECT_TIMEOUT_MS'),
+        idleTimeoutMs: parseInteger(environment.DB_IDLE_TIMEOUT_MS, 30000, 'DB_IDLE_TIMEOUT_MS')
+    };
+
+    if (provider === 'postgresql' && !postgres.connectionString && !postgres.database) {
+        throw new Error('PostgreSQL exige DATABASE_URL (ou PGDATABASE avec PGHOST/PGUSER/PGPASSWORD).');
+    }
+
+    return {
+        provider,
+        sqlite: { filePath: sqlitePath },
+        postgres,
+        migrationsDir: environment.DB_MIGRATIONS_DIR
+            ? path.resolve(PROJECT_ROOT, environment.DB_MIGRATIONS_DIR)
+            : path.join(PROJECT_ROOT, 'migrations')
+    };
+}
+
 function loadConfig(environment = process.env) {
     const nodeEnv = environment.NODE_ENV || 'development';
     const isProduction = nodeEnv === 'production';
@@ -73,6 +120,9 @@ function loadConfig(environment = process.env) {
     if (isProduction && !appBaseUrl.startsWith('https://')) {
         throw new Error('APP_BASE_URL doit utiliser HTTPS en production.');
     }
+
+    // DB_PROVIDER : SQLite en développement, PostgreSQL obligatoire en production.
+    const database = buildDatabaseConfig(environment, { isProduction });
 
     const kyros = {
         baseUrl: kyrosBaseUrl,
@@ -141,6 +191,7 @@ function loadConfig(environment = process.env) {
         version,
         sessionSecret,
         sessionMaxAgeMs: 7 * 24 * 60 * 60 * 1000,
+        database,
         harmonix: {
             baseUrl: harmonixBaseUrl,
             timeoutMs: parseInteger(environment.LUMA_HARMONIX_TIMEOUT_MS, 10000, 'LUMA_HARMONIX_TIMEOUT_MS')

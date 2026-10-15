@@ -1,4 +1,7 @@
 // tests/helpers/test-config.js
+const os = require('node:os');
+const path = require('node:path');
+
 function createTestConfig(overrides = {}) {
     const kyrosOverrides = overrides.kyros || {};
 
@@ -21,6 +24,17 @@ function createTestConfig(overrides = {}) {
             baseUrl: 'https://braindump.test',
             timeoutMs: 1000,
             ...(overrides.brainDump || {})
+        },
+        // Base isolée par processus de test : aucune donnée de développement
+        // n'est lue ni écrite par les tests d'intégration.
+        database: {
+            provider: 'sqlite',
+            sqlite: {
+                filePath: path.join(os.tmpdir(), `luma-tests-${process.pid}`, 'database.sqlite')
+            },
+            postgres: {},
+            migrationsDir: path.resolve(__dirname, '../../migrations'),
+            ...(overrides.database || {})
         },
         kyros: {
             enabled: true,

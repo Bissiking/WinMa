@@ -1,44 +1,35 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const Database = require('better-sqlite3');
+// src/server/repositories/sqlite-session-repository.js
+// Disposition des fenêtres par utilisateur — contrat asynchrone.
+// Schéma : migrations/0002_window_sessions.sqlite.sql.
+const { resolveDatabase, assertProvider } = require('./repository-database');
 
-function createSqliteSessionRepository(databasePath) {
-    fs.mkdirSync(path.dirname(databasePath), { recursive: true, mode: 0o700 });
-    const database = new Database(databasePath);
-    database.pragma('journal_mode = WAL');
-    database.exec(`
-        CREATE TABLE IF NOT EXISTS window_sessions (
-            owner_key TEXT PRIMARY KEY,
-            windows_json TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-    `);
+function createSqliteSessionRepository(databaseOrPath) {
+    const database = resolveDatabase(databaseOrPath);
+    assertProvider(database, 'sqlite');
 
-    const upsertStatement = database.prepare(`
-        INSERT INTO window_sessions (owner_key, windows_json, updated_at)
-        VALUES (@ownerKey, @windowsJson, @updatedAt)
-        ON CONFLICT(owner_key) DO UPDATE SET
-            windows_json = excluded.windows_json,
-            updated_at = excluded.updated_at
-    `);
-    const findByOwnerStatement = database.prepare('SELECT * FROM window_sessions WHERE owner_key = ?');
-
-    function find(ownerKey) {
-        const row = findByOwnerStatement.get(ownerKey);
+    async function find(ownerKey) {
+        const row = (await database.query('SELECT * FROM window_sessions WHERE owner_key = ?', [ownerKey])).rows[0];
         if (!row) return null;
         return { ownerKey: row.owner_key, windowsJson: row.windows_json, updatedAt: row.updated_at };
     }
 
-    function upsert(ownerKey, windowsJson, updatedAt) {
-        upsertStatement.run({ ownerKey, windowsJson, updatedAt });
+    async function upsert(ownerKey, windowsJson, updatedAt) {
+        await database.query(`
+            INSERT INTO window_sessions (owner_key, windows_json, updated_at)
+            VALUES (@ownerKey, @windowsJson, @updatedAt)
+            ON CONFLICT(owner_key) DO UPDATE SET
+                windows_json = excluded.windows_json,
+                updated_at = excluded.updated_at
+        `, { ownerKey, windowsJson, updatedAt });
         return find(ownerKey);
     }
 
-    function remove(ownerKey) {
-        return database.prepare('DELETE FROM window_sessions WHERE owner_key = ?').run(ownerKey).changes;
+    async function remove(ownerKey) {
+        const result = await database.query('DELETE FROM window_sessions WHERE owner_key = ?', [ownerKey]);
+        return result.rowCount;
     }
 
-    return { find, upsert, remove };
+    return { find, upsert, remove, database };
 }
 
 module.exports = { createSqliteSessionRepository };

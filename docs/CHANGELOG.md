@@ -4,7 +4,16 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) : chaque v
 
 ## 3.3.0-alpha — Survol
 
-> Stockage, Réseau Luma, Démarrage enrichi et mises à jour automatiques.
+> Stockage, Réseau Luma, Démarrage enrichi, mises à jour automatiques et base de données hybride.
+
+- **Base de données hybride** : la persistance passe en SQL natif sans ORM — SQLite en développement (`data/luma.sqlite` préservé), PostgreSQL en production (`DB_PROVIDER`, jamais de repli silencieux), repositories communs, migrations versionnées et tests sur les deux moteurs.
+- **Registre d'applications unique** : `data/apps.json` décrit les 17 applications du bureau et devient la source de vérité — le shell les reçoit de `GET /api/apps` (son tableau local n'est plus qu'un repli), les états disponible / installée / activée / autorisée sont distingués et les champs inconnus ne fuient plus dans l'API.
+- **Recette navigateur (E2E)** : `npm run test:e2e` exécute une vraie session navigateur (Chromium système, Firefox et WebKit) sur un serveur de test complet — écran de session, bureau, registre, fenêtres, Service Worker, viewport mobile **et parcours métier** (Documents : dossier/import/corbeille/restauration/quota ; Bloc-notes : édition/enregistrement/aperçu ; Calendrier : événement persistant ; Terminal : commandes et easter egg `sudo reboot`). Exécutée en CI à chaque push.
+- **Nettoyage du code hérité** : 24 fichiers supprimés après vérification de non-utilisation — ancien serveur `app.js` racine, `all.js` et `window/*`, jQuery, scripts d'horloge/verrouillage, CSS hérités (`allstyles`, `window`, `start-menu`), fragments `desktop/`, `session-select/{index.html,app.js}`, `parametres/index.html`, prototype `TEST/` et dumps historiques (`structure-*`, `code-winma.txt`, `luma-kyros-sso.txt`).
+- **CSP durcie** : plus aucun script inline ni CDN externe autorisé (`script-src 'self'`, `script-src-attr 'none'`), et le `frame-src` se remplit automatiquement des `allowedOrigin` déclarées dans le registre (origines https strictes), sans exception manuelle.
+- **Écran de session unifié** : connexion et verrouillage partagent le même rendu habillé par `luma-shell.css` — le dossier fragment `session-select/` disparaît (styles migrés vers le shell, lien et précache retirés).
+- **Verrouillage automatique de session** : le bureau se verrouille après une période d'inactivité (`lockAfterIdleMs`, réglable de 30 s à 24 h ou « Jamais », défaut 5 min). Le verrou garde la session, les fenêtres et le cache d'avatars ; « Reprendre la session » vérifie le serveur avant de rouvrir le bureau. Verrouillage et déconnexion se propagent aux autres onglets, et un 401 API ramène à l'écran de session (fermeture multi-appareils).
+- **Intégration continue** : workflow GitHub Actions (`.github/workflows/ci.yml`) — audit npm, tests SQLite, tests PostgreSQL (service postgres:16) et recette navigateur sur les trois moteurs.
 
 - **Stockage** : nouvelle vue Paramètres > Stockage (quota 1 Go, répartition par type de fichier, espace Corbeille).
 - **Réseau Luma** : nouvelle vue Paramètres > Réseau Luma (santé des services avec latence, session en cours, réseau de l'appareil).
@@ -17,6 +26,72 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) : chaque v
 ## 3.3.0-alpha — Détails
 
 ### Ajouts
+
+- **Persistance hybride SQLite / PostgreSQL** (sans ORM, sans migration de données) :
+  - `DB_PROVIDER=sqlite|postgresql` (`src/server/config/env.js`) : `sqlite` en développement (fichier `data/luma.sqlite` conservé tel quel), `postgresql` en production — **obligatoire si `NODE_ENV=production`**, avec `DATABASE_URL` ou les variables libpq (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`) et un pool configurable (`DB_POOL_MAX`, `DB_CONNECT_TIMEOUT_MS`, `DB_IDLE_TIMEOUT_MS`) ;
+  - **aucun repli** : si PostgreSQL est injoignable, le serveur s'arrête avec un message explicite (`Connexion PostgreSQL impossible … Aucun repli SQLite n'est autorisé`) ;
+  - adapters SQL natifs (`src/server/db/`) : `sqlite-adapter.js` (better-sqlite3, verrou asynchrone, transactions imbriquées via `AsyncLocalStorage`), `postgres-adapter.js` (pg.Pool, client dédié par transaction) et `migrator.js` (migrations versionnées, transactionnelles, enregistrées dans `schema_migrations`) ;
+  - repositories par moteur (`src/server/repositories/`) : sessions express-session, sessions Kyros, fenêtres, Documents, paramètres et préférences de compte — contrat asynchrone commun, sélection par `database.provider`, SQL dialecte par dialecte (`@named`/`COLLATE NOCASE` côté SQLite, `$n`/`LOWER()`/alias quotés côté PostgreSQL) ;
+  - migrations `migrations/NNNN_nom.sqlite.sql` / `.postgresql.sql` : `0001_auth_sessions`, `0002_window_sessions`, `0003_document_items`, `0004_user_preferences` — appliquées au démarrage et via `npm run migrate` (`scripts/migrate.js`) ;
+  - `createApp()` devient asynchrone (connexion, migrations, purge des sessions expirées au démarrage) ; fermeture propre du pool/des connexions sur SIGINT/SIGTERM ;
+  - compatibilité : `settings-service` et `account-service` lisent encore les fichiers JSON historiques (`data/settings`, `data/accounts`) en repli sur SQLite et les reportent en base — aucun fichier supprimé ; les données de développement existantes restent intactes ;
+  - tests : helpers `tests/helpers/db.js` (bases SQLite temp + bases PostgreSQL jetables créées via `CREATE DATABASE`) et `tests/helpers/repository-contract.js` (contrat commun aux deux moteurs) ; nouvelles suites `repositories-sqlite`, `repositories-postgres`, `migrator` et `tests/integration/postgres.test.js` ; les suites PostgreSQL s'exécutent avec `TEST_DATABASE_URL` et sont explicitement sautées sinon — jamais exécutées contre SQLite ;
+  - documentation : [`docs/DATABASE.md`](DATABASE.md) (configuration, migrations, déploiement, tests, Docker) ; `.env.example` enrichi du bloc `DB_PROVIDER`/`DATABASE_URL`/pool.
+- **Registre d'applications unique** (`data/apps.json`, source de vérité du bureau) :
+  - le registre passe de 5 à 17 entrées : toutes les applications ouvrables (menu démarrer, barre des tâches, fenêtres) y sont désormais déclarées avec `entry` (page ou module sous `/apps/`), `module` (module ES chargé par la fenêtre), `type`, `enabled`, `taskbarName`, `window`, `position` et les drapeaux `hidden`/`storeManaged`/`incompatible` ; le champ mort `pinned` est retiré ;
+  - `icon` devient le nom du symbole réellement rendu par le sprite du shell (les chemins d'images fantômes disparaissent) ; `logo` optionnel conserve les images de marque existantes ;
+  - `app-registry-service` : validation enrichie (chemins internes sans `..`, `module`/`logo` sous `/apps/`, `window` à quatre dimensions positives, `position` bornée 0–1, drapeaux booléens, `allowedOrigin` obligatoire pour `iframe`) et **liste blanche** : seuls les champs publiés survivent, tout champ inconnu est retiré avant l'API ;
+  - le shell (`luma-shell.js`) charge `GET /api/apps` en parallèle des paramètres au démarrage de la session et remplace son tableau local ; ce dernier reste un repli de premier rendu et hors ligne ; vocabulaire des états documenté : **activée** (`enabled` serveur), **disponible** (activée + installée si store), **installée** (liste `luma.orbit.installed`), **autorisée** (`allowedOrigin` déclarée) ;
+  - Paramètres : la liste « Applications servies par le Service Worker » est filtrée sur le `type` du registre (elle était vide, le champ `module` étant retiré au montage) et affiche le point d'entrée ;
+  - `scripts/visual-check.mjs` : le mock `/api/apps` sert le vrai `data/apps.json` ;
+  - tests : `tests/unit/app-registry.test.js` enrichi (liste blanche, validation des chemins/fenêtres/positions/drapeaux, états) et nouvelle suite `tests/integration/apps.test.js` (401 sans session, métadonnées complètes, 400/404) ;
+  - `package.json` versionné `3.3.0-alpha.1`.
+- **Recette navigateur de bout en bout** (`tests/e2e/`, `npm run test:e2e`) :
+  - helper E2E (`tests/e2e/helpers/e2e.js`) : détection automatique d'Edge/Chrome système (`LUMA_E2E_BROWSER_PATH` pour forcer), serveur de test sur port éphémère avec `appBaseUrl` aligné (validations d'origine), faux Kyros + cookie de session injecté dans le contexte navigateur (le parcours SSO reste couvert par `tests/integration/auth.test.js`) ;
+  - six scénarios : écran de session anonyme ; démarrage du bureau authentifié avec chargement du registre serveur et menu démarrer (applications cachées/désactivées exclues, aucune erreur JS) ; ouverture de Documents depuis le menu avec fermeture de fenêtre ; `LumaOS.openApp` pour Terminal + Paramètres (montage `.settings-app`, fermeture cascade) ; Service Worker actif (`/sw.js` avec `RAW_BUILD_VERSION` et `Cache-Control` de no-cache) ; bureau utilisable en viewport mobile 390×844 ;
+  - `scripts/test-e2e.mjs` : lancement portable (cmd/PowerShell/sh) qui force `LUMA_E2E=1` ; la recette est **sautée** dans `npm test` (suite unitaire/intégration maintenue < 2 s) ;
+  - documentation README/INDEX ; `package.json` versionné `3.3.0-alpha.2`.
+- **Nettoyage du code hérité sans régression** (24 fichiers supprimés, vérifiés un par un) :
+  - serveur : `app.js` racine (ancien serveur Express autonome, remplacé par `src/server/`) ;
+  - JavaScript hérité : `sources/assets/javascripts/all.js` (bootstrap jQuery), `window/{move,open-close,uuid,agrandirImage,agrandirImageManuel}.js`, `jquery/jquery-3.6.4.js`, `notifications-horloge-date-start-menu/date-time.js`, `start-locked/start-locked.js` — aucun `index.html`, import ou précache SW ne les référençait ;
+  - CSS hérités : `allstyles.css`, `window.css`, `start-menu.css` (seul `luma-shell.css` est lié) ;
+  - fragments : `sources/apps/desktop/`, `sources/apps/session-select/{index.html,app.js}` (l'écran de session est rendu par `luma-shell.js` ; `session-select/style.css` reste, lié par `index.html`), `sources/apps/parametres/index.html` (sélecteur de fonds hérité) ;
+  - prototype et dumps : `TEST/`, `structure-winma.txt`, `structure-luma-os.txt`, `code-winma.txt`, `luma-kyros-sso.txt` (export obsolète du code actuel), `.DS_Store` (ajouté au `.gitignore`) ;
+  - registre : les `entry` de `documents`, `trash` et `settings` pointent désormais vers leur module (`/apps/<id>/app.js`), les fragments `index.html` supprimés n'étant jamais servis ;
+  - docs : INDEX (arborescence, tables, registre), ROADMAP et MIGRATION marqués à jour ; parcours validés par les 151 tests (SQLite + PostgreSQL) et les 6 scénarios E2E ;
+  - `package.json` versionné `3.3.0-alpha.3`.
+- **CSP durcie et intégrations iframes automatisées** :
+  - `script-src` ramené à `'self'` : suppression de `'unsafe-inline'` (aucun script inline ni handler `onclick` dans le frontend) et du CDN `cdn.jsdelivr.net` (plus référencé) ; `script-src-attr` passé à `'none'` explicite ;
+  - `frame-src` dynamique : `createApp()` charge le registre au démarrage et injecte les `allowedOrigin` des applications `iframe` activées via `listAllowedFrameOrigins()` ; une app désactivée n'apparaît plus dans la CSP ;
+  - validation stricte des origines : `normalizeFrameOrigin` (exporté depuis `config/security.js`) n'accepte que `https://host[:port]` sans chemin, query, hash ni credentials — `http:`, `javascript:`, `data:` et les origines avec chemin sont refusées à la fois par le registre et en défense en profondeur dans la CSP ;
+  - exception documentée et unique : `style-src 'unsafe-inline'`, nécessitée par 9 attributs `style=""` dynamiques (barres de progression, swatches, hauteurs) des apps internes — sans capacité d'exécution de code ;
+  - trou d'injection `appRegistryPath` sur `createApp()` pour tester la CSP sans toucher au registre réel ;
+  - tests : nouvelle suite `tests/integration/security-headers.test.js` (CSP sans script inline/CDN, `frame-src` limité à `'self'` sans iframe, origine injectée pour une app iframe activée, origine exclue pour une désactivée), nouveau `tests/unit/security.test.js` (`normalizeFrameOrigin` cas acceptés/refusés) et cas d'origine invalides ajoutés à `tests/unit/app-registry.test.js` ;
+  - validation : 157 tests verts sur SQLite et PostgreSQL, recette navigateur 6/6 sous la CSP stricte ;
+  - documentation README, ARCHITECTURE, INDEX et MIGRATION ; `package.json` versionné `3.3.0-alpha.4`.
+- **Écran de session unifié (connexion + verrouillage)** :
+  - le rendu unique `renderSessionScreen` (`luma-shell.js`) dessine déjà l'accueil Kyros et l'état « Session verrouillée. » ; les 148 lignes de styles qui l'habillaient quittaient le dossier fragment `sources/apps/session-select/` (héritier du formulaire supprimé) — elles migrent telles quelles dans `luma-shell.css` (section « Écran de session »), lien `<link>` retiré d'`index.html`, entrée `./apps/session-select/style.css` retirée du précache (`sources/sw.js` et `scripts/sw-update-cycle.mjs`), dossier supprimé ;
+  - le chemin d'image relatif (`../../images/backgrounds/luma-aurora.webp`) reste identique entre les deux emplacements (deux niveaux sous `sources/`) ;
+  - test E2E renforcé : l'écran de session doit être réellement habillé (fond `luma-aurora`, `min-height` = fenêtre, bouton de connexion coloré) — la recette détecterait toute perte des styles ;
+  - validation : 157 tests verts sur SQLite et PostgreSQL, recette navigateur 6/6 ;
+  - `package.json` versionné `3.3.0-alpha.5`.
+- **Recette approfondie, multi-navigateurs et CI** :
+  - nouvelle suite `tests/e2e/apps.e2e.test.js` : parcours métier profonds — Documents (nouveau dossier via dialogue, import via `setInputFiles`, quota avant/après, envoi Corbeille, restauration, retour racine), Bloc-notes (dirty, enregistrement, titre `•`, aperçu Markdown rendu), Calendrier (événement daté persisté dans `luma.calendar.events`, suppression) et Terminal (`help`/`echo`/`open`/``ps`/`close` puis easter egg `sudo reboot` → Matheo Systems) ; chaque parcours asserte l'absence d'erreur JS ;
+  - helper multi-moteurs : `LUMA_E2E_BROWSER=firefox|webkit` bascule sur les moteurs Playwright (`npx playwright-core install firefox webkit`), Chromium reste le navigateur système par défaut — recette validée **10/10 sur les trois moteurs** ;
+  - `scripts/test-e2e.mjs` exécute désormais les deux suites E2E (liste explicite, portable) ;
+  - intérêts de test assouplis : fenêtres ciblées par `aria-label` puis ancrées par `id` (le titre change avec l'état, la sortie du Terminal contient les noms d'apps) ;
+  - CI GitHub Actions (`.github/workflows/ci.yml`) : audit npm `--audit-level=high`, `npm test` SQLite, `npm test` PostgreSQL (service `postgres:16-alpine` + `TEST_DATABASE_URL`) et matrice de recette Chromium/Firefox/WebKit ;
+  - `package.json` versionné `3.3.0-alpha.6`.
+- **Verrouillage automatique et contrôle des sessions** :
+  - nouveau paramètre serveur `lockAfterIdleMs` (défaut 300000 ms = 5 min ; 0 = jamais ; valideur `LOCK_AFTER_IDLE_INVALID` pour tout entier hors [30000, 86400000] hormis 0), exposé dans Paramètres > Démarrage (« Verrouillage automatique ») ;
+  - shell : timer d'inactivité réarmé sur `pointerdown`/`keydown`/`touchstart`/`wheel` (throttle 1 s) ; à l'expiration `lockSession()` rend l'écran de session verrouillé sans toucher à la session, aux fenêtres ni aux avatars ;
+  - « Reprendre la session » vérifie `GET /api/session` (`resumeSession`) avant de réafficher le bureau existant — plus de boot complet après un verrou ; session terminée côté serveur → écran de reconnexion ;
+  - distinction verrouiller/déconnecter : le verrou ne détruit rien, la déconnexion (`POST /api/auth/logout`) détruit la session et se propage aux autres onglets (`BroadcastChannel` « luma.session », événements `lock`/`logout`, sans rebroadcast en boucle) ;
+  - fermeture multi-appareils : `luma-api.js` attache `status`/`code` aux erreurs et dispatch `luma:session-expired` sur tout 401 → le shell rend l'écran de session (le boot s'interrompt sur 401 au lieu de réafficher un bureau fantôme) ;
+  - `window.LumaOS.lock()` exposé pour le verrouillage programmatique ;
+  - tests : validation unitaire `lockAfterIdleMs` (defaults, bornes, type) et nouvelle suite `tests/e2e/lock.e2e.test.js` (4 scénarios : verrou manuel + reprise avec fenêtre conservée, verrouillage automatique via horloge simulée `page.clock` avec propagation du verrou et de la déconnexion entre onglets, session serveur terminée après logout) ;
+  - validation : 166 tests verts (SQLite 138 + PostgreSQL 152), recette navigateur **14/14 sur Chromium, Firefox et WebKit** ;
+  - documentation ARCHITECTURE (règles de session) ; `package.json` versionné `3.3.0-alpha.7`.
 
 - **Paramètres > Stockage** : `GET /api/documents/stats` agrège l'usage par catégorie (images, vidéos, musique, documents, autres) et l'espace Corbeille ; la vue affiche le quota personnel, la répartition et la Corbeille.
 - **Paramètres > Réseau Luma** : `GET /api/system/network` mesure la latence des services configurés (Kyros, Sonora, BrainDump, Harmonix), expose l'état de la session (hôte, transport, âge, expiration des jetons) et le réseau de l'appareil (`navigator.connection` avec repli).

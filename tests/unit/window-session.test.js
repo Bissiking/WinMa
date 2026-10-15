@@ -1,22 +1,22 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs/promises');
-const os = require('node:os');
-const path = require('node:path');
 const { afterEach, test } = require('node:test');
+const { createSqliteTestDatabase } = require('../helpers/db');
 const { createSqliteSessionRepository } = require('../../src/server/repositories/sqlite-session-repository');
 const { createWindowSessionService, sanitizeWindows } = require('../../src/server/services/window-session-service');
 
-const temporaryDirectories = [];
+const testContexts = [];
 
 async function createService() {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'luma-window-session-test-'));
-    temporaryDirectories.push(directory);
-    const repository = createSqliteSessionRepository(path.join(directory, 'sessions.sqlite'));
+    const context = await createSqliteTestDatabase('luma-window-session-test-');
+    testContexts.push(context);
+    const repository = createSqliteSessionRepository(context.database);
     return createWindowSessionService(repository);
 }
 
 afterEach(async () => {
-    await Promise.all(temporaryDirectories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
+    for (const context of testContexts.splice(0)) {
+        await context.cleanup();
+    }
 });
 
 test('une session absente retourne une liste vide', async () => {

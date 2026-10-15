@@ -82,29 +82,75 @@ function snapshotFromClaims(claims) {
     };
 }
 
-function createAccountService(accountsDirectory) {
+function createAccountService(options) {
+    // Compatibilité : createAccountService(chemin) = persistance fichier seule.
+    const { repository, legacyDirectory } = typeof options === 'string'
+        ? { repository: null, legacyDirectory: options }
+        : (options || {});
+
     function getPath(subject) {
-        return path.join(accountsDirectory, `${storageKey(subject)}.json`);
+        return legacyDirectory ? path.join(legacyDirectory, `${storageKey(subject)}.json`) : null;
     }
 
-    async function read(subject) {
+    function parseStored(content, source) {
         try {
-            const content = await fs.readFile(getPath(subject), 'utf8');
             return { ...DEFAULT_ACCOUNT, ...validatePatch(JSON.parse(content)) };
         } catch (error) {
-            if (error.code === 'ENOENT') return { ...DEFAULT_ACCOUNT };
             if (error instanceof SyntaxError) {
                 throw new HttpError(500, 'ACCOUNT_CORRUPTED', 'Les préférences du compte sont illisibles.');
             }
+            if (error instanceof HttpError) throw error;
+            throw new HttpError(500, 'ACCOUNT_CORRUPTED', `Les préférences du compte sont illisibles (${source}).`);
+        }
+    }
+
+    async function readLegacy(subject) {
+        const destination = getPath(subject);
+        if (!destination) return null;
+        try {
+            const content = await fs.readFile(destination, 'utf8');
+            return parseStored(content, 'fichier');
+        } catch (error) {
+            if (error.code === 'ENOENT') return null;
             throw error;
         }
     }
 
+    async function read(subject) {
+        const key = storageKey(subject);
+
+        if (repository) {
+            const row = await repository.find(key);
+            if (row) return parseStored(row.data, 'base de données');
+        }
+
+        const legacy = await readLegacy(subject);
+        if (legacy) {
+            // Repli lecture : les préférences historiques restent visibles et
+            // sont reportées progressivement dans le repository (aucune suppression).
+            if (repository) {
+                await repository.upsert(key, legacy, new Date().toISOString());
+            }
+            return legacy;
+        }
+
+        return { ...DEFAULT_ACCOUNT };
+    }
+
     async function update(subject, patch) {
         const account = { ...(await read(subject)), ...validatePatch(patch) };
+
+        if (repository) {
+            await repository.upsert(storageKey(subject), account, new Date().toISOString());
+            return account;
+        }
+
         const destination = getPath(subject);
+        if (!destination) {
+            throw new HttpError(500, 'ACCOUNT_STORAGE_MISSING', 'Aucun stockage de préférences configuré.');
+        }
         const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
-        await fs.mkdir(accountsDirectory, { recursive: true, mode: 0o700 });
+        await fs.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
         await fs.writeFile(temporary, `${JSON.stringify(account, null, 2)}\n`, { mode: 0o600 });
         await fs.rename(temporary, destination);
         return account;

@@ -11,7 +11,7 @@ function createAccountController({ accountService, settingsService, documentServ
     async function viewModel(user) {
         const [preferences, storage, applications] = await Promise.all([
             accountService.read(user.id),
-            Promise.resolve(documentService.getQuota(user.id)),
+            documentService.getQuota(user.id),
             appRegistryService.list()
         ]);
         return {

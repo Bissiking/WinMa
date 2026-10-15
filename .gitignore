@@ -11,3 +11,4 @@ data/*.sqlite-*
 storage/documents/
 coverage/
 *.log
+.DS_Store

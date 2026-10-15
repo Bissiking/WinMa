@@ -1,20 +1,26 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs/promises');
-const os = require('node:os');
 const path = require('node:path');
 const { afterEach, test } = require('node:test');
+const { createSqliteTestDatabase } = require('../helpers/db');
+const { createSqlitePreferencesRepository } = require('../../src/server/repositories/sqlite-preferences-repository');
 const { createAccountService, DEFAULT_ACCOUNT } = require('../../src/server/services/account-service');
 
-const temporaryDirectories = [];
+const testContexts = [];
 
 async function createService() {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'luma-account-test-'));
-    temporaryDirectories.push(directory);
-    return createAccountService(directory);
+    const context = await createSqliteTestDatabase('luma-account-test-');
+    testContexts.push(context);
+    const repository = createSqlitePreferencesRepository(context.database, 'account_preferences');
+    return createAccountService({
+        repository,
+        legacyDirectory: path.join(context.directory, 'accounts')
+    });
 }
 
 afterEach(async () => {
-    await Promise.all(temporaryDirectories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
+    for (const context of testContexts.splice(0)) {
+        await context.cleanup();
+    }
 });
 
 test('un compte absent retourne des préférences Luma sûres', async () => {

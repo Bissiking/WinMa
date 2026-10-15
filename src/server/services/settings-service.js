@@ -19,7 +19,8 @@ const DEFAULT_SETTINGS = Object.freeze({
     startupOpenTrash: false,
     startupOpenRecents: false,
     startupRestoreFolder: false,
-    startupPresentation: false
+    startupPresentation: false,
+    lockAfterIdleMs: 300000
 });
 const ALLOWED_THEMES = new Set(['light', 'dark', 'luma', 'system']);
 const ALLOWED_DENSITIES = new Set(['comfortable', 'compact']);
@@ -114,38 +115,86 @@ function validatePatch(patch) {
         }
     }
 
+    if ('lockAfterIdleMs' in patch) {
+        const lockDelay = patch.lockAfterIdleMs;
+        if (!Number.isInteger(lockDelay) || (lockDelay !== 0 && (lockDelay < 30000 || lockDelay > 86400000))) {
+            throw new HttpError(400, 'LOCK_AFTER_IDLE_INVALID', 'Le délai de verrouillage doit être 0 (jamais) ou un entier entre 30000 et 86400000 ms.');
+        }
+    }
+
     return patch;
 }
 
-function createSettingsService(settingsDirectory) {
+function createSettingsService(options) {
+    // Compatibilité : createSettingsService(chemin) = persistance fichier seule.
+    const { repository, legacyDirectory } = typeof options === 'string'
+        ? { repository: null, legacyDirectory: options }
+        : (options || {});
+
     function getPath(subject) {
-        return path.join(settingsDirectory, `${storageKey(subject)}.json`);
+        return legacyDirectory ? path.join(legacyDirectory, `${storageKey(subject)}.json`) : null;
     }
 
-    async function read(subject) {
+    function parseStored(content, source) {
         try {
-            const content = await fs.readFile(getPath(subject), 'utf8');
             return { ...DEFAULT_SETTINGS, ...validatePatch(JSON.parse(content)) };
         } catch (error) {
-            if (error.code === 'ENOENT') {
-                return { ...DEFAULT_SETTINGS };
-            }
-
             if (error instanceof SyntaxError) {
                 throw new HttpError(500, 'SETTINGS_CORRUPTED', 'Les paramètres enregistrés sont illisibles.');
             }
+            if (error instanceof HttpError) throw error;
+            throw new HttpError(500, 'SETTINGS_CORRUPTED', `Les paramètres enregistrés sont illisibles (${source}).`);
+        }
+    }
 
+    async function readLegacy(subject) {
+        const destination = getPath(subject);
+        if (!destination) return null;
+        try {
+            const content = await fs.readFile(destination, 'utf8');
+            return parseStored(content, 'fichier');
+        } catch (error) {
+            if (error.code === 'ENOENT') return null;
             throw error;
         }
+    }
+
+    async function read(subject) {
+        const key = storageKey(subject);
+
+        if (repository) {
+            const row = await repository.find(key);
+            if (row) return parseStored(row.data, 'base de données');
+        }
+
+        const legacy = await readLegacy(subject);
+        if (legacy) {
+            // Repli lecture : les paramètres historiques restent visibles et
+            // sont reportés progressivement dans le repository (aucune suppression).
+            if (repository) {
+                await repository.upsert(key, legacy, new Date().toISOString());
+            }
+            return legacy;
+        }
+
+        return { ...DEFAULT_SETTINGS };
     }
 
     async function update(subject, patch) {
         const validatedPatch = validatePatch(patch);
         const settings = { ...(await read(subject)), ...validatedPatch };
-        const destination = getPath(subject);
-        const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
 
-        await fs.mkdir(settingsDirectory, { recursive: true, mode: 0o700 });
+        if (repository) {
+            await repository.upsert(storageKey(subject), settings, new Date().toISOString());
+            return settings;
+        }
+
+        const destination = getPath(subject);
+        if (!destination) {
+            throw new HttpError(500, 'SETTINGS_STORAGE_MISSING', 'Aucun stockage de paramètres configuré.');
+        }
+        const temporary = `${destination}.${crypto.randomUUID()}.tmp`;
+        await fs.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
         await fs.writeFile(temporary, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
         await fs.rename(temporary, destination);
         return settings;

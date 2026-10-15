@@ -7,10 +7,10 @@ function createDocumentsController(documentService) {
             return sendSuccess(res, await documentService.list(req.user.id, req.query));
         },
         async folders(req, res) {
-            return sendSuccess(res, documentService.listFolders(req.user.id));
+            return sendSuccess(res, await documentService.listFolders(req.user.id));
         },
         async stats(req, res) {
-            return sendSuccess(res, documentService.getStats(req.user.id));
+            return sendSuccess(res, await documentService.getStats(req.user.id));
         },
         async createFolder(req, res) {
             return sendSuccess(res, await documentService.createFolder(req.user.id, req.body), 'Dossier créé.', 201);

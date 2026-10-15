@@ -11,7 +11,7 @@ let baseUrl;
 let server;
 
 before(async () => {
-    const started = await startTestServer(createApp({ config, fetchImplementation: fake.fetchImplementation }));
+    const started = await startTestServer(await createApp({ config, fetchImplementation: fake.fetchImplementation }));
     baseUrl = started.baseUrl;
     server = started.server;
 });

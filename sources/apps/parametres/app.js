@@ -1,4 +1,4 @@
-import { requestJson, patchJson } from "/assets/javascripts/luma-api.js";
+import { requestJson, patchJson, postJson } from "/assets/javascripts/luma-api.js";
 import { avatarMarkup, hydrateAvatars } from "/assets/javascripts/luma-avatar.js";
 
 const themes = [
@@ -26,6 +26,7 @@ const views = [
     { id: "update", label: "Mise à jour", icon: "update", keywords: "mise à jour version build service worker installation installateur" },
     { id: "personalization", label: "Personnalisation", icon: "luma", keywords: "thème couleur fond densité mouvement" },
     { id: "storage", label: "Stockage", icon: "folder", keywords: "espace quota corbeille images vidéos musique documents" },
+    { id: "backup", label: "Sauvegarde", icon: "folder", keywords: "export import restauration réinitialisation sauvegarde données notes" },
     { id: "startup", label: "Démarrage", icon: "power", keywords: "réouverture applications session démarrage" },
     { id: "network", label: "Réseau Luma", icon: "luma-network", keywords: "local modules connexion synchronisation" },
     { id: "account", label: "Compte", icon: "user", keywords: "kyros profil quota langue fuseau synchronisation" }
@@ -35,6 +36,7 @@ const homeCards = [
     { id: "update", title: "Mise à jour", description: "Version installée, version disponible et périmètre", icon: "update" },
     { id: "personalization", title: "Personnalisation", description: "Thème, couleurs, arrière-plan et confort", icon: "luma" },
     { id: "storage", title: "Stockage", description: "Espace Documents, répartition et Corbeille", icon: "folder" },
+    { id: "backup", title: "Sauvegarde", description: "Exporter, restaurer et réinitialiser vos données", icon: "folder" },
     { id: "startup", title: "Démarrage", description: "Applications réouvertes au lancement", icon: "power" },
     { id: "network", title: "Réseau Luma", description: "Services, modules et synchronisation", icon: "luma-network" },
     { id: "account", title: "Compte", description: "Identité Kyros, quota et préférences", icon: "user" }
@@ -166,7 +168,7 @@ function formatCheckTime(value) {
 }
 
 function updateApplications(registry) {
-    return (registry || []).filter((app) => String(app.module || "").startsWith("/apps/"));
+    return (registry || []).filter((app) => app.type === "internal" || app.type === "system");
 }
 
 function renderUpdate(detail, systemInfo, registry) {
@@ -216,7 +218,7 @@ function renderUpdate(detail, systemInfo, registry) {
             <div class="connection-list">
                 ${applications.map((app) => `<div>
                     <span class="connection-icon">${icon(app.icon || "luma")}</span>
-                    <span><strong>${escapeHtml(app.name)}</strong><small>${escapeHtml(app.module)}</small></span>
+                    <span><strong>${escapeHtml(app.name)}</strong><small>${escapeHtml(app.entry || "")}</small></span>
                     <span class="connection-state">Réseau d’abord</span>
                 </div>`).join("") || `<p class="settings-inline-empty">Aucune application locale n’est déclarée.</p>`}
             </div>
@@ -482,6 +484,67 @@ function renderStartup(settings, registry) {
                 <label><span><strong>Restaurer le dernier dossier</strong><small>Documents rouvre le dossier dans lequel vous étiez.</small></span><input type="checkbox" data-setting="startupRestoreFolder" ${settings.startupRestoreFolder ? "checked" : ""}></label>
                 <label><span><strong>Mode présentation</strong><small>Les fenêtres de démarrage s’ouvrent maximisées.</small></span><input type="checkbox" data-setting="startupPresentation" ${settings.startupPresentation ? "checked" : ""}></label>
             </div>
+        </section>
+        <section class="settings-section" aria-labelledby="lock-heading">
+            <div class="settings-section__heading"><h2 id="lock-heading">Verrouillage automatique</h2><p>Le bureau se verrouille après une période d’inactivité. Vos fenêtres restent ouvertes : « Reprendre la session » les retrouve telles quelles.</p></div>
+            <div class="comfort-settings">
+                <div><span>Verrouiller après</span>
+                    <select data-lock-idle-select aria-label="Délai de verrouillage automatique">
+                        <option value="0" ${settings.lockAfterIdleMs === 0 ? "selected" : ""}>Jamais</option>
+                        <option value="60000" ${settings.lockAfterIdleMs === 60000 ? "selected" : ""}>1 minute</option>
+                        <option value="300000" ${settings.lockAfterIdleMs === 300000 ? "selected" : ""}>5 minutes</option>
+                        <option value="900000" ${settings.lockAfterIdleMs === 900000 ? "selected" : ""}>15 minutes</option>
+                        <option value="1800000" ${settings.lockAfterIdleMs === 1800000 ? "selected" : ""}>30 minutes</option>
+                        <option value="3600000" ${settings.lockAfterIdleMs === 3600000 ? "selected" : ""}>1 heure</option>
+                    </select>
+                </div>
+            </div>
+        </section>`;
+}
+
+function readBrowserBackup() {
+    const read = (key, fallback) => {
+        try { return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback; } catch { return fallback; }
+    };
+    return {
+        calendarEvents: read("luma.calendar.events", []),
+        taskbarPinned: read("luma.taskbar.pinned", []),
+        orbitInstalled: read("luma.orbit.installed", []),
+        harmonixEnabled: localStorage.getItem("luma.harmonix.enabled") === "true",
+        musicVolume: Number(read("luma.music.volume", 1))
+    };
+}
+
+function applyBrowserBackup(browser) {
+    if (!browser || typeof browser !== "object" || Array.isArray(browser)) return;
+    if (Array.isArray(browser.calendarEvents)) localStorage.setItem("luma.calendar.events", JSON.stringify(browser.calendarEvents));
+    if (Array.isArray(browser.taskbarPinned)) localStorage.setItem("luma.taskbar.pinned", JSON.stringify(browser.taskbarPinned));
+    if (Array.isArray(browser.orbitInstalled)) localStorage.setItem("luma.orbit.installed", JSON.stringify(browser.orbitInstalled));
+    if (typeof browser.harmonixEnabled === "boolean") localStorage.setItem("luma.harmonix.enabled", String(browser.harmonixEnabled));
+    if (Number.isFinite(browser.musicVolume)) localStorage.setItem("luma.music.volume", String(Math.min(1, Math.max(0, browser.musicVolume))));
+}
+
+function renderBackup() {
+    return `${heading("Sauvegarde", "Exportez vos données personnelles et restaurez-les sur cet appareil ou un autre.")}
+        <section class="settings-section" aria-labelledby="backup-export-heading">
+            <div class="settings-section__heading"><h2 id="backup-export-heading">Exporter</h2><p>Un fichier JSON unique rassemble vos paramètres, vos préférences de compte, la disposition du bureau, vos notes (documents texte) et vos données locales : événements du Calendrier, applications Orbit, épingles de la barre des tâches et volume. Les fichiers binaires (images, vidéos, musiques) restent sur le serveur et ne sont pas embarqués.</p></div>
+            <button type="button" class="settings-secondary-button" data-backup-export>Télécharger la sauvegarde</button>
+        </section>
+        <section class="settings-section" aria-labelledby="backup-import-heading">
+            <div class="settings-section__heading"><h2 id="backup-import-heading">Restaurer</h2><p>Importez un fichier de sauvegarde Luma OS. Les notes portant le même chemin sont remplacées, les autres sont recréées avec leurs dossiers — aucun fichier existant n’est supprimé. Le bureau se rechargerait après une restauration réussie.</p></div>
+            <label class="settings-secondary-button settings-backup-file">Choisir un fichier<input type="file" accept="application/json,.json" data-backup-file hidden></label>
+        </section>
+        <section class="settings-section" aria-labelledby="backup-reset-heading">
+            <div class="settings-section__heading"><h2 id="backup-reset-heading">Réinitialiser</h2><p>Remet à zéro uniquement les catégories cochées. Les fichiers non textuels ne sont jamais supprimés par cette action.</p></div>
+            <div class="sync-preferences">
+                <label><span><strong>Paramètres</strong><small>Thème, fond, démarrage, verrouillage…</small></span><input type="checkbox" data-reset-target="settings"></label>
+                <label><span><strong>Préférences du compte</strong><small>Nom préféré, langue, fuseau et synchronisation.</small></span><input type="checkbox" data-reset-target="account"></label>
+                <label><span><strong>Disposition du bureau</strong><small>Applications ouvertes et fenêtres restaurées.</small></span><input type="checkbox" data-reset-target="windows"></label>
+                <label><span><strong>Notes</strong><small>Supprime définitivement tous les documents texte.</small></span><input type="checkbox" data-reset-target="notes"></label>
+            </div>
+            <span class="startup-profiles__actions">
+                <button type="button" class="settings-secondary-button" data-backup-reset disabled>Réinitialiser la sélection</button>
+            </span>
         </section>`;
 }
 
@@ -573,6 +636,8 @@ export async function mount(root, { toast, registry, options }) {
                 watchUpdateView();
             } else if (view === "storage") {
                 viewRoot.innerHTML = renderStorage(await getDocumentStats());
+            } else if (view === "backup") {
+                viewRoot.innerHTML = renderBackup();
             } else if (view === "network") {
                 const data = await Promise.all([getNetwork(), getSession(), getAccount(), getApplications()]);
                 viewRoot.innerHTML = renderNetwork(...data);
@@ -648,6 +713,79 @@ export async function mount(root, { toast, registry, options }) {
         if (currentView === "startup") await showView("startup");
     }
 
+    let resetConfirmTimer = null;
+
+    async function exportBackupFile(control) {
+        control.disabled = true;
+        try {
+            const payload = await requestJson("/api/users/me/backup");
+            const file = { ...payload, browser: readBrowserBackup() };
+            const stamp = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([`${JSON.stringify(file, null, 2)}\n`], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `luma-sauvegarde-${stamp}.json`;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            toast("Sauvegarde téléchargée.");
+        } catch (error) {
+            toast(error.message);
+        } finally { control.disabled = false; }
+    }
+
+    async function importBackupFile(file, control) {
+        control.disabled = true;
+        try {
+            const parsed = JSON.parse(await file.text());
+            if (parsed?.format !== "luma-backup") {
+                toast("Ce fichier n’est pas une sauvegarde Luma OS.");
+                return;
+            }
+            const result = await postJson("/api/users/me/backup", parsed);
+            applyBrowserBackup(parsed.browser);
+            const parts = [
+                result.settings ? "paramètres" : null,
+                result.account ? "compte" : null,
+                result.windows ? "disposition" : null,
+                result.notes ? `${result.notes.created + result.notes.updated} note(s)` : null
+            ].filter(Boolean);
+            toast(`Restauration terminée : ${parts.join(", ") || "aucune donnée"}. Le bureau va se recharger.`);
+            window.setTimeout(() => window.location.reload(), 1200);
+        } catch (error) {
+            toast(error instanceof SyntaxError ? "Ce fichier n’est pas un JSON valide." : error.message);
+            control.disabled = false;
+        }
+    }
+
+    async function resetBackupTargets(control) {
+        const targets = [...viewRoot.querySelectorAll("[data-reset-target]:checked")].map((input) => input.dataset.resetTarget);
+        if (!targets.length) { toast("Cochez au moins une catégorie à réinitialiser."); return; }
+        if (control.dataset.confirm !== "true") {
+            control.dataset.confirm = "true";
+            control.textContent = "Confirmer la réinitialisation";
+            window.clearTimeout(resetConfirmTimer);
+            resetConfirmTimer = window.setTimeout(() => {
+                control.dataset.confirm = "false";
+                control.textContent = "Réinitialiser la sélection";
+            }, 6000);
+            return;
+        }
+        window.clearTimeout(resetConfirmTimer);
+        control.disabled = true;
+        try {
+            await postJson("/api/users/me/backup/reset", { targets });
+            settings = await requestJson("/api/users/me/settings");
+            window.dispatchEvent(new CustomEvent("luma:settings", { detail: settings }));
+            toast("Données réinitialisées.");
+            await showView("backup");
+        } catch (error) {
+            toast(error.message);
+        }
+    }
+
     async function promptProfileName(title, initial = "") {
         return window.prompt(title, initial);
     }
@@ -685,7 +823,7 @@ export async function mount(root, { toast, registry, options }) {
         }
     }
 
-    const click = (event) => {
+    const click = async (event) => {
         const navigation = event.target.closest("[data-settings-view]");
         const theme = event.target.closest("[data-theme-value]");
         const accent = event.target.closest("[data-accent-value]");
@@ -726,9 +864,15 @@ export async function mount(root, { toast, registry, options }) {
         else if (theme) saveSetting({ theme: theme.dataset.themeValue }, theme);
         else if (accent) saveSetting({ accentColor: accent.dataset.accentValue }, accent);
         else if (wallpaper) saveSetting({ wallpaper: wallpaper.dataset.wallpaperValue }, wallpaper);
+        else if (event.target.closest("[data-backup-export]")) {
+            await exportBackupFile(event.target.closest("[data-backup-export]"));
+        }
+        else if (event.target.closest("[data-backup-reset]")) {
+            await resetBackupTargets(event.target.closest("[data-backup-reset]"));
+        }
         else if (preference && preference.dataset.value) saveSetting({ [preference.dataset.setting]: preference.dataset.value }, preference);
     };
-    const change = (event) => {
+    const change = async (event) => {
         const target = event.target;
         if (target.matches("[data-startup-toggle]")) {
             const id = target.dataset.startupToggle;
@@ -741,8 +885,18 @@ export async function mount(root, { toast, registry, options }) {
             saveStartup({ startupDelayMs: value }, target);
         } else if (target.matches("[data-profile-select]")) {
             saveStartup({ startupActiveProfile: target.value || null }, target);
+        } else if (target.matches("[data-lock-idle-select]")) {
+            saveSetting({ lockAfterIdleMs: Number(target.value) }, target);
         } else if (target.matches('input[type="checkbox"][data-setting]')) {
             saveSetting({ [target.dataset.setting]: target.checked }, target);
+        } else if (target.matches("[data-reset-target]")) {
+            const button = viewRoot.querySelector("[data-backup-reset]");
+            if (button && button.dataset.confirm !== "true") {
+                button.disabled = !viewRoot.querySelector("[data-reset-target]:checked");
+            }
+        } else if (target.matches("[data-backup-file]")) {
+            const file = target.files?.[0];
+            if (file) await importBackupFile(file, target);
         }
     };
     const submit = (event) => {

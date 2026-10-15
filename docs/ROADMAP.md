@@ -178,15 +178,15 @@ La prochaine tranche doit rester limitée aux fondations et au SSO. Elle ne dép
 | `package-lock.json` | Verrou correspondant, sans mise à jour opportuniste hors périmètre |
 | `.gitignore` | Ignorer `.env`, magasins de session et données runtime |
 | `index.html` | Plus tard dans la même phase : point d'entrée de session sans formulaire de mot de passe |
-| `sources/apps/session-select/index.html` | Remplacer le formulaire par l'action SSO |
-| `sources/apps/session-select/app.js` | Supprimer l'appel direct et rediriger vers `/auth/login` |
-| `sources/assets/javascripts/all.js` | Remplacer `localStorage.UserData` par `GET /api/session` |
+| `sources/apps/session-select/index.html` | ~~Remplacer le formulaire par l'action SSO~~ — supprimé : l'écran de session est rendu par `luma-shell.js` |
+| `sources/apps/session-select/app.js` | ~~Supprimer l'appel direct et rediriger vers `/auth/login`~~ — supprimé |
+| `sources/assets/javascripts/all.js` | ~~Remplacer `localStorage.UserData` par `GET /api/session`~~ — supprimé |
 
 ### À conserver inchangés pendant cette tranche
 
-- `sources/assets/javascripts/window/*` ;
-- `sources/apps/parametres/*` ;
+- ~~`sources/assets/javascripts/window/*`~~ — supprimé (nettoyage du 14 octobre 2026) ;
+- `sources/apps/parametres/*` (le fragment `index.html` hérité a été supprimé, `app.js` et `style.css` restent) ;
 - tous les fonds d'écran et icônes ;
-- les fragments Navigateur et Jellyfin.
+- les fragments Navigateur et Jellyfin (déjà retirés).
 
 Leur migration appartient aux phases suivantes et sera couverte par des tests dédiés.

@@ -4,19 +4,20 @@ const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
 const { createSecurityMiddleware } = require('./config/security');
-const { createSqliteSessionStore } = require('./stores/sqlite-session-store');
+const { createDatabase, runMigrations } = require('./db');
+const { createRepositories } = require('./repositories');
+const { createSessionStore } = require('./stores/session-store');
 const { createKyrosService } = require('./services/kyros-service');
 const { createSessionService } = require('./services/session-service');
 const { createAppRegistryService } = require('./services/app-registry-service');
 const { createSettingsService } = require('./services/settings-service');
 const { createAccountService } = require('./services/account-service');
-const { createSqliteDocumentRepository } = require('./repositories/sqlite-document-repository');
-const { createSqliteSessionRepository } = require('./repositories/sqlite-session-repository');
 const { createDocumentService } = require('./services/document-service');
 const { createWindowSessionService } = require('./services/window-session-service');
 const { createHarmonixService } = require('./services/harmonix-service');
 const { createSonoraStudioService } = require('./services/sonora-studio-service');
 const { createBrainDumpService } = require('./services/braindump-service');
+const { createBackupService } = require('./services/backup-service');
 const { createBuildVersionService, renderServiceWorker } = require('./services/build-version-service');
 const { createNetworkService } = require('./services/network-service');
 const { createAuthController } = require('./controllers/auth-controller');
@@ -29,6 +30,7 @@ const { createDocumentsController } = require('./controllers/documents-controlle
 const { createHarmonixController } = require('./controllers/harmonix-controller');
 const { createSonoraStudioController } = require('./controllers/sonora-studio-controller');
 const { createBrainDumpController } = require('./controllers/braindump-controller');
+const { createBackupController } = require('./controllers/backup-controller');
 const { createAuthRoutes } = require('./routes/auth-routes');
 const { createSessionRoutes } = require('./routes/session-routes');
 const { createWindowSessionRoutes } = require('./routes/window-session-routes');
@@ -39,14 +41,16 @@ const { createDocumentsRoutes } = require('./routes/documents-routes');
 const { createHarmonixRoutes } = require('./routes/harmonix-routes');
 const { createSonoraStudioRoutes } = require('./routes/sonora-studio-routes');
 const { createBrainDumpRoutes } = require('./routes/braindump-routes');
+const { createBackupRoutes } = require('./routes/backup-routes');
 const { createApiRoutes } = require('./routes/api');
 const { createRequireSameOrigin } = require('./middlewares/require-same-origin');
 const { createRequireSession } = require('./middlewares/require-session');
 const { requestContext } = require('./middlewares/request-context');
 const { notFound } = require('./middlewares/not-found');
 const { errorHandler } = require('./middlewares/error-handler');
+const logger = require('./utils/logger');
 
-function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
+async function createApp({ config, fetchImplementation = globalThis.fetch, database = null, appRegistryPath = null } = {}) {
     if (!config) {
         throw new Error('La configuration serveur est requise.');
     }
@@ -55,19 +59,48 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const projectRoot = path.resolve(__dirname, '../..');
     const legacyPublicRoot = path.join(projectRoot, 'sources');
     const buildVersionService = createBuildVersionService({ projectRoot });
-    const sqlitePath = path.join(projectRoot, 'data/luma.sqlite');
-    const sessionStore = createSqliteSessionStore(sqlitePath);
-    sessionStore.prune();
-    const appRegistryService = createAppRegistryService(path.join(projectRoot, 'data/apps.json'));
-    const settingsService = createSettingsService(path.join(projectRoot, 'data/settings'));
-    const accountService = createAccountService(path.join(projectRoot, 'data/accounts'));
-    const documentRepository = createSqliteDocumentRepository(sqlitePath);
-    const windowSessionRepository = createSqliteSessionRepository(sqlitePath);
+
+    // Base de données : SQLite (développement) ou PostgreSQL (production),
+    // issues de DB_PROVIDER. Aucun repli silencieux en cas d'indisponibilité.
+    const activeDatabase = database || await createDatabase(config.database);
+    const migrationsDir = config.database?.migrationsDir;
+    if (migrationsDir) {
+        const migrationResult = await runMigrations(activeDatabase, { migrationsDir });
+        if (migrationResult.applied.length) {
+            logger.info('database_migrations_applied', {
+                provider: migrationResult.provider,
+                applied: migrationResult.applied
+            });
+        }
+    }
+    const repositories = createRepositories(activeDatabase);
+    const sessionStore = createSessionStore(repositories.sessionStore);
+    await sessionStore.prune();
+
+    const isSqlite = activeDatabase.provider === 'sqlite';
+    const appRegistryService = createAppRegistryService(
+        appRegistryPath || path.join(projectRoot, 'data/apps.json')
+    );
+    const settingsService = createSettingsService({
+        repository: repositories.settings,
+        legacyDirectory: isSqlite ? path.join(projectRoot, 'data/settings') : null
+    });
+    const accountService = createAccountService({
+        repository: repositories.account,
+        legacyDirectory: isSqlite ? path.join(projectRoot, 'data/accounts') : null
+    });
     const documentService = createDocumentService({
-        repository: documentRepository,
+        repository: repositories.documents,
         storageRoot: path.join(projectRoot, 'storage/documents')
     });
-    const windowSessionService = createWindowSessionService(windowSessionRepository);
+    const windowSessionService = createWindowSessionService(repositories.windowSessions);
+    const backupService = createBackupService({
+        settingsService,
+        accountService,
+        windowSessionService,
+        documentService,
+        version: config.version
+    });
     const harmonixService = createHarmonixService(config.harmonix, fetchImplementation);
     const sonoraStudioService = createSonoraStudioService(config.sonoraStudio || {
         baseUrl: 'http://localhost:6002', timeoutMs: 15000
@@ -99,6 +132,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     const harmonixController = createHarmonixController(harmonixService);
     const sonoraStudioController = createSonoraStudioController(sonoraStudioService);
     const brainDumpController = createBrainDumpController(brainDumpService);
+    const backupController = createBackupController(backupService);
     const requireSameOrigin = createRequireSameOrigin(config.appBaseUrl);
     const requireSession = createRequireSession(sessionService);
 
@@ -108,7 +142,10 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     }
 
     app.use(requestContext);
-    app.use(createSecurityMiddleware(config));
+    // CSP durcie : frame-src alimenté automatiquement par les origines déclarées
+    // dans le registre (apps type iframe). Aucun script inline ni CDN externe.
+    const allowedFrameOrigins = await appRegistryService.listAllowedFrameOrigins();
+    app.use(createSecurityMiddleware(config, { allowedFrameOrigins }));
     app.use(express.json({ limit: '1mb', strict: true }));
     app.use(session({
         name: 'luma.sid',
@@ -131,6 +168,7 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     app.use(createAppsRoutes(appsController, requireSession));
     app.use(createSettingsRoutes(settingsController, requireSession, requireSameOrigin));
     app.use(createAccountRoutes(accountController, requireSession, requireSameOrigin));
+    app.use(createBackupRoutes(backupController, requireSession, requireSameOrigin));
     app.use(createDocumentsRoutes(documentsController, requireSession, requireSameOrigin));
     app.use(createHarmonixRoutes(harmonixController));
     app.use(createSonoraStudioRoutes(sonoraStudioController, requireSession, requireSameOrigin));
@@ -156,6 +194,9 @@ function createApp({ config, fetchImplementation = globalThis.fetch } = {}) {
     app.get('/', (req, res) => res.sendFile(path.join(projectRoot, 'index.html')));
     app.use(notFound);
     app.use(errorHandler);
+
+    app.locals.database = activeDatabase;
+    app.locals.repositories = repositories;
 
     return app;
 }

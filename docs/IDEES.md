@@ -1,197 +1,114 @@
-# Idées — Luma OS
+# LUMA OS Web — Idées de fonctionnalités priorisées
 
-Fichier vivant : suggestions d'applications, réglages et fonctionnalités pour Luma OS, avec une description courte et le niveau d'effort. Les idées cochées `[x]` sont faites ou engagées. Base : audit du code (apps, paramètres, shell, backend).
+> Backlog R&D vivant · Révision : 15 octobre 2026  
+> **Ordre : du plus utile au moins utile** pour transformer WinMa en bureau web hybride (productivité + administration + applications LUMA).  
+> Les estimations d'effort sont indicatives. Les numéros ci-dessous sont **nouveaux** ; les références `ancien #` renvoient à la liste d'origine.
 
----
+## P0 — Fondations et fiabilité (à traiter avant les nouveautés)
 
-## Applications à créer
+- [ ] **01. Sauvegarde, export et restauration des données personnelles** · *Moyen* · **Fusion anciens #22 et #23**  
+  Exporter paramètres, événements, notes et disposition du bureau ; import contrôlé, réinitialisation ciblée et documentation de restauration. Les sauvegardes serveur PostgreSQL sont un sujet distinct (infra, cf. `docs/DATABASE.md`).
 
-### 1. Visionneuse de PDF
-- **Description** : ouvre les fichiers PDF de Documents (aperçu, zoom, saut de page, impression). Complète le Bloc-notes et la visionneuse d'images pour couvrir tous les formats.
-- **Effort** : moyen (afficheur inline maison ou intégration d'une lib d'aperçu ; l'API `/api/documents/:id/download` existe déjà).
-- **Bonus** : annotations simples, récents.
+## P1 — Fonctionnalités qui rendent LUMA OS utile au quotidien
 
-### 2. Galerie de photos (Photos Luma)
-- **Description** : vraie galerie plein écran : grille chronologique, vue album, diaporama, métadonnées EXIF, favoris. L'app `image-viewer` actuelle est alpha et limitée à une image.
-- **Effort** : moyen.
-- **Bonus** : rotation, recadrage, glisser-déposer pour réorganiser.
+- [ ] **02. Espaces de travail persistants et nommés** · *Moyen à élevé* · **Nouveau**  
+  Bureaux « Personnel », « Développement », « Administration » ; sauvegarde de la disposition, fenêtres, applications et espace actif par utilisateur. Reprise sur un autre appareil avec adaptation à sa résolution.
+- [ ] **03. Recherche globale unifiée** · *Moyen à élevé* · **Ancien #28**  
+  Rechercher applications, fichiers Documents, notes, événements et paramètres depuis une interface commune. Résultats filtrés par droits d'accès.
+- [ ] **04. Centre de notifications et contrôle rapide** · *Moyen à élevé* · **Fusion anciens #18, #26 et #31**  
+  Historique, notifications par application, actions, ne pas déranger, durée/sons des alertes et panneau de réglages rapides. Distinguer notification persistante et toast éphémère.
+- [ ] **05. Aperçus Documents : PDF, Markdown et HTML** · *Moyen* · **Fusion anciens #1 et #13**  
+  Lire les PDF (zoom, pages, impression), prévisualiser Markdown et HTML sans téléchargement. Isoler/sanitiser le HTML non fiable ; réutiliser le rendu Markdown existant.
+- [ ] **06. Associations de fichiers et « Ouvrir avec »** · *Moyen* · **Nouveau**  
+  Définir les applications compatibles par type MIME/extension : image → visionneuse, `.md` → Notes, `.pdf` → PDF, musique → lecteur. S'appuyer sur le registre d'applications.
+- [ ] **07. Glisser-déposer et ouverture entre applications internes** · *Moyen* · **Ancien #36, cadré**  
+  Documents → Notes / Images / Lecteur / Paramètres. Réutiliser les capacités déjà présentes sans modifier les backends d'applications externes.
+- [ ] **08. Barre de commandes (« palette d'actions »)** · *Moyen* · **Ancien #38, clarifié**  
+  `Ctrl/Cmd+Shift+P` pour ouvrir une application, naviguer, changer de thème ou déclencher une action confirmée. Pas de commande vocale dans la première version.
+- [ ] **09. Agenda enrichi avec données serveur** · *Moyen à élevé* · **Ancien #6**  
+  Événements persistants multi-appareils, vues semaine/liste, rappels et récurrence. Conserver et migrer prudemment les événements actuels du navigateur.
+- [ ] **10. Notes LUMA enrichies** · *Moyen* · **Ancien #7**  
+  Recherche, dossiers, épingles, tâches à cocher et conservation côté serveur. Éviter le chevauchement fonctionnel avec BrainDump.
+- [ ] **11. Permissions par application** · *Élevé* · **Nouveau**  
+  Autoriser/révoquer l'accès aux fichiers, notifications et informations de profil. Permissions côté backend pour toute action sensible, en complément de Kyros. Compléter l'état « autorisée » du registre.
+- [ ] **12. Communication interapplications générique** · *Élevé* · **Nouveau, infrastructure uniquement**  
+  Définir un contrat « ouvrir / envoyer / recevoir » avec détection des capacités, consentement et contrôle de permissions. Aucune intégration Narra dans ce lot.
+- [ ] **13. Accessibilité renforcée** · *Moyen, continu* · **Ancien #24**  
+  Navigation clavier, contraste élevé, réduction des mouvements, tailles de police/curseur et prise en charge des technologies d'assistance. Critère transversal pour chaque livraison.
 
-### 3. Lecteur audio autonome (Bibliothèque musicale)
-- **Description** : le `music-player` actuel ne lit qu'un fichier ouvert depuis Documents. Une bibliothèque musicale permettrait : liste des morceaux, albums, playlists locales, recherche, queue, égaliseur basique.
-- **Effort** : moyen-élevé.
-- **Bonus** : fond d'écran album en cours de lecture, mini-lecteur en barre des tâches (à la Harmonix).
+## P2 — Bureau avancé et intégrations LUMA
 
-### 5. App Météo
-- **Description** : météo locale avec fond d'écran dynamique (ciel nuageux → paysage sombre). Nécessite une source de données — compatible avec l'isolation « aucune connexion externe » si elle passe par un proxy serveur.
-- **Effort** : moyen.
-- **Bonus** : widget sur le bureau, icône de la barre des tâches selon la météo.
+- [ ] **14. Terminal SSH distant sécurisé** · *Élevé* · **Nouveau**  
+  Ajouter des connexions SSH via backend contrôlé sans transformer le terminal simulé en shell serveur ouvert ; hôtes autorisés, permissions, audit et fermeture automatique des sessions.
+- [ ] **15. Emplacements Documents distants** · *Élevé* · **Nouveau**  
+  Connecteurs SFTP, WebDAV ou stockage objet selon les besoins. Interface unique pour les fichiers locaux/distants, secrets exclusivement côté serveur.
+- [ ] **16. Console de supervision LUMA / Argos** · *Élevé* · **Nouveau**  
+  Vue consolidée des machines, services et alertes. Commencer en lecture seule ; confirmer explicitement toute action d'administration.
+- [ ] **17. LUMA Orbit : installation et gestion réelles des apps** · *Élevé* · **Nouveau, prolongement du registre d'applications**  
+  Applications disponibles/activées/installées, permissions, désactivation et informations de compatibilité — synchroniser le catalogue Orbit avec `data/apps.json` au lieu du catalogue codé en dur. Distinguer intégrations externes et applications natives.
+- [ ] **18. Historique d'activités et diagnostics** · *Moyen* · **Nouveau**  
+  Événements utiles : échecs d'intégration, connexions d'applications, synchronisations et erreurs système, avec politique de rétention et confidentialité.
+- [ ] **19. Raccourcis clavier personnalisables** · *Moyen* · **Ancien #37**  
+  Centraliser les raccourcis existants, gérer les conflits et permettre leur modification.
+- [ ] **20. Barre des tâches personnalisable** · *Moyen* · **Ancien #17**  
+  Position, taille, masquage, centrage, regroupement et comportement des fenêtres. Unifier l'épinglage (`luma.taskbar.pinned`) avec le champ `pinned` du registre.
+- [ ] **21. Personnalisation visuelle avancée** · *Moyen* · **Ancien #16, partiel**  
+  Fond de verrouillage indépendant, opacité des fenêtres, arrondi, taille de texte, contraste élevé et ajout de `luma-aurora.webp` à la galerie si encore absent.
+- [ ] **22. Interface multilingue et régionale** · *Élevé* · **Ancien #19**  
+  Internationaliser shell et applications, exploiter la langue et le fuseau déjà stockés côté serveur.
+- [ ] **23. Mode hors ligne contrôlé (PWA)** · *Moyen à élevé* · **Ancien #35, enrichi**  
+  Définir explicitement les fonctions disponibles sans réseau, cache chiffrable si nécessaire, synchronisation et gestion des conflits ; ne pas contourner Kyros.
+- [ ] **24. Synchronisation multi-onglets** · *Élevé* · **Ancien #25, priorité réduite**  
+  Synchroniser les changements pertinents de session/bureau entre onglets, sans nécessairement dupliquer en temps réel toutes les fenêtres. Le verrouillage et la déconnexion sont déjà propagés (`BroadcastChannel` « luma.session »).
+- [ ] **25. Presse-papiers interapplications** · *Moyen* · **Ancien #27, recadré**  
+  Historique interne LUMA et transfert de contenus entre apps ; accès au presse-papiers système seulement sur geste explicite et selon permissions navigateur.
+- [ ] **26. Widgets du bureau** · *Moyen* · **Ancien #29**  
+  Horloge, prochain événement, note épinglée et indicateur de service ; placement libre et rafraîchissement mesuré.
+- [ ] **27. Photo de profil personnalisée** · *Faible à moyen* · **Ancien #21**  
+  Avatar local ou hébergé par LUMA, sans écraser les données d'identité Kyros.
+- [ ] **28. Contacts / Annuaire LUMA** · *Faible à moyen* · **Ancien #15**  
+  Carnet simple, idéalement synchronisé côté serveur, avec futur partage maîtrisé aux apps autorisées.
+- [ ] **29. Photos LUMA : galerie** · *Moyen* · **Ancien #2**  
+  Albums, diaporama, EXIF, favoris et outils légers au-delà de la visionneuse actuelle.
+- [ ] **30. Audio/vidéo : volume indépendant** · *Faible à moyen* · **Ancien #47**  
+  Séparer les préférences `music-player` et `video-player` sans régression des valeurs existantes.
 
-### 6. Agenda/Planificateur enrichi
-- **Description** : le Calendrier gère déjà des événements en `localStorage`. Le passer multi-vues (semaine, liste), rappels, récurrence, et synchroniser les événements côté serveur (`data/accounts`/SQLite) pour survivre à un changement d'appareil.
-- **Effort** : moyen-élevé.
+## P3 — Options agréables, mais non structurantes
 
-### 7. Bloc-notes enrichi (Notes LUMA)
-- **Description** : le Bloc-notes est un éditeur Markdown avec aperçu. Ajouter : listes à puces cliquables, case à cocher, recherche dans les notes, dossiers de notes, épinglage.
-- **Effort** : moyen.
+- [ ] **31. Météo et fond dynamique** · *Moyen* · **Ancien #5**  
+  Widget météo et ambiance visuelle ; données externes transitant par un service autorisé.
+- [ ] **32. Actualités / RSS** · *Moyen* · **Ancien #11**  
+  Agrégateur RSS, favoris et « à lire plus tard » ; aucun impact sur le socle du bureau.
+- [ ] **33. Dictionnaire / traduction** · *Faible à moyen* · **Ancien #12**  
+  Petit utilitaire indépendant ou intégration à un service existant.
+- [ ] **34. Thèmes complets et packs d'icônes** · *Moyen* · **Ancien #34**  
+  Variations du shell, packs d'icônes et réglages avancés de surfaces.
+- [ ] **35. Bibliothèque musicale autonome** · *Moyen à élevé* · **Ancien #3, à réévaluer**  
+  À envisager seulement si elle apporte quelque chose que l'intégration Harmonix ne couvre pas ; éviter le doublon.
+- [ ] **36. Expérimentation multi-écrans** · *Élevé* · **Ancien #30**  
+  Recherche autour des API d'écrans navigateur et des fenêtres détachées ; compatibilité variable selon navigateur.
+- [ ] **37. Easter eggs LUMA** · *Faible* · **Ancien #49**  
+  Commandes cachées du Terminal, fonds secrets et surprises discrètes. Jamais bloquant pour la roadmap.
 
-### 11. App de flux RSS / Actualités LUMA
-- **Description** : agrégateur de flux via proxy serveur (pour respecter l'isolation réseau). Fils par défaut configurables dans Paramètres.
-- **Effort** : moyen.
-- **Bonus** : fil « à lire plus tard ».
+## P4 — En attente de dépendances externes (ne pas lancer maintenant)
 
-### 12. Traducteur / Dictionnaire
-- **Description** : petit utilitaire hors-ligne (languettes de mots courants) ou via proxy serveur. Bon candidat pour tester un pipeline de petites apps utilitaires.
-- **Effort** : faible-moyen.
-
-### 13. Visualiseur Markdown / HTML dans Documents
-- **Description** : avant de télécharger, prévisualiser un `.md` ou `.html` directement dans Documents (le rendu Markdown du Bloc-notes est réutilisable).
-- **Effort** : faible.
-
-### 15. App Contact / Annuaire LUMA
-- **Description** : carnets de contacts locaux (nom, email, liens), épinglables au bureau. Données en `localStorage` ou SQLite.
-- **Effort** : faible-moyen.
-
----
-
-## Paramètres à ajouter
-
-### 16. Thème avancé
-- **Description** : choisir le fond de verrouillage séparément du bureau ; régler l'opacité des fenêtres, l'arrondi des coins, la taille du texte ; mode « contraste élevé ».
-- **Effort** : moyen.
-- **Note** : l'UI propose déjà 13 fonds + 4 4K ; `luma-aurora.webp` est autorisé par le serveur mais absent de l'UI — à ajouter.
-- **Statut** : 🚧 **Partiel** — le lock screen utilise désormais `luma-aurora.webp` plein écran (heure en haut, dernier user + logo LUMA au centre, réseau/batterie non cliquables en bas à droite). Reste à faire : fond de verrouillage choisi indépendamment du bureau, opacité/arrondi/taille de texte, contraste élevé, et ajout de `luma-aurora.webp` à la galerie Paramètres.
-
-### 17. Barre des tâches : position et comportement
-- **Description** : barre en bas/en haut, taille (petite/standard), masquage automatique, centrage des icônes, regroupement des fenêtres d'une même app.
-- **Effort** : moyen.
-
-### 18. Notifications
-- **Description** : activer/désactiver par app, durée des toasts, son de notification, mode « ne pas déranger ».
-- **Effort** : moyen.
-- **Prérequis** : un vrai système de notifications (actuellement toasts temporaires).
-
-### 19. Langue et région
-- **Description** : le compte gère déjà `language`/`timeZone` côté serveur, mais l'interface n'est pas encore traduite. Appliquer `language` aux textes de l'UI.
-- **Effort** : élevé (i18n de toutes les apps).
-- **Note** : infrastructure serveur déjà prête.
-
-### 21. Compte : avatar et photo de profil
-- **Description** : permettre de choisir une image locale pour l'avatar (actuellement initiale du nom ou avatar Kyros proxifié). Stockage local ou serveur.
-- **Effort** : faible-moyen.
-
-### 22. Confidentialité
-- **Description** : effacer l'historique (localStorage, session), exporter/importer ses paramètres, « réinitialiser le bureau ».
-- **Effort** : faible-moyen.
-- **Bonus** : mode invité sans persistance.
-
-### 23. Sauvegarde
-- **Description** : sauvegarder les paramètres et événements calendrier (export JSON), restauration sur un autre appareil.
-- **Effort** : moyen.
-
-### 24. Accessibilité
-- **Description** : réduction de mouvement (déjà là), taille du curseur, son d'UI, raccourcis clavier personnalisables.
-- **Effort** : moyen.
-
----
-
-## Fonctionnalités transverses du shell
-
-### 25. Sync multi-onglets des fenêtres
-- **Description** : deux onglets du même bureau se partageraient les fenêtres ouvertes (via `BroadcastChannel`, comme Harmonix le fait déjà). Aujourd'hui chaque onglet a son propre gestionnaire.
-- **Effort** : élevé.
-
-### 26. Notifications système Luma
-- **Description** : remplacer les toasts éphémères par un centre de notifications (icône barre des tâches, historique, actions), alimenté par les apps.
-- **Effort** : moyen-élevé.
-
-### 27. Presse-papiers partagé
-- **Description** : historique du presse-papiers (texte, images), épinglable, réutilisable entre apps. Clavier `Ctrl/Cmd+Maj+V`.
-- **Effort** : moyen.
-
-### 28. Recherche globale (menu Démarrer)
-- **Description** : la recherche actuelle filtre par nom d'app. L'étendre : fichiers Documents, notes, événements, paramètres, calculs rapides.
-- **Effort** : moyen-élevé.
-
-### 29. Widgets du bureau
-- **Description** : horloge, météo, prochain événement, notes épinglées, stats — positionnables librement sur le fond d'écran.
-- **Effort** : moyen.
-- **Bonus** : thème du widget assorti à l'accent.
-
-### 30. Multi-écrans
-- **Description** : détecter les écrans (Screen Enumeration API) et permettre de déplacer une fenêtre sur un autre moniteur, fond d'écran par écran.
-- **Effort** : élevé.
-
-### 31. Zones de notification / volets
-- **Description** : panneau latéral central (calendrier, notifications, réglages rapides : Wi-Fi virtuel, thème, volume) à la manière d'un centre de contrôle.
-- **Effort** : moyen.
-
-### 32. Gestion d'énergie virtuelle
-- **Description** : écran de veille/verrouillage automatique après inactivité, action à la fermeture de la session (verrouiller vs déconnecter).
-- **Effort** : faible-moyen.
-
-### 34. Jeux d'icônes et thèmes visuels
-- **Description** : packs d'icônes téléchargeables et thème du shell (teinte des surfaces, niveau de blur) en complément des accents.
-- **Effort** : moyen.
-
-### 35. Mode hors-ligne réel
-- **Description** : le service worker met en cache le shell. Rendre le mode hors-ligne complet : liste d'apps disponibles sans réseau, message clair, données en cache. Aujourd'hui le shell exige l'API session.
-- **Effort** : moyen-élevé.
-
-### 36. Glisser-déposer entre apps
-- **Description** : glisser un fichier de Documents vers le Bloc-notes, une image vers Paramètres (avatar/fond), un morceau vers le lecteur.
-- **Effort** : moyen.
-
-### 37. Raccourcis clavier configurables
-- **Description** : centraliser les raccourcis (Ctrl/Cmd+K existe déjà) et les rendre personnalisables depuis Paramètres.
-- **Effort** : moyen.
-
-### 38. Assistants / commandes vocales
-- **Description** : commande clavier « la barre de commandes » (à la Ctrl+Shift+P) pour exécuter des actions du système (ouvrir une app, changer de thème, vider la corbeille…).
-- **Effort** : moyen.
+- [ ] **38. Documents → « Envoyer vers Narra »** · *Élevé, interprojets* · **Nouvelle idée, reportée**  
+  Concept : clic droit → Envoyer vers → Narra → liste de projets → destination/import. **Bloqué volontairement** : nécessite de nouvelles API de découverte des projets, droits et import côté Narra, plus un sélecteur de projets côté LUMA. Ne pas développer de « clone fantôme » de Narra simplement pour ce transfert. À réexaminer seulement lorsqu'une API de réception naturelle existera côté Narra.
+- [ ] **39. Autres envois vers apps externes à contexte** · *Variable* · **Nouveau, reporté**  
+  Même logique que Narra : ne pas fabriquer de mini-clients d'autres produits dans LUMA OS sans bénéfice concret et API stable.
 
 ---
 
-## Nettoyage technique et dette
+## Règles de gestion de cette liste
 
-### 39. Aligner les registres d'applications
-- **Description** : `data/apps.json` (5 apps serveur) vs `luma-shell.js` (15 apps front). Décider d'une source de vérité unique, ou du moins documenter le complément. Réparer les `entry` qui pointent vers des `.html` alors que le shell charge des `app.js`.
-- **Effort** : faible-moyen.
+1. **Dès qu'une idée est entièrement implémentée, testée et validée, la supprimer de cette liste.** Cette liste ne contient que les travaux restant à faire.
+2. Si une idée est **partiellement réalisée**, la conserver en reformulant uniquement les éléments manquants. Ne pas la cocher comme terminée.
+3. Si une idée est **abandonnée**, la supprimer ; si elle dépend d'un autre projet ou d'une décision future, la déplacer dans **P4 — En attente**.
+4. Lorsqu'une fonctionnalité est terminée, inscrire sa réalisation dans `docs/CHANGELOG.md` ou dans le suivi des versions avant de la retirer du backlog, afin de ne pas perdre l'historique.
+5. **Ne pas dupliquer une fonctionnalité existant déjà dans Harmonix, Narra, Kyros, Argos ou un autre service LUMA**, sauf si LUMA OS apporte un usage distinct clairement identifié.
+6. **Ne pas modifier le backend d'un autre projet uniquement pour ajouter un confort mineur à LUMA OS.**
+7. Réévaluer le classement après chaque livraison majeure : l'utilité réelle prime sur l'effet visuel et la facilité de développement.
 
-### 42. Purger le code hérité
-- **Description** : `app.js` (ancien serveur avec routes non sécurisées), `sources/assets/javascripts/all.js`, `jquery/`, `window/*.js`, `start-locked/`, `notifications-horloge-date-start-menu/`, CSS `allstyles.css`, `window.css`, `start-menu.css`, `TEST/`, `users/`, `sources/apps/desktop/` — tous non chargés par `index.html`.
-- **Effort** : moyen (à faire avec git, par couches).
+> **NOTE IMPORTANTE : QUAND UNE IDÉE EST IMPLÉMENTÉE ET VALIDÉE, LA SUPPRIMER DE CE DOCUMENT.** Ne pas laisser d'éléments cochés `[x]` dans ce backlog : l'historique des fonctionnalités livrées appartient au changelog, pas à cette liste.
 
-### 43. Retirer l'exception CSP `cdn.jsdelivr.net`
-- **Description** : `script-src` autorise `'unsafe-inline'` et `cdn.jsdelivr.net` (héritage Axios). Retirer une fois le code hérité purgé.
-- **Effort** : faible.
-
-### 45. Écrans de verrouillage dédoublonnés
-- **Description** : `session-select/` ET `renderSessionScreen` dans `luma-shell.js` font la même chose. Fusionner en un seul rendu.
-- **Effort** : faible-moyen.
-
-### 46. Couverture de tests
-- **Description** : les apps frontend (Terminal, Calendrier, Paramètres UI) n'ont pas de tests unitaires. Ajouter des suites minimales (pur JS) et étendre le visual-check.
-- **Effort** : moyen.
-
-### 47. Volume séparé audio/vidéo
-- **Description** : `music-player` et `video-player` partagent `luma.music.volume`. Séparer les réglages.
-- **Effort** : faible.
-
----
-
-## Easter eggs et personnalité
-
-### 49. Easter eggs
-- **Description** : étendre la mécanique du Terminal (`sudo reboot` → Matheo Systems, documentée dans `docs/ARCHITECTURE.md`) : commandes secrètes, réponses humoristiques (`sudo`, `banana`, `hack`, `matrix`, `42`), bruitages, fond secret. Idées : taper `help --all` pour révéler une commande cachée, séquence clavier Konami sur le bureau.
-- **Effort** : faible.
-
-
----
-
-## Prioritaires (recommandation)
-
-3. **#16 Fonds/thème avancé** (moyen) — impact visuel immédiat (partiel : lock screen fait, reste opacité/arrondi/contraste).
-4. **#1 Visionneuse PDF** (moyen) — comble le format manquant le plus courant.
-5. **#19 Langue de l'UI** (élevé) — infra serveur déjà prête, gros gain.
-6. **#27 Presse-papiers partagé** (moyen) — fonctionnalité différenciante et concrète.
-7. **#28 Recherche globale** (moyen-élevé) — transforme le menu Démarrer.
+> Versionné le package.json à chaque modification faite

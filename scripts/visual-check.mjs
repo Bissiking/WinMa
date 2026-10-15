@@ -1,8 +1,10 @@
 import { chromium } from "playwright-core";
+import { readFile } from "node:fs/promises";
 
 const baseUrl = process.env.LUMA_VISUAL_BASE_URL || "http://127.0.0.1:3210";
 const outputDirectory = new URL("../.impeccable/quality-bar/", import.meta.url).pathname;
 const skipScreenshots = process.env.LUMA_SKIP_SCREENSHOTS === "1";
+const registryApps = JSON.parse(await readFile(new URL("../data/apps.json", import.meta.url), "utf8")).filter((app) => app.enabled);
 const browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
 const errors = [];
 
@@ -31,7 +33,7 @@ async function configure(page) {
         identity: { username: "matheo", displayName: "Mathéo", provider: "Kyros" },
         preferences,
         storage,
-        synchronization: { availableModules: 3, profileEnabled: preferences.syncProfile, appearanceEnabled: preferences.syncAppearance }
+        synchronization: { availableModules: registryApps.filter((app) => app.type === "internal" || app.type === "system").length, profileEnabled: preferences.syncProfile, appearanceEnabled: preferences.syncAppearance }
     });
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
     page.on("pageerror", (error) => errors.push(error.message));
@@ -74,11 +76,7 @@ async function configure(page) {
             brainNotes = brainNotes.filter((note) => String(note.id) !== pathname.split("/").at(-1));
             data = null;
         } else if (pathname === "/api/apps") {
-            data = [
-                { id: "documents", name: "Documents", type: "system" },
-                { id: "trash", name: "Corbeille", type: "system" },
-                { id: "settings", name: "Paramètres", type: "internal" }
-            ];
+            data = registryApps;
         } else if (pathname === "/api/system/network") {
             data = {
                 server: { version: "3.1.0", uptimeSeconds: 840 },

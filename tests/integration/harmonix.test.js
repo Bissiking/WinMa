@@ -45,7 +45,7 @@ before(async () => {
         return new Response(null, { status: 404 });
     };
     const config = createTestConfig({ kyros: { enabled: false } });
-    const started = await startTestServer(createApp({ config, fetchImplementation }));
+    const started = await startTestServer(await createApp({ config, fetchImplementation }));
     baseUrl = started.baseUrl;
     server = started.server;
 });

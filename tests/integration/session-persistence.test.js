@@ -13,7 +13,7 @@ let secondBaseUrl;
 let authenticatedCookie;
 
 before(async () => {
-    const first = await startTestServer(createApp({ config, fetchImplementation: fake.fetchImplementation }));
+    const first = await startTestServer(await createApp({ config, fetchImplementation: fake.fetchImplementation }));
     const { cookie } = await loginAs(first.baseUrl, fake, { extractCookie });
     authenticatedCookie = cookie;
 
@@ -32,7 +32,7 @@ after(async () => {
 });
 
 test('la session survit à un redémarrage du serveur', async () => {
-    const second = await startTestServer(createApp({ config, fetchImplementation: fake.fetchImplementation }));
+    const second = await startTestServer(await createApp({ config, fetchImplementation: fake.fetchImplementation }));
     secondBaseUrl = second.baseUrl;
     secondServer = second.server;
 

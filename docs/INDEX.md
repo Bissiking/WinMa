@@ -8,12 +8,12 @@ Index de référence du dépôt (historiquement WinMa). Arborescence, routes API
 | --- | --- |
 | Nom | Luma OS (bureau web de l'écosystème LUMA) |
 | Version | `3.1.0` |
-| Stack | Node.js ≥ 18.18, Express 5, better-sqlite3, HTML/CSS/JS natif (ES modules) |
+| Stack | Node.js ≥ 18.18, Express 5, better-sqlite3 (dev) / pg (prod), HTML/CSS/JS natif (ES modules) |
 | Point d'entrée npm | `src/server/server.js` |
 | Identité | SSO par code d'autorisation Kyros (mode `sso` ou `hybrid`) |
 | Frontend | Racine statique `sources/`, shell `index.html` + `luma-shell.js` |
 
-Scripts : `npm run dev` (nodemon), `npm start`, `npm test` (node --test), `npm run test:watch`, `npm run test:visual` (port 3210), `npm audit`.
+Scripts : `npm run dev` (nodemon), `npm start`, `npm test` (node --test), `npm run migrate`, `npm run test:watch`, `npm run test:visual` (port 3210), `npm audit`.
 
 ## 2. Arborescence
 
@@ -22,17 +22,12 @@ Sans `node_modules/`, `.git/`, contenu `storage/documents/<hash>/` ni fichiers r
 ```text
 WinMa/
 ├── index.html                        # Shell du bureau (racine servie)
-├── app.js                            # Ancien serveur Express (hérité, conservé)
 ├── API.md                            # Analyse du contrat d'authentification Nino/Kyros
 ├── DESIGN.md                         # Brief de refonte visuelle LUMA Fluent
 ├── PRODUCT.md                        # Produit et périmètre
 ├── README.md                         # Installation, configuration, API, documentation
 ├── package.json / package-lock.json
 ├── .env / .env.example               # Configuration (jamais de secrets versionnés)
-├── structure-winma.txt               # Dump d'arborescence historique (obsolète)
-├── structure-luma-os.txt             # Dump d'arborescence avec node_modules
-├── luma-kyros-sso.txt                # Référence SSO Kyros
-├── code-winma.txt                    # Export de code historique
 ├── .gitignore / .gitattributes
 │
 ├── src/server/                      # NOUVEAU backend Express (actif)
@@ -40,21 +35,24 @@ WinMa/
 │   ├── app.js                       # Construction de l'application Express
 │   ├── config/
 │   │   ├── env.js                   # Validation des variables d'environnement
-│   │   └── security.js              # Helmet + CSP
+│   │   └── security.js              # Helmet + CSP durcie (frame-src dynamique)
+│   ├── db/                            # Adapters SQLite/PostgreSQL + migrator
 │   ├── controllers/                 # 9 contrôleurs HTTP
 │   ├── middlewares/                 # 5 middlewares
-│   ├── repositories/
-│   │   └── sqlite-document-repository.js
+│   ├── repositories/                 # Contrat SQL commun sqlite/pg (sessions, fenêtres, préférences, documents)
 │   ├── routes/                      # 10 fichiers de routes
 │   ├── services/                    # 9 services métier
+│   ├── stores/                      # Session store express-session générique
 │   └── utils/                       # api-response, async-handler, http-error, logger
 │
-├── sources/                         # Frontend hérité (servi en statique)
-│   ├── apps/                        # 15 applications frontend
+├── migrations/                      # Migrations SQL versionnées (paires .sqlite.sql / .postgresql.sql)
+│
+├── sources/                         # Frontend (servi en statique)
+│   ├── apps/                        # 17 applications frontend
 │   ├── assets/
-│   │   ├── css/                     # luma-shell, allstyles, window, start-menu
+│   │   ├── css/                     # luma-shell
 │   │   ├── fonts/                   # Open Sans (33 variantes) + Kristen Hand Bold
-│   │   └── javascripts/             # luma-shell, luma-window-manager, luma-api + JS hérités
+│   │   └── javascripts/             # luma-shell, luma-window-manager, luma-api + modules luma-*
 │   └── images/
 │       ├── backgrounds/             # 12 fonds + 4K + luma-aurora
 │       ├── favicon/ interface-logo/ loading/ locked/ menu-btn/
@@ -67,13 +65,13 @@ WinMa/
 │
 ├── storage/documents/<owner-hash>/  # Contenus Documents (hors base, ignorés)
 ├── tests/
-│   ├── helpers/                     # test-config.js, test-server.js
-│   ├── integration/                 # auth, harmonix, server
-│   └── unit/                        # 8 suites unitaires
-├── scripts/visual-check.mjs         # Vérification visuelle Playwright
-├── docs/                            # AUDIT, ARCHITECTURE, MIGRATION, ROADMAP, INDEX
-├── TEST/                            # Prototype de test isolé (hérité)
-├── users/                           # Données du prototype hérité (2, 3)
+│   ├── helpers/                     # test-config, test-server, fake-kyros, db, repository-contract
+│   ├── e2e/                         # Recette navigateur (npm run test:e2e)
+│   ├── integration/                 # auth, apps, harmonix, postgres, server, service-worker…
+│   └── unit/                        # suites unitaires (services, repositories, migrator…)
+├── scripts/                         # visual-check, test-e2e, migrate, sw-update-cycle
+├── .github/workflows/ci.yml         # CI : audit, tests SQLite + PostgreSQL, recette 3 moteurs
+├── docs/                            # AUDIT, ARCHITECTURE, DATABASE, MIGRATION, ROADMAP, INDEX
 └── .impeccable/                     # Mocks, briefs, captures qualité de refonte
 ```
 
@@ -212,7 +210,7 @@ WinMa/
 | Fichier | Rôle |
 | --- | --- |
 | `config/env.js` | Validation de la config (`NODE_ENV`, URLs, secrets Kyros, timeouts), refuse le démarrage en prod incomplète |
-| `config/security.js` | Helmet + CSP (self, CDN jsdelivr, iframes internes uniquement) |
+| `config/security.js` | Helmet + CSP durcie (`script-src 'self'`, aucun CDN, `script-src-attr 'none'`, `frame-src` alimenté par les `allowedOrigin` du registre, `normalizeFrameOrigin`) |
 | `utils/api-response.js` | Enveloppe `{ success, data, message }` |
 | `utils/async-handler.js` | Capture les rejets des contrôleurs async |
 | `utils/http-error.js` | `HttpError(status, code, message)` ; messages exposés si `status < 500` |
@@ -225,48 +223,61 @@ WinMa/
 | --- | --- |
 | `index.html` | Page unique du bureau (zones bureau, fenêtres, barre des tâches, menu, toasts) |
 | `assets/css/luma-shell.css` | Styles du shell LUMA Fluent (thèmes, tokens, responsive) |
-| `assets/css/allstyles.css`, `window.css`, `start-menu.css` | Styles hérités WinMa |
 | `assets/javascripts/luma-api.js` | Client API (`requestJson`, `patchJson`, `postJson`, `putJson`, cookies same-origin) |
-| `assets/javascripts/luma-shell.js` | Boot du bureau : registre frontend des applications, lancement, icônes, toasts |
+| `assets/javascripts/luma-shell.js` | Boot du bureau : registre de repli + chargement de `GET /api/apps`, lancement, icônes, toasts |
 | `assets/javascripts/luma-window-manager.js` | Gestionnaire de fenêtres (Map d'états, z-index, cascade, layout adaptatif de la barre des tâches, pointer/touch) |
-| `assets/javascripts/all.js` | Regroupement hérité (bureau, horloge, verrouillage) |
-| `assets/javascripts/notifications-horloge-date-start-menu/date-time.js` | Horloge/date héritées |
-| `assets/javascripts/start-locked/start-locked.js` | Écran verrouillé hérité |
-| `assets/javascripts/window/` | `move.js`, `open-close.js`, `uuid.js`, `agrandirImage.js`, `agrandirImageManuel.js` (fenêtres héritées) |
+
+> Nettoyage du 14 octobre 2026 : les scripts et styles hérités WinMa (`all.js`, `window/*`, `jquery/`, `date-time.js`, `start-locked.js`, `allstyles.css`, `window.css`, `start-menu.css`) ont été supprimés après vérification de non-utilisation.
 
 ## 9. Applications
 
-### Registre serveur (`data/apps.json`)
+### Registre serveur (`data/apps.json`) — source de vérité unique
 
-| Id | Nom | Type | Origine |
-| --- | --- | --- | --- |
-| `documents` | Documents | `system` | `/apps/documents/index.html` |
-| `trash` | Corbeille | `system` | `/apps/documents/index.html` |
-| `settings` | Paramètres | `internal` | `/apps/parametres/index.html` |
-| `sonora-studio` | Sonora Studio | `internal` | `/apps/sonora-studio/app.js` |
-| `braindump` | BrainDump | `internal` | `/apps/braindump/app.js` |
+| Id | Nom | Type | Activée | Entrée / module |
+| --- | --- | --- | --- | --- |
+| `documents` | Documents | `system` | oui | `/apps/documents/app.js` |
+| `calculator` | Calculatrice | `internal` | oui | `/apps/calculator/app.js` |
+| `terminal` | Terminal | `internal` | oui | `/apps/terminal/app.js` |
+| `calendar` | Calendrier | `internal` | oui | `/apps/calendar/app.js` |
+| `settings` | Paramètres | `internal` | oui | `/apps/parametres/app.js` |
+| `task-manager` | Gestionnaire des tâches | `internal` | oui | `/apps/task-manager/app.js` |
+| `luma-orbit` | Luma Orbit | `internal` | oui | `/apps/luma-orbit/app.js` |
+| `sonora-studio` | Sonora Studio | `internal` | non (incompatible, store) | `/apps/sonora-studio/app.js` |
+| `braindump` | BrainDump | `internal` | non (incompatible, store) | `/apps/braindump/app.js` |
+| `matheo-systems` | Matheo Systems | `internal` | oui (cachée) | `/apps/matheo-systems/app.js` |
+| `notepad` | Bloc-notes | `internal` | oui | `/apps/notepad/app.js` |
+| `image-viewer` | Photos Luma | `internal` | oui (cachée) | `/apps/image-viewer/app.js` |
+| `music-player` | Lecteur de musique | `internal` | oui (cachée) | `/apps/music-player/app.js` |
+| `video-player` | Lecteur vidéo | `internal` | oui (cachée) | `/apps/video-player/app.js` |
+| `power` | Alimentation | `internal` | oui (cachée) | `/apps/power/app.js` |
+| `timer` | Minuteur | `internal` | oui | `/apps/timer/app.js` |
+| `trash` | Corbeille | `system` | oui | `/apps/documents/app.js` |
 
 ### Applications frontend (`sources/apps/`)
 
 | Dossier | Fichiers | Rôle |
 | --- | --- | --- |
-| `desktop/` | index.html, style.css | Icônes du bureau (Documents, Corbeille) |
-| `documents/` | app.js, index.html, style.css | Explorateur Documents et interface Corbeille |
-| `parametres/` | app.js, index.html, style.css | Paramètres : thèmes, fond, accent, densité, mouvement, compte |
-| `session-select/` | app.js, index.html, style.css | Écran d'accueil/verrouillage « Se connecter avec Kyros » |
+| `documents/` | app.js, style.css | Explorateur Documents et interface Corbeille |
+| `parametres/` | app.js, style.css | Paramètres : thèmes, fond, accent, densité, mouvement, compte |
+| ~~`session-select/`~~ | ~~style.css~~ | Écran de session fusionné dans le shell : styles migrés dans `luma-shell.css` (dossier supprimé) |
 | `sonora-studio/` | app.js, style.css | Studio : morceaux, albums, playlists, upload, accès |
 | `braindump/` | app.js, style.css | Notes et pensées (capture rapide + analyse) |
 | `harmonix-player/` | app.js, player.html, style.css | Lecteur du catalogue Harmonix public |
 | `image-viewer/` | app.js, style.css | Visionneuse d'images (Photos Luma) |
 | `notepad/` | app.js, style.css | Bloc-notes (documents texte/markdown, rendu inline) |
 | `task-manager/` | app.js, style.css | Gestionnaire des tâches (métriques système) |
+| `calendar/` | app.js, style.css | Agenda local (événements, mois/semaine) |
+| `calculator/` | app.js, style.css | Calculatrice |
+| `music-player/` | app.js, style.css | Lecteur de musique (Harmonix) |
+| `video-player/` | app.js, style.css | Lecteur vidéo |
 | `luma-orbit/` | app.js, style.css | Vue d'ensemble de l'écosystème LUMA (services) |
 | `matheo-systems/` | app.js, style.css | Vue système Matheo (CPU, mémoire, réseau) — cachée, lancée via `sudo reboot` dans le Terminal |
 | `power/` | app.js, style.css | Alimentation : état réel de la batterie via la Battery API (niveau, charge, temps restant) |
 | `timer/` | app.js, style.css | Minuteur (pomodoro, pause) + chronomètre avec tours, alerte sonore et notification Luma |
-| `web-frame/` | ~~app.js, style.css~~ | Hôte iframe générique — supprimé (Navigateur LUMA et Jellyfin retirés) |
+| ~~`desktop/`~~ | ~~index.html, style.css~~ | Fragment hérité supprimé (nettoyage du 14 octobre 2026) |
+| ~~`web-frame/`~~ | ~~app.js, style.css~~ | Hôte iframe générique — supprimé (Navigateur LUMA et Jellyfin retirés) |
 
-> À noter : le registre serveur (`data/apps.json`) et le registre frontend (`luma-shell.js`) listent deux ensembles complémentaires : le frontend lance aussi `task-manager`, `luma-orbit`, `matheo-systems`, `notepad`, `image-viewer`, `harmonix-player`, absents du registre serveur. Le Navigateur LUMA (`browser`) et Jellyfin ont été retirés : Luma OS refuse les connexions externes.
+> À noter : `data/apps.json` est la source de vérité unique du bureau ; le shell (`luma-shell.js`) les reçoit via `GET /api/apps` au démarrage de la session et ne garde qu'un tableau de repli local pour le premier rendu et le hors ligne. `harmonix-player` reste un module monté globalement (lecteur Harmonix), hors registre d'applications ouvrables. Le Navigateur LUMA (`browser`) et Jellyfin ont été retirés : Luma OS refuse les connexions externes.
 
 ## 10. Tests
 
@@ -274,14 +285,25 @@ WinMa/
 | --- | --- | --- |
 | `tests/helpers/test-config.js` | Helper | Config minimale de test (Kyros désactivé par défaut) |
 | `tests/helpers/test-server.js` | Helper | Démarre/arrête un serveur sur un port éphémère |
+| `tests/helpers/fake-kyros.js` | Helper | Faux Kyros v4 (PAR, codes, JWKS, jetons) + `loginAs` |
+| `tests/helpers/db.js` | Helper | Bases SQLite temporaires et bases PostgreSQL jetables |
+| `tests/helpers/repository-contract.js` | Helper | Contrat commun repositories SQLite/PostgreSQL |
+| `tests/e2e/helpers/e2e.js` | Helper E2E | Moteur de recette (Chromium système, ou Firefox/WebKit via `LUMA_E2E_BROWSER`) + serveur de test authentifié |
+| `tests/e2e/shell.e2e.test.js` | E2E | Recette shell : écran de session, bureau, registre, fenêtres, Service Worker, viewport mobile (`npm run test:e2e`) |
+| `tests/e2e/apps.e2e.test.js` | E2E | Parcours métier : Documents (dossier, import, corbeille, quota), Bloc-notes, Calendrier, Terminal (commandes, easter egg `sudo reboot`) |
 | `tests/integration/auth.test.js` | Intégration | Flux SSO : login, callback, state, session, logout (JWT simulés) |
+| `tests/integration/apps.test.js` | Intégration | `/api/apps` : 401, métadonnées, 400/404 |
 | `tests/integration/harmonix.test.js` | Intégration | Proxy Harmonix : catalogue, streaming, couvertures |
+| `tests/integration/postgres.test.js` | Intégration | Persistance PostgreSQL (TEST_DATABASE_URL) |
 | `tests/integration/server.test.js` | Intégration | Serveur complet : health, session, apps, 404, erreurs |
 | `tests/unit/account.test.js` | Unitaire | Service compte : validations, lecture, écriture atomique |
 | `tests/unit/app-registry.test.js` | Unitaire | Validation du registre d'applications |
 | `tests/unit/braindump.test.js` | Unitaire | Service BrainDump (fake fetch) |
 | `tests/unit/documents.test.js` | Unitaire | Repository SQLite Documents : CRUD, corbeille, quota |
 | `tests/unit/env.test.js` | Unitaire | Configuration : défauts et exigences de production |
+| `tests/unit/migrator.test.js` | Unitaire | Migrations SQL versionnées (SQLite + PostgreSQL) |
+| `tests/unit/repositories-sqlite.test.js` | Unitaire | Contrat repositories sur SQLite |
+| `tests/unit/repositories-postgres.test.js` | Unitaire | Contrat repositories sur PostgreSQL |
 | `tests/unit/settings.test.js` | Unitaire | Service paramètres : liste blanche, validation |
 | `tests/unit/sonora-studio.test.js` | Unitaire | Service Sonora (fake fetch) |
 | `tests/unit/system-metrics.test.js` | Unitaire | Métriques CPU/mémoire/uptime |
@@ -291,11 +313,12 @@ WinMa/
 | Élément | Rôle |
 | --- | --- |
 | `scripts/visual-check.mjs` | Vérification visuelle Playwright : route `/api/**` mockée, captures dans `.impeccable/quality-bar/` |
-| `TEST/` | Prototype de test isolé (app.js, style.css, test.html) — hérité |
-| `users/` | Données du prototype WinMa (`informations.json`, `parametres.json`) — hérité |
+| `scripts/test-e2e.mjs` | Lance la recette navigateur (`npm run test:e2e`) avec LUMA_E2E=1 |
+| `scripts/migrate.js` | Applique les migrations SQL du fournisseur actif (`npm run migrate`) |
 | `.impeccable/` | Assets de refonte : design.json, mocks, sketches, quality-bar, questions, surfaces |
 | `docs/AUDIT.md` | Audit technique (risques, statique du code et dépendances) |
 | `docs/ARCHITECTURE.md` | Architecture cible : SSO, API, registre, fenêtres, paramètres, sécurité |
+| `docs/DATABASE.md` | Persistance hybride SQLite/PostgreSQL : config, migrations, déploiement, tests |
 | `docs/ROADMAP.md` | Phases de migration par incréments |
 | `docs/MIGRATION.md` | État de la migration WinMa → Luma OS (fichiers remplacés/déplacés) |
 | `docs/CHANGELOG.md` | Journal des versions : survol rapide puis détails par version |

@@ -42,8 +42,8 @@ Les anciens dossiers `users/` ne sont pas lus par le nouveau serveur. Une migrat
 - Le bureau, le menu, les fenêtres et leurs scripts historiques restent chargés.
 - Paramètres utilise déjà la nouvelle API sécurisée.
 - Les anciennes routes `/data/*` ne sont plus exposées par `npm start`.
-- Axios reste chargé temporairement pour les fragments hérités ; les nouveaux modules utilisent `fetch`.
-- La CSP autorise temporairement les attributs de script inline requis par l'ancien menu. Cette exception doit disparaître lors de la migration du shell.
+- Axios a été retiré ; les nouveaux modules utilisent `fetch` (aucun fragment hérité ne le charge plus).
+- ~~La CSP autorise temporairement les attributs de script inline requis par l'ancien menu.~~ L'exception script inline a disparu avec la migration du shell : `script-src 'self'` et `script-src-attr 'none'` ; seule `style-src 'unsafe-inline'` reste, documentée (attributs de style dynamiques des apps).
 
 ## Étapes restantes
 
@@ -52,7 +52,7 @@ Les anciens dossiers `users/` ne sont pas lus par le nouveau serveur. Une migrat
 3. construire le gestionnaire de fenêtres centralisé ;
 4. générer le bureau, le menu et la barre des tâches depuis le registre ;
 5. compléter Paramètres avec thème et accent ;
-6. retirer Axios, les `onclick` inline et l'exception CSP associée ;
+6. ~~retirer Axios, les `onclick` inline et l'exception CSP associée~~ — fait (Axios retiré, aucun handler `onclick` inline restant, CSP script resserrée) ;
 7. migrer ou supprimer explicitement les données historiques ;
-8. retirer `app.js` et les scripts hérités après validation de parité.
+8. ~~retirer `app.js` et les scripts hérités après validation de parité~~ — fait le 14 octobre 2026 (`app.js` racine, `all.js`, `window/*`, `jquery/`, `date-time.js`, `start-locked.js`, CSS hérités, fragments `desktop/`, `session-select/index+app`, `parametres/index.html`, dumps `structure-*`/`code-winma`/`luma-kyros-sso` et prototype `TEST/` supprimés après vérification de non-utilisation ; parcours validés par la suite complète et la recette navigateur).
 

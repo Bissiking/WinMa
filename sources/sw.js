@@ -14,7 +14,6 @@ const PRECACHE = [
     "./assets/javascripts/luma-avatar.js",
     "./assets/javascripts/luma-avatar-store.js",
     "./assets/css/luma-shell.css",
-    "./apps/session-select/style.css",
     "./images/backgrounds/background-00.jpg"
 ];
 

@@ -1,24 +1,32 @@
 // tests/unit/settings.test.js
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
-const os = require('node:os');
 const path = require('node:path');
 const { afterEach, test } = require('node:test');
+const { createSqliteTestDatabase } = require('../helpers/db');
+const { createSqlitePreferencesRepository } = require('../../src/server/repositories/sqlite-preferences-repository');
 const { createSettingsService, DEFAULT_SETTINGS } = require('../../src/server/services/settings-service');
 
-const temporaryDirectories = [];
+const testContexts = [];
+let currentContext = null;
 
 async function createService() {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'luma-settings-test-'));
-    temporaryDirectories.push(directory);
-    return createSettingsService(directory);
+    const context = await createSqliteTestDatabase('luma-settings-test-');
+    testContexts.push(context);
+    currentContext = context;
+    const repository = createSqlitePreferencesRepository(context.database, 'user_settings');
+    return createSettingsService({
+        repository,
+        legacyDirectory: path.join(context.directory, 'settings')
+    });
 }
 
 afterEach(async () => {
-    await Promise.all(temporaryDirectories.splice(0).map((directory) => fs.rm(directory, {
-        recursive: true,
-        force: true
-    })));
+    currentContext = null;
+    for (const context of testContexts.splice(0)) {
+        await context.cleanup();
+    }
 });
 
 test('les paramètres absents retournent les valeurs par défaut', async () => {
@@ -97,6 +105,20 @@ test('les options de démarrage sont validées', async () => {
     assert.equal(updated.startupOpenTrash, true);
 });
 
+test('le délai de verrouillage automatique est validé', async () => {
+    const service = await createService();
+
+    assert.equal(DEFAULT_SETTINGS.lockAfterIdleMs, 300000);
+    await assert.rejects(service.update('usr_one', { lockAfterIdleMs: 1000 }), (error) => error.code === 'LOCK_AFTER_IDLE_INVALID');
+    await assert.rejects(service.update('usr_one', { lockAfterIdleMs: -1 }), (error) => error.code === 'LOCK_AFTER_IDLE_INVALID');
+    await assert.rejects(service.update('usr_one', { lockAfterIdleMs: 86400001 }), (error) => error.code === 'LOCK_AFTER_IDLE_INVALID');
+    await assert.rejects(service.update('usr_one', { lockAfterIdleMs: '300000' }), (error) => error.code === 'LOCK_AFTER_IDLE_INVALID');
+
+    assert.equal((await service.update('usr_one', { lockAfterIdleMs: 0 })).lockAfterIdleMs, 0);
+    assert.equal((await service.update('usr_one', { lockAfterIdleMs: 60000 })).lockAfterIdleMs, 60000);
+    assert.equal((await service.update('usr_one', { lockAfterIdleMs: 86400000 })).lockAfterIdleMs, 86400000);
+});
+
 test('les profils de démarrage sont validés', async () => {
     const service = await createService();
 
@@ -121,4 +143,25 @@ test('les profils de démarrage sont validés', async () => {
     assert.equal(updated.startupActiveProfile, 'Travail');
 
     await service.update('usr_one', { startupActiveProfile: null });
+});
+
+test('les paramètres historiques restent lisibles depuis leur fichier puis remontent en base', async () => {
+    const service = await createService();
+    const legacyDirectory = path.join(currentContext.directory, 'settings');
+    const subject = 'usr_legacy';
+    const key = crypto.createHash('sha256').update(subject).digest('hex');
+    const legacyFile = path.join(legacyDirectory, `${key}.json`);
+
+    await fs.mkdir(legacyDirectory, { recursive: true, mode: 0o700 });
+    await fs.writeFile(legacyFile, `${JSON.stringify({ ...DEFAULT_SETTINGS, theme: 'dark' }, null, 2)}\n`, { mode: 0o600 });
+
+    // Repli lecture : le fichier historique est lu et reporté dans la base.
+    assert.equal((await service.read(subject)).theme, 'dark');
+
+    // La base est désormais la source : la suppression du fichier ne perd rien.
+    await fs.rm(legacyFile, { force: true });
+    assert.equal((await service.read(subject)).theme, 'dark');
+
+    await service.update(subject, { theme: 'light' });
+    assert.equal((await service.read(subject)).theme, 'light');
 });

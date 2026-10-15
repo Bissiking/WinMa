@@ -30,7 +30,7 @@ async function authenticate() {
 
 before(async () => {
     sonoraCalls = [];
-    const started = await startTestServer(createApp({ config, fetchImplementation: combinedFetch }));
+    const started = await startTestServer(await createApp({ config, fetchImplementation: combinedFetch }));
     baseUrl = started.baseUrl;
     server = started.server;
 });

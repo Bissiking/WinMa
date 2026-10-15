@@ -23,7 +23,7 @@ const shellSourceFile = path.join(projectRoot, 'sources', 'assets', 'javascripts
 function buildLegacyServiceWorker(shellSource) {
     return `const CACHE_NAME = "luma-shell-v3";
 const LEGACY_SHELL = ${JSON.stringify(shellSource)};
-const PRECACHE = ["/", "./assets/javascripts/luma-window-manager.js", "./assets/javascripts/luma-api.js", "./assets/javascripts/luma-context-menu.js", "./assets/css/luma-shell.css", "./apps/session-select/style.css", "./images/backgrounds/background-00.jpg"];
+const PRECACHE = ["/", "./assets/javascripts/luma-window-manager.js", "./assets/javascripts/luma-api.js", "./assets/javascripts/luma-context-menu.js", "./assets/css/luma-shell.css", "./images/backgrounds/background-00.jpg"];
 const LEGACY_SHELL_URL = "/assets/javascripts/luma-shell.js";
 const LEGACY_DOCUMENT_KEY = "/__legacy_document__";
 function isStaticAsset(url) {
@@ -190,7 +190,7 @@ async function main() {
     );
 
     const config = loadConfig();
-    const app = createApp({ config });
+    const app = await createApp({ config });
     server = await new Promise((resolve) => {
         const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
     });

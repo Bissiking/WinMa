@@ -16,7 +16,7 @@ let serviceWorkerSource;
 
 before(async () => {
     const config = createTestConfig({ kyros: { enabled: false } });
-    const started = await startTestServer(createApp({ config }));
+    const started = await startTestServer(await createApp({ config }));
     baseUrl = started.baseUrl;
     server = started.server;
 });

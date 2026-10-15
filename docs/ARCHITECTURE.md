@@ -112,7 +112,7 @@ Navigateur                  Backend WinMa                      Kyros
     |---------------------------->|                              |
 ```
 
-Le flux direct par identifiant/mot de passe n'est pas retenu pour WinMa : Kyros possède désormais l'écran de connexion. Le formulaire `session-select` devient un écran d'accueil/verrouillage avec un bouton « Se connecter avec Kyros ».
+Le flux direct par identifiant/mot de passe n'est pas retenu pour WinMa : Kyros possède désormais l'écran de connexion. Le shell rend un écran d'accueil/verrouillage unique (`renderSessionScreen` dans `luma-shell.js`, habillé par `luma-shell.css`) avec un bouton « Se connecter avec Kyros » ; l'ancien formulaire `session-select` n'existe plus.
 
 ### Règles de session
 
@@ -125,6 +125,8 @@ Le flux direct par identifiant/mot de passe n'est pas retenu pour WinMa : Kyros 
 - Lors d'un renouvellement, le refresh token rotatif remplace l'ancien de manière atomique.
 - Une session est refusée si l'audience de ressource, le `client_id`, les scopes, l'émetteur ou l'expiration attendus ne correspondent pas.
 - La déconnexion révoque le refresh token auprès de Kyros puis détruit la session Luma OS, même si la révocation distante échoue.
+- Le verrouillage (bouton « Verrouiller » ou inactivité au-delà de `lockAfterIdleMs`) ne détruit pas la session : le cookie, les fenêtres ouvertes et le cache d'avatars sont conservés ; « Reprendre la session » vérifie `GET /api/session` avant de réafficher le bureau.
+- Verrouillage et déconnexion se propagent aux autres onglets du même navigateur (`BroadcastChannel` « luma.session ») ; un 401 servi par le client API (`luma-api.js`) ramène à l'écran de session, ce qui couvre la fermeture depuis un autre appareil.
 - La rotation de l'identifiant de session est obligatoire après le callback pour prévenir la fixation de session.
 
 ### Configuration attendue
@@ -195,32 +197,43 @@ Les anciennes routes `/data/write/user`, `/data/user/params` et `/data/user/para
 
 ## Registre des applications
 
-`data/apps.json` constitue la source de vérité serveur. Le frontend reçoit une version filtrée.
+`data/apps.json` est la **source de vérité unique** du bureau : il décrit toutes les applications ouvrables (menu démarrer, barre des tâches, fenêtres). Le shell les reçoit de `GET /api/apps` au démarrage de la session ; son tableau local n'est qu'un repli de premier rendu et hors ligne.
 
 ```json
 {
   "id": "settings",
   "name": "Paramètres",
-  "icon": "/assets/icons/settings.svg",
-  "entry": "/apps/settings/index.html",
+  "icon": "settings",
+  "entry": "/apps/parametres/index.html",
+  "module": "/apps/parametres/app.js",
   "type": "internal",
   "enabled": true,
-  "pinned": true,
-  "window": {
-    "width": 920,
-    "height": 680,
-    "minWidth": 360,
-    "minHeight": 300
-  }
+  "taskbarName": "Config",
+  "hidden": false,
+  "storeManaged": false,
+  "incompatible": false,
+  "window": { "width": 1040, "height": 720, "minWidth": 680, "minHeight": 440 },
+  "position": { "left": 0.07, "top": 0.07 }
 }
 ```
+
+- `icon` est le nom du symbole du sprite du shell ; `logo` (optionnel) pointe une image de marque.
+- `entry` est le point d'entrée servi (page HTML si elle existe, sinon le module) ; `module` est le chemin ES module chargé dynamiquement par le gestionnaire de fenêtres. Les deux doivent rester sous `/apps/`.
+- Les champs inconnus (`pinned`, etc.) sont retirés à la validation : la liste blanche du service (`app-registry-service.js`) est le seul contractant de l'API.
 
 Types autorisés :
 
 - `internal` : fragment ou page locale contrôlée ;
-- `iframe` : origine présente dans une liste autorisée et iframe munie d'une sandbox minimale ;
+- `iframe` : déclare `allowedOrigin` (obligatoire, https host[:port] sans chemin) ; l'origine est injectée automatiquement dans le `frame-src` de la CSP au démarrage du serveur ;
 - `external` : ouverture explicite dans un nouvel onglet avec `noopener,noreferrer` ;
-- `system` : application native du shell WinMa.
+- `system` : application native du bureau (Documents, Corbeille).
+
+Vocabulaire des états d'une application :
+
+- **activée** : `enabled: true` dans le registre — interrupteur maître côté serveur ; les entrées désactivées ne sont pas servies par `/api/apps` ;
+- **disponible** : activée et, si `storeManaged`, installée via Luma Orbit — calculé côté client (menu démarrer) ;
+- **installée** : presence dans la liste `luma.orbit.installed` du navigateur (Orbit) pour les apps gérées par le magasin ;
+- **autorisée** : `iframe`/`external` avec `allowedOrigin` déclaré et validé ; le contrôle de permissions par action viendra avec le chantier « Permissions par application ».
 
 Le serveur valide `appId` contre ce registre. Aucun chemin ou URL fourni par le client n'est chargé directement.
 
@@ -269,12 +282,12 @@ Schéma initial :
 
 ## Documents et Corbeille
 
-- `better-sqlite3` conserve en développement l’arborescence, le propriétaire hashé, le type, la taille, le chemin opaque et les dates.
+- La persistance SQL est hybride et sans ORM : repositories natifs SQLite (développement) et PostgreSQL (production), sélectionnés par `DB_PROVIDER`, avec migrations versionnées dans `migrations/` — voir `docs/DATABASE.md`.
 - Les contenus sont enregistrés sous des noms UUID dans `storage/documents/<owner-hash>/`; leur nom utilisateur reste une métadonnée.
 - Le quota de 1 Gio est calculé côté serveur et inclut la Corbeille jusqu’à suppression définitive.
 - Les mutations contrôlent systématiquement le propriétaire issu de la session Kyros et refusent les cycles de dossiers.
 - La Corbeille groupe un dossier avec ses descendants, permet la restauration, et purge les groupes supprimés depuis 30 jours.
-- La couche `sqlite-document-repository` doit devenir une implémentation d’interface lorsqu’un repository PostgreSQL sera ajouté en production.
+- `sqlite-document-repository` et `pg-document-repository` partagent le même contrat asynchrone ; `createRepositories()` injecte l'implémentation correspondant au moteur actif.
 
 ## Compte et contexte inter-modules
 
@@ -285,7 +298,7 @@ Schéma initial :
 
 ## Sécurité du serveur
 
-- Helmet avec CSP adaptée aux actifs locaux et aux iframes autorisées.
+- Helmet avec CSP durcie : `script-src 'self'` (aucun script inline ni CDN), `script-src-attr 'none'`, `object-src 'none'`, `frame-src` alimenté automatiquement par les `allowedOrigin` https des apps iframe du registre ; seule exception documentée : `style-src 'unsafe-inline'` (attributs de style dynamiques des apps internes, sans exécution de code).
 - Limite stricte des corps JSON et désactivation d'`urlencoded` si aucune route n'en a besoin.
 - Limitation des requêtes sur les routes d'authentification et de callback.
 - Validation de configuration et des entrées à la frontière HTTP.

@@ -7,7 +7,15 @@ export async function requestJson(url, options = {}) {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok || payload.success === false) {
-        throw new Error(payload.message || "La requête n’a pas abouti.");
+        const error = new Error(payload.message || "La requête n’a pas abouti.");
+        error.status = response.status;
+        error.code = payload.code || null;
+        if (response.status === 401) {
+            // Session expirée ou close depuis un autre appareil : le shell se
+            // re-dessine sur l'écran de session (voir luma-shell.js).
+            window.dispatchEvent(new CustomEvent("luma:session-expired"));
+        }
+        throw error;
     }
 
     return payload.data;

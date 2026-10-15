@@ -1,22 +1,26 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
-const os = require('node:os');
 const path = require('node:path');
 const { afterEach, test } = require('node:test');
+const { createSqliteTestDatabase } = require('../helpers/db');
 const { createSqliteDocumentRepository } = require('../../src/server/repositories/sqlite-document-repository');
 const { createDocumentService, QUOTA_BYTES } = require('../../src/server/services/document-service');
 
-const temporaryDirectories = [];
+const testContexts = [];
+let currentDirectory = null;
 
 async function createService() {
-    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'luma-documents-test-'));
-    temporaryDirectories.push(directory);
-    const repository = createSqliteDocumentRepository(path.join(directory, 'documents.sqlite'));
-    return createDocumentService({ repository, storageRoot: path.join(directory, 'storage') });
+    const context = await createSqliteTestDatabase('luma-documents-test-');
+    testContexts.push(context);
+    currentDirectory = context.directory;
+    const repository = createSqliteDocumentRepository(context.database);
+    return createDocumentService({ repository, storageRoot: path.join(context.directory, 'storage') });
 }
 
 afterEach(async () => {
-    await Promise.all(temporaryDirectories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
+    for (const context of testContexts.splice(0)) {
+        await context.cleanup();
+    }
 });
 
 test('un utilisateur peut créer une arborescence isolée', async () => {
@@ -31,7 +35,7 @@ test('un utilisateur peut créer une arborescence isolée', async () => {
 
 test('un fichier utilise le quota et traverse la Corbeille', async () => {
     const service = await createService();
-    const directory = temporaryDirectories.at(-1);
+    const directory = currentDirectory;
     const temporaryFile = path.join(directory, 'upload.tmp');
     await fs.writeFile(temporaryFile, 'Luma document');
     const item = await service.upload('usr_one', {}, {
@@ -78,7 +82,7 @@ async function uploadFixture(service, directory, { name, mimetype, content }) {
 
 test('les statistiques catégorisent les fichiers et la Corbeille', async () => {
     const service = await createService();
-    const directory = temporaryDirectories.at(-1);
+    const directory = currentDirectory;
 
     const image = await uploadFixture(service, directory, { name: 'aurore.png', mimetype: 'image/png', content: 'img' });
     await uploadFixture(service, directory, { name: 'b.jpg', mimetype: 'image/jpeg', content: 'img2' });
@@ -88,7 +92,7 @@ test('les statistiques catégorisent les fichiers et la Corbeille', async () => 
     await uploadFixture(service, directory, { name: 'blob.bin', mimetype: 'application/octet-stream', content: 'bin' });
     await service.createFolder('usr_one', { name: 'Dossier' });
 
-    let stats = service.getStats('usr_one');
+    let stats = await service.getStats('usr_one');
     assert.deepEqual(stats.categories, [
         { category: 'image', count: 2, bytes: 7 },
         { category: 'video', count: 1, bytes: 3 },
@@ -100,7 +104,7 @@ test('les statistiques catégorisent les fichiers et la Corbeille', async () => 
     assert.equal(stats.storage.usedBytes, 22);
 
     await service.trash('usr_one', [image.id]);
-    stats = service.getStats('usr_one');
+    stats = await service.getStats('usr_one');
     assert.deepEqual(stats.categories.find((entry) => entry.category === 'image'), { category: 'image', count: 1, bytes: 4 });
     assert.deepEqual(stats.trash, { count: 1, bytes: 3 });
     assert.equal(stats.storage.usedBytes, 22);
@@ -108,11 +112,11 @@ test('les statistiques catégorisent les fichiers et la Corbeille', async () => 
 
 test('les statistiques sont isolées par utilisateur', async () => {
     const service = await createService();
-    const directory = temporaryDirectories.at(-1);
+    const directory = currentDirectory;
     await uploadFixture(service, directory, { name: 'secret.png', mimetype: 'image/png', content: 'img' });
 
-    assert.equal(service.getStats('usr_one').categories.length, 1);
-    assert.deepEqual(service.getStats('usr_two').categories, []);
+    assert.equal((await service.getStats('usr_one')).categories.length, 1);
+    assert.deepEqual((await service.getStats('usr_two')).categories, []);
 });
 
 test('vider la Corbeille supprime tous les groupes appartenant à l’utilisateur', async () => {
@@ -140,7 +144,7 @@ test('un document Markdown peut être créé, relu et enregistré', async () => 
 
 test('le Bloc-notes refuse de modifier un fichier binaire', async () => {
     const service = await createService();
-    const directory = temporaryDirectories.at(-1);
+    const directory = currentDirectory;
     const temporaryFile = path.join(directory, 'image.tmp');
     await fs.writeFile(temporaryFile, Buffer.from([0, 1, 2]));
     const item = await service.upload('usr_one', {}, {
@@ -158,7 +162,7 @@ test('le Bloc-notes refuse de modifier un fichier binaire', async () => {
 
 test('le filtre de type retourne uniquement les fichiers correspondants', async () => {
     const service = await createService();
-    const directory = temporaryDirectories.at(-1);
+    const directory = currentDirectory;
     const uploadFixture = async (name, mimetype) => {
         const temporaryFile = path.join(directory, `${name}.tmp`);
         await fs.writeFile(temporaryFile, name);

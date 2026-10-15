@@ -5,25 +5,66 @@ import { welcomeMessage } from "./luma-welcome.js";
 import { avatarMarkup, hydrateAvatars } from "./luma-avatar.js";
 import { setAvatarOwner, clearAvatarCache } from "./luma-avatar-store.js";
 
-const apps = [
-    { id: "documents", name: "Documents", taskbarName: "Docs", icon: "documents", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
-    { id: "calculator", name: "Calculatrice", taskbarName: "Calc.", icon: "calculator", module: "/apps/calculator/app.js", width: 420, height: 620, minWidth: 340, minHeight: 480, position: { left: .34, top: .1 } },
-    { id: "terminal", name: "Terminal", taskbarName: "Term.", icon: "terminal", module: "/apps/terminal/app.js", width: 760, height: 520, minWidth: 480, minHeight: 320, position: { left: .15, top: .2 } },
-    { id: "calendar", name: "Calendrier", taskbarName: "Agenda", icon: "calendar", module: "/apps/calendar/app.js", width: 940, height: 660, minWidth: 600, minHeight: 460, position: { left: .22, top: .12 } },
-    { id: "settings", name: "Paramètres", taskbarName: "Config", icon: "settings", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
-    { id: "task-manager", name: "Gestionnaire des tâches", taskbarName: "Tâches", icon: "activity", module: "/apps/task-manager/app.js", width: 920, height: 650, minWidth: 660, minHeight: 440, position: { left: .12, top: .08 } },
-    { id: "luma-orbit", name: "Luma Orbit", taskbarName: "Orbit", icon: "orbit", module: "/apps/luma-orbit/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 480, position: { left: .09, top: .06 } },
-    { id: "sonora-studio", name: "Sonora Studio", taskbarName: "Sonora", icon: "music", logo: "/images/interface-logo/applications/sonora-studio.svg", module: "/apps/sonora-studio/app.js", width: 1120, height: 740, minWidth: 700, minHeight: 480, storeManaged: true, incompatible: true, position: { left: .06, top: .04 } },
-    { id: "braindump", name: "BrainDump", taskbarName: "Brain", icon: "notepad", module: "/apps/braindump/app.js", width: 1040, height: 700, minWidth: 620, minHeight: 440, storeManaged: true, incompatible: true, position: { left: .1, top: .06 } },
-    { id: "matheo-systems", name: "Matheo Systems", taskbarName: "Matheo", icon: "chip", module: "/apps/matheo-systems/app.js", width: 1060, height: 730, minWidth: 700, minHeight: 500, position: { left: .08, top: .05 }, hidden: true },
-    { id: "notepad", name: "Bloc-notes", taskbarName: "Notes", icon: "notepad", module: "/apps/notepad/app.js", width: 800, height: 640, minWidth: 520, minHeight: 400, position: { left: .18, top: .1 } },
-    { id: "image-viewer", name: "Photos Luma", taskbarName: "Photos", icon: "image", module: "/apps/image-viewer/app.js", width: 900, height: 680, minWidth: 480, minHeight: 360, hidden: true, position: { left: .16, top: .08 } },
-    { id: "music-player", name: "Lecteur de musique", taskbarName: "Musique", icon: "music", module: "/apps/music-player/app.js", width: 640, height: 720, minWidth: 420, minHeight: 480, hidden: true, position: { left: .2, top: .06 } },
-    { id: "video-player", name: "Lecteur vidéo", taskbarName: "Vidéo", icon: "video", module: "/apps/video-player/app.js", width: 980, height: 700, minWidth: 560, minHeight: 400, hidden: true, position: { left: .12, top: .08 } },
-    { id: "power", name: "Alimentation", taskbarName: "Alim.", icon: "power", module: "/apps/power/app.js", width: 480, height: 560, minWidth: 380, minHeight: 420, hidden: true, position: { left: .3, top: .12 } },
-    { id: "timer", name: "Minuteur", taskbarName: "Min.", icon: "timer", module: "/apps/timer/app.js", width: 520, height: 620, minWidth: 380, minHeight: 440, position: { left: .32, top: .1 } },
-    { id: "trash", name: "Corbeille", taskbarName: "Corb.", icon: "trash", module: "/apps/documents/app.js", width: 980, height: 660, minWidth: 620, minHeight: 400 }
+// Repli local uniquement : la source de vérité est le registre serveur
+// (data/apps.json) servi par GET /api/apps. Chargez ce tableau complet avant
+// toute nouvelle application, il ne doit servir qu'au premier rendu et hors ligne.
+const fallbackApps = [
+    { id: "documents", name: "Documents", taskbarName: "Docs", icon: "documents", type: "system", entry: "/apps/documents/app.js", module: "/apps/documents/app.js", width: 980, height: 700, minWidth: 640, minHeight: 420, position: { left: .28, top: .14 } },
+    { id: "calculator", name: "Calculatrice", taskbarName: "Calc.", icon: "calculator", type: "internal", entry: "/apps/calculator/app.js", module: "/apps/calculator/app.js", width: 420, height: 620, minWidth: 340, minHeight: 480, position: { left: .34, top: .1 } },
+    { id: "terminal", name: "Terminal", taskbarName: "Term.", icon: "terminal", type: "internal", entry: "/apps/terminal/app.js", module: "/apps/terminal/app.js", width: 760, height: 520, minWidth: 480, minHeight: 320, position: { left: .15, top: .2 } },
+    { id: "calendar", name: "Calendrier", taskbarName: "Agenda", icon: "calendar", type: "internal", entry: "/apps/calendar/app.js", module: "/apps/calendar/app.js", width: 940, height: 660, minWidth: 600, minHeight: 460, position: { left: .22, top: .12 } },
+    { id: "settings", name: "Paramètres", taskbarName: "Config", icon: "settings", type: "internal", entry: "/apps/parametres/app.js", module: "/apps/parametres/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 440, position: { left: .07, top: .07 } },
+    { id: "task-manager", name: "Gestionnaire des tâches", taskbarName: "Tâches", icon: "activity", type: "internal", entry: "/apps/task-manager/app.js", module: "/apps/task-manager/app.js", width: 920, height: 650, minWidth: 660, minHeight: 440, position: { left: .12, top: .08 } },
+    { id: "luma-orbit", name: "Luma Orbit", taskbarName: "Orbit", icon: "orbit", type: "internal", entry: "/apps/luma-orbit/app.js", module: "/apps/luma-orbit/app.js", width: 1040, height: 720, minWidth: 680, minHeight: 480, position: { left: .09, top: .06 } },
+    { id: "sonora-studio", name: "Sonora Studio", taskbarName: "Sonora", icon: "music", logo: "/images/interface-logo/applications/sonora-studio.svg", type: "internal", entry: "/apps/sonora-studio/app.js", module: "/apps/sonora-studio/app.js", width: 1120, height: 740, minWidth: 700, minHeight: 480, storeManaged: true, incompatible: true, position: { left: .06, top: .04 } },
+    { id: "braindump", name: "BrainDump", taskbarName: "Brain", icon: "notepad", logo: "/images/interface-logo/applications/braindump.svg", type: "internal", entry: "/apps/braindump/app.js", module: "/apps/braindump/app.js", width: 1040, height: 700, minWidth: 620, minHeight: 440, storeManaged: true, incompatible: true, position: { left: .1, top: .06 } },
+    { id: "matheo-systems", name: "Matheo Systems", taskbarName: "Matheo", icon: "chip", type: "internal", entry: "/apps/matheo-systems/app.js", module: "/apps/matheo-systems/app.js", width: 1060, height: 730, minWidth: 700, minHeight: 500, position: { left: .08, top: .05 }, hidden: true },
+    { id: "notepad", name: "Bloc-notes", taskbarName: "Notes", icon: "notepad", type: "internal", entry: "/apps/notepad/app.js", module: "/apps/notepad/app.js", width: 800, height: 640, minWidth: 520, minHeight: 400, position: { left: .18, top: .1 } },
+    { id: "image-viewer", name: "Photos Luma", taskbarName: "Photos", icon: "image", type: "internal", entry: "/apps/image-viewer/app.js", module: "/apps/image-viewer/app.js", width: 900, height: 680, minWidth: 480, minHeight: 360, hidden: true, position: { left: .16, top: .08 } },
+    { id: "music-player", name: "Lecteur de musique", taskbarName: "Musique", icon: "music", type: "internal", entry: "/apps/music-player/app.js", module: "/apps/music-player/app.js", width: 640, height: 720, minWidth: 420, minHeight: 480, hidden: true, position: { left: .2, top: .06 } },
+    { id: "video-player", name: "Lecteur vidéo", taskbarName: "Vidéo", icon: "video", type: "internal", entry: "/apps/video-player/app.js", module: "/apps/video-player/app.js", width: 980, height: 700, minWidth: 560, minHeight: 400, hidden: true, position: { left: .12, top: .08 } },
+    { id: "power", name: "Alimentation", taskbarName: "Alim.", icon: "power", type: "internal", entry: "/apps/power/app.js", module: "/apps/power/app.js", width: 480, height: 560, minWidth: 380, minHeight: 420, hidden: true, position: { left: .3, top: .12 } },
+    { id: "timer", name: "Minuteur", taskbarName: "Min.", icon: "timer", type: "internal", entry: "/apps/timer/app.js", module: "/apps/timer/app.js", width: 520, height: 620, minWidth: 380, minHeight: 440, position: { left: .32, top: .1 } },
+    { id: "trash", name: "Corbeille", taskbarName: "Corb.", icon: "trash", type: "system", entry: "/apps/documents/app.js", module: "/apps/documents/app.js", width: 980, height: 660, minWidth: 620, minHeight: 400 }
 ];
+
+let apps = [...fallbackApps];
+
+function applyRegistry(entries) {
+    const localById = new Map(fallbackApps.map((app) => [app.id, app]));
+    apps = entries.map((entry) => {
+        const local = localById.get(entry.id) || {};
+        return {
+            ...local,
+            id: entry.id,
+            name: entry.name || local.name,
+            type: entry.type || local.type,
+            icon: entry.icon || local.icon,
+            logo: entry.logo || local.logo,
+            taskbarName: entry.taskbarName || local.taskbarName,
+            entry: entry.entry || local.entry,
+            module: entry.module || local.module,
+            width: entry.window?.width ?? local.width,
+            height: entry.window?.height ?? local.height,
+            minWidth: entry.window?.minWidth ?? local.minWidth,
+            minHeight: entry.window?.minHeight ?? local.minHeight,
+            position: entry.position || local.position,
+            hidden: entry.hidden === true,
+            storeManaged: entry.storeManaged === true,
+            incompatible: entry.incompatible === true
+        };
+    });
+    renderStartApps(document.getElementById("app-search")?.value || "");
+}
+
+async function loadRegistryApps() {
+    try {
+        const entries = await requestJson("/api/apps");
+        if (Array.isArray(entries) && entries.length) applyRegistry(entries);
+    } catch {
+        /* le repli local reste en place : premier rendu et mode hors ligne */
+    }
+}
 
 const desktop = document.getElementById("luma-desktop");
 const sessionRoot = document.getElementById("session-root");
@@ -37,6 +78,20 @@ let startupLaunched = false;
 let restoreSessionEnabled = true;
 let currentSettings = null;
 let systemVersion = "3.1.0";
+
+// Verrouillage automatique : délai d'inactivité piloté par le paramètre
+// lockAfterIdleMs (0 = jamais). La session verrouillée garde le cookie, les
+// fenêtres ouvertes et le cache d'avatars ; seule l'écran de session est rendu.
+const DEFAULT_LOCK_AFTER_IDLE_MS = 300000;
+let lockAfterIdleMs = DEFAULT_LOCK_AFTER_IDLE_MS;
+let idleTimer = null;
+let lastIdleResetAt = 0;
+let locked = false;
+
+// Synchro multi-onglets : verrouillage et déconnexion se propagent à tous les
+// onglets du même navigateur. Les sessions serveur multi-appareils sont
+// couvertes par le 401 → luma:session-expired (luma-api.js).
+const sessionChannel = "BroadcastChannel" in window ? new BroadcastChannel("luma.session") : null;
 
 function iconFor(app) {
     if (app.logo) return `<span class="app-icon app-icon--image-logo"><img src="${app.logo}" alt=""></span>`;
@@ -72,6 +127,7 @@ function resolveTheme(theme) {
 export function applySettings(settings) {
     currentSettings = settings;
     restoreSessionEnabled = settings.restoreSession !== false;
+    lockAfterIdleMs = Number.isInteger(settings.lockAfterIdleMs) ? settings.lockAfterIdleMs : DEFAULT_LOCK_AFTER_IDLE_MS;
     const theme = resolveTheme(settings.theme || "luma");
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.density = settings.density || "comfortable";
@@ -81,6 +137,7 @@ export function applySettings(settings) {
     document.documentElement.style.setProperty("--luma-accent", settings.accentColor || "#6d5ee8");
     document.documentElement.style.setProperty("--luma-accent-rgb", hexToRgb(settings.accentColor || "#6d5ee8"));
     if (settings.wallpaper) document.body.style.backgroundImage = `url("${settings.wallpaper}")`;
+    if (!desktop.hidden) armIdleTimer();
 }
 
 function setStartPanel(open) {
@@ -195,7 +252,12 @@ function renderSessionScreen({ authenticated = false, authentication = {}, user 
     document.getElementById(unreachable ? "session-retry" : "session-connect").addEventListener("click", async (event) => {
         event.currentTarget.disabled = true;
         if (unreachable) return bootstrap();
-        if (authenticated) return loadDesktopSession(user);
+        // Reprise après verrouillage : le bureau est déjà construit, on vérifie
+        // la session serveur puis on réaffiche le desktop sans nouveau boot.
+        if (authenticated) {
+            if (windowManager) return resumeSession(user);
+            return loadDesktopSession(user);
+        }
         window.location.assign("/auth/login");
     });
 }
@@ -228,6 +290,66 @@ function updateLockBattery() {
 }
 
 let remoteSessionTimer = null;
+
+function armIdleTimer() {
+    window.clearTimeout(idleTimer);
+    idleTimer = null;
+    if (locked || desktop.hidden || !Number.isInteger(lockAfterIdleMs) || lockAfterIdleMs <= 0) return;
+    idleTimer = window.setTimeout(lockSession, lockAfterIdleMs);
+}
+
+function noteActivity() {
+    if (locked || desktop.hidden || !idleTimer) return;
+    const now = Date.now();
+    if (now - lastIdleResetAt < 1000) return;
+    lastIdleResetAt = now;
+    armIdleTimer();
+}
+
+function lockSession({ announce = true } = {}) {
+    if (locked) return;
+    locked = true;
+    window.clearTimeout(idleTimer);
+    idleTimer = null;
+    setStartPanel(false);
+    renderSessionScreen({ authenticated: true, user: currentUser, message: "Session verrouillée." });
+    if (announce) sessionChannel?.postMessage({ type: "lock" });
+}
+
+async function resumeSession(user) {
+    try {
+        const session = await requestJson("/api/session");
+        if (!session.authenticated) {
+            locked = false;
+            currentUser = null;
+            renderSessionScreen({ authentication: { available: true }, message: "Session terminée. Connectez-vous à nouveau." });
+            return;
+        }
+        currentUser = session.user || user;
+        locked = false;
+        desktop.hidden = false;
+        sessionRoot.hidden = true;
+        armIdleTimer();
+    } catch (error) {
+        const unreachable = error instanceof TypeError;
+        renderSessionScreen({
+            authenticated: true,
+            user,
+            unreachable,
+            message: unreachable ? "Le serveur Luma est injoignable." : "La session n’a pas pu être confirmée. Réessayez."
+        });
+    }
+}
+
+function endSessionLocally(message) {
+    locked = false;
+    currentUser = null;
+    window.clearTimeout(idleTimer);
+    idleTimer = null;
+    clearAvatarCache();
+    setAvatarOwner(null);
+    renderSessionScreen({ authentication: { available: true }, message });
+}
 
 function persistSessionRemotely(windows) {
     window.clearTimeout(remoteSessionTimer);
@@ -292,12 +414,16 @@ async function loadDesktopSession(user) {
         progress(36, "Chargement de votre environnement…");
         const [settings, health] = await Promise.all([
             requestJson("/api/users/me/settings"),
-            requestJson("/api/health").catch(() => null)
+            requestJson("/api/health").catch(() => null),
+            loadRegistryApps()
         ]);
         applySettings(settings);
         if (health?.version) systemVersion = health.version;
         await migrateLegacyStartupApps();
-    } catch {
+    } catch (error) {
+        // 401 : l'événement luma:session-expired a déjà rendu l'écran de
+        // session, inutile de poursuivre le boot sur un desktop invisible.
+        if (error?.status === 401) return;
         applySettings({ theme: "luma", accentColor: "#6d5ee8", wallpaper: "./images/backgrounds/background-00.jpg", density: "comfortable", motion: "system" });
         toast("Les préférences n’ont pas pu être chargées.");
     }
@@ -317,7 +443,8 @@ async function loadDesktopSession(user) {
             getWindows: windowManager.getWindows,
             setWindowState: windowManager.setAppState,
             setWindowTitle: windowManager.setTitle,
-            saveSession: flushSession
+            saveSession: flushSession,
+            lock: lockSession
         });
     }
     if (restoreSessionEnabled) {
@@ -337,6 +464,7 @@ async function loadDesktopSession(user) {
     await new Promise((resolve) => window.setTimeout(resolve, 180));
     sessionRoot.hidden = true;
     desktop.hidden = false;
+    armIdleTimer();
     launchStartupApps();
 }
 
@@ -419,14 +547,31 @@ document.addEventListener("click", async (event) => {
     setStartPanel(false);
     if (action === "logout") {
         try { await postJson("/api/auth/logout"); } catch { toast("La révocation Kyros n’a pas pu être confirmée."); }
-        currentUser = null;
-        clearAvatarCache();
-        setAvatarOwner(null);
-        renderSessionScreen({ authentication: { available: true }, message: "Vous êtes déconnecté." });
-    } else {
-        renderSessionScreen({ authenticated: true, user: currentUser, message: "Session verrouillée." });
+        endSessionLocally("Vous êtes déconnecté.");
+        sessionChannel?.postMessage({ type: "logout" });
+    } else if (action === "lock") {
+        lockSession();
     }
 });
+
+// Verrou/déconnexion reçus d'un autre onglet du même navigateur.
+sessionChannel?.addEventListener("message", (event) => {
+    if (event.data?.type === "lock") lockSession({ announce: false });
+    if (event.data?.type === "logout") endSessionLocally("Session close sur un autre onglet.");
+});
+
+// Session expirée ou close depuis un autre appareil (401 servi par luma-api.js).
+window.addEventListener("luma:session-expired", () => {
+    if (locked) return;
+    if (sessionRoot.querySelector(".session-select")) return;
+    endSessionLocally("Session expirée ou close depuis un autre appareil.");
+});
+
+// Réarmement du verrouillage automatique sur l'activité de l'utilisateur.
+document.addEventListener("pointerdown", noteActivity, true);
+document.addEventListener("keydown", noteActivity, true);
+document.addEventListener("touchstart", noteActivity, true);
+document.addEventListener("wheel", noteActivity, { capture: true, passive: true });
 
 function updateClock() {
     const now = new Date();
