@@ -82,7 +82,8 @@ Ajouter une entrée validée dans `data/apps.json` : c'est le registre unique, s
 - `GET /api/documents` et `GET /api/documents/folders` ;
 - `POST /api/documents/folders` et `POST /api/documents/upload` ;
 - `PATCH /api/documents/:id` et `GET /api/documents/:id/download` ;
-- `POST /api/documents/actions/trash`, `/restore`, `/delete` et `/empty-trash`.
+- `POST /api/documents/actions/trash`, `/restore`, `/delete` et `/empty-trash` ;
+- `GET /api/users/me/backup`, `POST /api/users/me/backup` et `POST /api/users/me/backup/reset` (sauvegarde, restauration et réinitialisation ciblée — voir [`docs/BACKUP.md`](docs/BACKUP.md)).
 
 Les routes privées utilisent exclusivement l'utilisateur de la session. Un identifiant fourni par le navigateur n'est jamais utilisé pour choisir le fichier d'un utilisateur.
 
@@ -95,5 +96,6 @@ Documents applique un quota serveur de 1 Gio par sujet Kyros. La Corbeille compt
 - [`docs/AUDIT.md`](docs/AUDIT.md) ;
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ;
 - [`docs/DATABASE.md`](docs/DATABASE.md) ;
+- [`docs/BACKUP.md`](docs/BACKUP.md) ;
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) ;
 - [`docs/MIGRATION.md`](docs/MIGRATION.md).

@@ -37,11 +37,11 @@ WinMa/
 │   │   ├── env.js                   # Validation des variables d'environnement
 │   │   └── security.js              # Helmet + CSP durcie (frame-src dynamique)
 │   ├── db/                            # Adapters SQLite/PostgreSQL + migrator
-│   ├── controllers/                 # 9 contrôleurs HTTP
+│   ├── controllers/                 # 10 contrôleurs HTTP
 │   ├── middlewares/                 # 5 middlewares
 │   ├── repositories/                 # Contrat SQL commun sqlite/pg (sessions, fenêtres, préférences, documents)
-│   ├── routes/                      # 10 fichiers de routes
-│   ├── services/                    # 9 services métier
+│   ├── routes/                      # 11 fichiers de routes
+│   ├── services/                    # 10 services métier
 │   ├── stores/                      # Session store express-session générique
 │   └── utils/                       # api-response, async-handler, http-error, logger
 │
@@ -102,6 +102,14 @@ WinMa/
 | `GET` | `/api/users/me/account` | Oui | Identité Kyros, préférences Luma, quota, synchronisation |
 | `PATCH` | `/api/users/me/account` | Oui | Met à jour le profil Luma local (nom, langue, fuseau, consentements) |
 | `GET` | `/api/users/me/context` | Oui | Contexte partagé entre modules (profil/apparence, versionné) |
+
+### Sauvegarde
+
+| Méthode | Route | Session | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/users/me/backup` | Oui | Export agrégé : paramètres, compte, fenêtres, notes texte |
+| `POST` | `/api/users/me/backup` | Oui | Import d'une sauvegarde (body JSON 8 Mo, recrée/mett à jour sans supprimer) |
+| `POST` | `/api/users/me/backup/reset` | Oui | Réinitialisation ciblée (`settings`, `account`, `windows`, `notes`) |
 
 ### Documents et Corbeille
 
@@ -176,6 +184,7 @@ WinMa/
 | `apps-controller.js` | Liste/détail des applications du registre |
 | `settings-controller.js` | Lecture et patch des paramètres du bureau |
 | `account-controller.js` | Compte (identité, préférences, quota, sync) et contexte inter-modules |
+| `backup-controller.js` | Export, import et réinitialisation des données personnelles |
 | `documents-controller.js` | CRUD Documents, upload, Corbeille, téléchargement, aperçu |
 | `harmonix-controller.js` | Proxy catalogue/flux/covers Harmonix (pass-through d'en-têtes) |
 | `sonora-studio-controller.js` | Proxy Sonora : morceaux, albums, playlists, accès, upload |
@@ -190,6 +199,7 @@ WinMa/
 | `app-registry-service.js` | Chargement et validation de `data/apps.json` (types `internal`, `iframe`, `external`, `system`), source de vérité serveur |
 | `settings-service.js` | Lecture/écriture atomique des paramètres par sujet hashé, liste blanche de champs |
 | `account-service.js` | Préférences de compte Luma (nom, langue, fuseau, sync profile/apparence) en écriture atomique |
+| `backup-service.js` | Export/import/réinitialisation agrégés (paramètres, compte, fenêtres, notes texte), format `luma-backup` v1 |
 | `document-service.js` | Quota 1 Gio, arborescence, upload, texte, Corbeille 30 jours, purge |
 | `harmonix-service.js` | Normalisation des pistes, streaming `Range`, couvertures — proxifie vers Harmonix |
 | `sonora-studio-service.js` | Proxy API Sonora avec Bearer token Kyros serveur (morceaux, albums, playlists, rôles, upload) |
@@ -258,7 +268,7 @@ WinMa/
 | Dossier | Fichiers | Rôle |
 | --- | --- | --- |
 | `documents/` | app.js, style.css | Explorateur Documents et interface Corbeille |
-| `parametres/` | app.js, style.css | Paramètres : thèmes, fond, accent, densité, mouvement, compte |
+| `parametres/` | app.js, style.css | Paramètres : thèmes, fond, accent, densité, mouvement, compte, démarrage, sauvegarde |
 | ~~`session-select/`~~ | ~~style.css~~ | Écran de session fusionné dans le shell : styles migrés dans `luma-shell.css` (dossier supprimé) |
 | `sonora-studio/` | app.js, style.css | Studio : morceaux, albums, playlists, upload, accès |
 | `braindump/` | app.js, style.css | Notes et pensées (capture rapide + analyse) |
@@ -291,7 +301,10 @@ WinMa/
 | `tests/e2e/helpers/e2e.js` | Helper E2E | Moteur de recette (Chromium système, ou Firefox/WebKit via `LUMA_E2E_BROWSER`) + serveur de test authentifié |
 | `tests/e2e/shell.e2e.test.js` | E2E | Recette shell : écran de session, bureau, registre, fenêtres, Service Worker, viewport mobile (`npm run test:e2e`) |
 | `tests/e2e/apps.e2e.test.js` | E2E | Parcours métier : Documents (dossier, import, corbeille, quota), Bloc-notes, Calendrier, Terminal (commandes, easter egg `sudo reboot`) |
+| `tests/e2e/lock.e2e.test.js` | E2E | Verrouillage de session : verrou manuel, inactivité simulée, propagation multi-onglets, 401 serveur |
+| `tests/e2e/backup.e2e.test.js` | E2E | Sauvegarde : export téléchargé, contrôle du fichier, import avec restauration |
 | `tests/integration/auth.test.js` | Intégration | Flux SSO : login, callback, state, session, logout (JWT simulés) |
+| `tests/integration/backup.test.js` | Intégration | `/api/users/me/backup` : 401, export agrégé, restauration, refus, réinitialisation |
 | `tests/integration/apps.test.js` | Intégration | `/api/apps` : 401, métadonnées, 400/404 |
 | `tests/integration/harmonix.test.js` | Intégration | Proxy Harmonix : catalogue, streaming, couvertures |
 | `tests/integration/postgres.test.js` | Intégration | Persistance PostgreSQL (TEST_DATABASE_URL) |
@@ -319,6 +332,7 @@ WinMa/
 | `docs/AUDIT.md` | Audit technique (risques, statique du code et dépendances) |
 | `docs/ARCHITECTURE.md` | Architecture cible : SSO, API, registre, fenêtres, paramètres, sécurité |
 | `docs/DATABASE.md` | Persistance hybride SQLite/PostgreSQL : config, migrations, déploiement, tests |
+| `docs/BACKUP.md` | Sauvegarde/export/restauration : format `luma-backup`, pas-à-pas, API |
 | `docs/ROADMAP.md` | Phases de migration par incréments |
 | `docs/MIGRATION.md` | État de la migration WinMa → Luma OS (fichiers remplacés/déplacés) |
 | `docs/CHANGELOG.md` | Journal des versions : survol rapide puis détails par version |
