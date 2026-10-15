@@ -247,7 +247,8 @@ WinMa/
 | `index.html` | Page unique du bureau (zones bureau, fenêtres, barre des tâches, menu, toasts) |
 | `assets/css/luma-shell.css` | Styles du shell LUMA Fluent (thèmes, tokens, responsive) |
 | `assets/javascripts/luma-api.js` | Client API (`requestJson`, `patchJson`, `postJson`, `putJson`, cookies same-origin) |
-| `assets/javascripts/luma-shell.js` | Boot du bureau : registre de repli + chargement de `GET /api/apps`, lancement, icônes, toasts |
+| `assets/javascripts/luma-search.js` | Recherche globale : filtrage pure des applications, événements et réglages (normalisation sans accents) |
+| `assets/javascripts/luma-shell.js` | Boot du bureau : registre de repli + chargement de `GET /api/apps`, lancement, icônes, toasts, recherche globale (Ctrl+K) |
 | `assets/javascripts/luma-window-manager.js` | Gestionnaire de fenêtres (Map d'états, z-index, cascade, layout adaptatif de la barre des tâches, pointer/touch) |
 
 > Nettoyage du 14 octobre 2026 : les scripts et styles hérités WinMa (`all.js`, `window/*`, `jquery/`, `date-time.js`, `start-locked.js`, `allstyles.css`, `window.css`, `start-menu.css`) ont été supprimés après vérification de non-utilisation.
@@ -317,9 +318,11 @@ WinMa/
 | `tests/e2e/lock.e2e.test.js` | E2E | Verrouillage de session : verrou manuel, inactivité simulée, propagation multi-onglets, 401 serveur |
 | `tests/e2e/backup.e2e.test.js` | E2E | Sauvegarde : export téléchargé, contrôle du fichier, import avec restauration |
 | `tests/e2e/workspaces.e2e.test.js` | E2E | Espaces : création, bascule avec rechargement du bureau, fenêtres restaurées |
+| `tests/e2e/search.e2e.test.js` | E2E | Recherche globale : les quatre groupes, ouverture des résultats, état vide, reset du champ |
 | `tests/integration/auth.test.js` | Intégration | Flux SSO : login, callback, state, session, logout (JWT simulés) |
 | `tests/integration/backup.test.js` | Intégration | `/api/users/me/backup` : 401, export agrégé, restauration, refus, réinitialisation |
 | `tests/integration/workspaces.test.js` | Intégration | `/api/users/me/workspaces` : 401, cycle de vie, validations, CSRF |
+| `tests/integration/search.test.js` | Intégration | Recherche Documents : 401, isolation par sujet, exclusion de la Corbeille |
 | `tests/integration/apps.test.js` | Intégration | `/api/apps` : 401, métadonnées, 400/404 |
 | `tests/integration/harmonix.test.js` | Intégration | Proxy Harmonix : catalogue, streaming, couvertures |
 | `tests/integration/postgres.test.js` | Intégration | Persistance PostgreSQL (TEST_DATABASE_URL) |
@@ -336,6 +339,7 @@ WinMa/
 | `tests/unit/sonora-studio.test.js` | Unitaire | Service Sonora (fake fetch) |
 | `tests/unit/system-metrics.test.js` | Unitaire | Métriques CPU/mémoire/uptime |
 | `tests/unit/workspaces.test.js` | Unitaire | Service espaces : nom, unicité, limite, capture, bascule, suppression protégée |
+| `tests/unit/search.test.js` | Unitaire | Recherche globale : normalisation, éligibilité, événements, réglages |
 
 ## 11. Scripts, données et documentation
 

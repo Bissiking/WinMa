@@ -79,7 +79,7 @@ Ajouter une entrée validée dans `data/apps.json` : c'est le registre unique, s
 - `PATCH /api/users/me/settings`.
 - `GET` et `PATCH /api/users/me/account` ;
 - `GET /api/users/me/context` pour les modules Luma autorisés ;
-- `GET /api/documents` et `GET /api/documents/folders` ;
+- `GET /api/documents` (liste, recherche `?search=`, Corbeille `?trash`) et `GET /api/documents/folders` ;
 - `POST /api/documents/folders` et `POST /api/documents/upload` ;
 - `PATCH /api/documents/:id` et `GET /api/documents/:id/download` ;
 - `POST /api/documents/actions/trash`, `/restore`, `/delete` et `/empty-trash` ;
