@@ -11,7 +11,8 @@ const child = spawn(process.execPath, [
     'tests/e2e/apps.e2e.test.js',
     'tests/e2e/lock.e2e.test.js',
     'tests/e2e/backup.e2e.test.js',
-    'tests/e2e/workspaces.e2e.test.js'
+    'tests/e2e/workspaces.e2e.test.js',
+    'tests/e2e/search.e2e.test.js'
 ], {
     stdio: 'inherit',
     env: { ...process.env, LUMA_E2E: '1' }

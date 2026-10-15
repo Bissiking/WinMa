@@ -111,11 +111,12 @@ const QUICK_LOCATIONS = new Set(["image", "video", "audio", "document"]);
 const QUICK_LABELS = { image: "Images", video: "Vidéos", audio: "Musique", document: "Documents" };
 
 export async function mount(root, { app, toast, open, options }) {
-    const state = { trash: app.id === "trash", parentId: null, search: "", view: "list", selected: new Set(), data: null, type: null, recent: options?.data?.view === "recent" };
+    const state = { trash: app.id === "trash", parentId: null, search: typeof options?.data?.search === "string" ? options.data.search.slice(0, 120) : "", view: "list", selected: new Set(), data: null, type: null, recent: options?.data?.view === "recent" };
     renderShell(root, state.trash);
     const shell = root.querySelector(".documents-app");
     const list = root.querySelector(".documents-list");
     const search = root.querySelector(".documents-search input");
+    search.value = state.search;
     let searchTimer;
 
     function selectedItems() { return state.data.items.filter((item) => state.selected.has(item.id)); }
@@ -302,6 +303,18 @@ export async function mount(root, { app, toast, open, options }) {
     root.addEventListener("dblclick", doubleClick);
     root.querySelector(".document-upload").addEventListener("change", uploadChange);
     search.addEventListener("input", searchInput);
+    const onGlobalSearch = (event) => {
+        const query = String(event.detail?.query || "").slice(0, 120);
+        if (query === state.search) return;
+        state.search = query;
+        search.value = query;
+        state.parentId = null;
+        state.type = null;
+        state.recent = false;
+        window.clearTimeout(searchTimer);
+        load();
+    };
+    window.addEventListener("luma:documents-search", onGlobalSearch);
     if (!state.trash && !state.recent) {
         try {
             const settings = await requestJson("/api/users/me/settings");
@@ -317,5 +330,6 @@ export async function mount(root, { app, toast, open, options }) {
         root.removeEventListener("click", click);
         root.removeEventListener("dblclick", doubleClick);
         search.removeEventListener("input", searchInput);
+        window.removeEventListener("luma:documents-search", onGlobalSearch);
     };
 }

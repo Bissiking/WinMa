@@ -673,6 +673,35 @@ select:focus-visible,
 .start-app:hover { background: var(--surface-muted); }
 .start-app span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 
+/* Recherche globale : résultats groupés en liste (le champ Démarrer filtre
+   applications, Documents, événements et réglages). */
+.start-apps--list { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+
+.start-group {
+    grid-column: 1 / -1;
+    margin: 10px 0 2px;
+    color: var(--ink-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.start-app--row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: start;
+    gap: 10px;
+    min-height: 40px;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.start-app--row .icon { width: 18px; height: 18px; }
+.start-app--row span { font-size: 13px; }
+.start-app--row small { margin-left: auto; color: var(--ink-muted); font-size: 11px; white-space: nowrap; }
+.start-app--row.is-active { background: var(--surface-muted); }
+
 .start-footer {
     display: flex;
     align-items: center;

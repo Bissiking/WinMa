@@ -1,4 +1,5 @@
 import { requestJson, patchJson, postJson, putJson } from "./luma-api.js";
+import { searchApps, searchEvents, searchSettings } from "./luma-search.js";
 import { createWindowManager } from "./luma-window-manager.js";
 import { showContextMenu } from "./luma-context-menu.js";
 import { welcomeMessage } from "./luma-welcome.js";
@@ -54,7 +55,7 @@ function applyRegistry(entries) {
             incompatible: entry.incompatible === true
         };
     });
-    renderStartApps(document.getElementById("app-search")?.value || "");
+    renderStartResults(document.getElementById("app-search")?.value || "");
 }
 
 async function loadRegistryApps() {
@@ -71,6 +72,7 @@ const sessionRoot = document.getElementById("session-root");
 const startPanel = document.getElementById("start-panel");
 const launcher = document.getElementById("luma-launcher");
 const startApps = document.getElementById("start-apps");
+const startHeading = startPanel.querySelector(".start-panel__heading h2");
 const toastRegion = document.getElementById("toast-region");
 let windowManager;
 let currentUser;
@@ -146,21 +148,97 @@ export function applySettings(settings) {
 }
 
 function setStartPanel(open) {
+    const wasOpen = !startPanel.hidden;
     startPanel.hidden = !open;
     launcher.setAttribute("aria-expanded", String(open));
     launcher.setAttribute("aria-pressed", String(open));
-    if (open) window.setTimeout(() => document.getElementById("app-search").focus(), 0);
+    if (open) {
+        window.setTimeout(() => document.getElementById("app-search").focus(), 0);
+    } else if (wasOpen) {
+        // La recherche est réinitialisée entre deux ouvertures : le panneau
+        // rouvre sur la grille d'applications, jamais sur d'anciens résultats.
+        const input = document.getElementById("app-search");
+        window.clearTimeout(documentSearchTimer);
+        if (input.value) {
+            input.value = "";
+            renderStartResults("");
+        }
+    }
 }
 
-function renderStartApps(filter = "") {
-    const normalized = filter.trim().toLocaleLowerCase("fr");
-    let installed = new Set();
-    try { installed = new Set(JSON.parse(localStorage.getItem("luma.orbit.installed") || "[]")); } catch { installed = new Set(); }
-    const visible = apps.filter((app) => !app.hidden && !app.incompatible && (!app.storeManaged || installed.has(app.id)) && app.name.toLocaleLowerCase("fr").includes(normalized));
-    startApps.innerHTML = visible.length ? visible.map((app) => `
-        <button class="start-app" type="button" data-open-app="${app.id}">
-            ${iconFor(app)}<span>${app.name}</span>
-        </button>`).join("") : '<p class="start-empty">Aucune application trouvée.</p>';
+function readInstalledApps() {
+    try { return new Set(JSON.parse(localStorage.getItem("luma.orbit.installed") || "[]")); } catch { return new Set(); }
+}
+
+function readCalendarEvents() {
+    try { return JSON.parse(localStorage.getItem("luma.calendar.events") || "[]"); } catch { return []; }
+}
+
+// Recherche globale (Ctrl+K) : applications du registre, fichiers Documents
+// (serveur, propriétaire de la session), événements du Calendrier et réglages.
+// Les résultats Documents sont chargés avec un debounce et un jeton de séquence
+// pour ignorer les réponses obsolètes.
+let documentResults = [];
+let documentSearchToken = 0;
+let documentSearchTimer = null;
+let searchActiveIndex = -1;
+
+async function loadDocumentResults(query) {
+    const trimmed = String(query || "").trim();
+    const token = ++documentSearchToken;
+    if (trimmed.length < 2) { documentResults = []; return; }
+    try {
+        const params = new URLSearchParams({ search: trimmed.slice(0, 120) });
+        const payload = await requestJson(`/api/documents?${params}`);
+        if (token !== documentSearchToken) return;
+        documentResults = Array.isArray(payload?.items) ? payload.items.slice(0, 6) : [];
+    } catch {
+        if (token === documentSearchToken) documentResults = [];
+    }
+}
+
+function renderStartResults(filter = "") {
+    const query = String(filter || "").trim();
+    const installed = readInstalledApps();
+    const appsFound = searchApps(apps, { query, installed });
+    searchActiveIndex = -1;
+    startApps.classList.toggle("start-apps--list", Boolean(query));
+
+    if (!query) {
+        startHeading.textContent = "Applications";
+        startApps.innerHTML = appsFound.length ? appsFound.map((app) => `
+            <button class="start-app" type="button" data-open-app="${app.id}">
+                ${iconFor(app)}<span>${app.name}</span>
+            </button>`).join("") : '<p class="start-empty">Aucune application trouvée.</p>';
+        return;
+    }
+
+    startHeading.textContent = "Résultats";
+    const iconUse = (symbol) => `<svg class="icon" aria-hidden="true"><use href="#icon-${symbol}"></use></svg>`;
+    const groups = [];
+    if (appsFound.length) groups.push({ title: "Applications", items: appsFound.map((app) => ({
+        markup: `${iconFor(app)}<span>${escapeHtml(app.name)}</span><small>Application</small>`,
+        attrs: `data-open-app="${app.id}"`
+    })) });
+    if (documentResults.length) groups.push({ title: "Documents", items: documentResults.map((item) => ({
+        markup: `${iconUse("folder")}<span>${escapeHtml(item.name)}</span><small>${item.kind === "folder" ? "Dossier" : "Fichier"}</small>`,
+        attrs: `data-open-app="documents" data-open-search="${escapeHtml(query)}"`
+    })) });
+    const events = searchEvents(readCalendarEvents(), query);
+    if (events.length) groups.push({ title: "Événements", items: events.map((event) => ({
+        markup: `${iconUse("calendar")}<span>${escapeHtml(event.title)}</span><small>${escapeHtml(event.date || "")}${event.time ? ` ${escapeHtml(event.time)}` : ""}</small>`,
+        attrs: `data-open-app="calendar"`
+    })) });
+    const settingsFound = searchSettings(query);
+    if (settingsFound.length) groups.push({ title: "Réglages", items: settingsFound.map((entry) => ({
+        markup: `${iconUse("settings")}<span>${escapeHtml(entry.label)}</span><small>Réglage</small>`,
+        attrs: `data-open-app="settings" data-open-view="${entry.view}"`
+    })) });
+
+    startApps.innerHTML = groups.length
+        ? groups.map((group) => `<p class="start-group">${group.title}</p>${group.items.map((item) => `
+            <button class="start-app start-app--row" type="button" ${item.attrs}>${item.markup}</button>`).join("")}`).join("")
+        : '<p class="start-empty">Aucun résultat.</p>';
 }
 
 async function migrateLegacyStartupApps() {
@@ -493,7 +571,7 @@ async function loadDesktopSession(user) {
 }
 
 async function bootstrap() {
-    renderStartApps();
+    renderStartResults();
     try {
         const session = await requestJson("/api/session");
         if (session.authenticated) await loadDesktopSession(session.user);
@@ -508,11 +586,30 @@ async function bootstrap() {
 }
 
 launcher.addEventListener("click", () => setStartPanel(startPanel.hidden));
-document.getElementById("app-search").addEventListener("input", (event) => renderStartApps(event.target.value));
+document.getElementById("app-search").addEventListener("input", (event) => {
+    const value = event.target.value;
+    renderStartResults(value);
+    window.clearTimeout(documentSearchTimer);
+    documentSearchTimer = window.setTimeout(async () => {
+        await loadDocumentResults(value);
+        if (String(document.getElementById("app-search").value).trim() === value.trim()) renderStartResults(value);
+    }, 250);
+});
 document.addEventListener("click", (event) => {
     const appButton = event.target.closest("[data-open-app]");
     if (appButton && windowManager) {
-        windowManager.openApp(appButton.dataset.openApp);
+        const data = {};
+        if (appButton.dataset.openSearch) data.search = appButton.dataset.openSearch;
+        if (appButton.dataset.openView) data.view = appButton.dataset.openView;
+        // Les fenêtres déjà ouvertes ignorent les options d'ouverture : les deux
+        // événements portent la demande quand l'application est déjà montée.
+        if (appButton.dataset.openSearch) {
+            window.dispatchEvent(new CustomEvent("luma:documents-search", { detail: { query: appButton.dataset.openSearch } }));
+        }
+        if (appButton.dataset.openView) {
+            window.dispatchEvent(new CustomEvent("luma:settings-view", { detail: { view: appButton.dataset.openView } }));
+        }
+        windowManager.openApp(appButton.dataset.openApp, Object.keys(data).length ? { data } : undefined);
         setStartPanel(false);
     }
     if (!startPanel.hidden && !startPanel.contains(event.target) && !launcher.contains(event.target)) setStartPanel(false);
@@ -551,6 +648,22 @@ document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k" && !desktop.hidden) {
         event.preventDefault();
         setStartPanel(true);
+    }
+    if (!startPanel.hidden && (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter")) {
+        const buttons = [...startApps.querySelectorAll(".start-app")];
+        if (buttons.length) {
+            event.preventDefault();
+            if (event.key === "Enter") {
+                (buttons[searchActiveIndex] || buttons[0]).click();
+            } else {
+                const delta = event.key === "ArrowDown" ? 1 : -1;
+                searchActiveIndex = searchActiveIndex < 0
+                    ? (delta > 0 ? 0 : buttons.length - 1)
+                    : Math.min(buttons.length - 1, Math.max(0, searchActiveIndex + delta));
+                buttons.forEach((button, index) => button.classList.toggle("is-active", index === searchActiveIndex));
+                buttons[searchActiveIndex]?.scrollIntoView({ block: "nearest" });
+            }
+        }
     }
     if (desktop.hidden) return;
     const shortcutReload = event.key === "F5" || ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "r");
@@ -607,7 +720,7 @@ function updateClock() {
 updateClock();
 window.setInterval(updateClock, 30_000);
 window.addEventListener("luma:settings", (event) => applySettings(event.detail));
-window.addEventListener("luma:apps-changed", () => renderStartApps(document.getElementById("app-search").value));
+window.addEventListener("luma:apps-changed", () => renderStartResults(document.getElementById("app-search").value));
 
 const batteryButton = document.getElementById("taskbar-battery");
 const batteryIcon = batteryButton?.querySelector("use");
