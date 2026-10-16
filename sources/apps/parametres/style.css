@@ -459,10 +459,19 @@
 .startup-profiles__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .startup-profiles .settings-secondary-button:disabled { opacity: .45; cursor: default; }
 
+.workspace-list { display: grid; gap: 10px; }
+.workspace-row { display: flex; align-items: center; gap: 14px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+.workspace-row__text { flex: 1; display: grid; gap: 3px; min-width: 0; }
+.workspace-row strong { font-size: 12px; color: var(--ink); }
+.workspace-row small { font-size: 10px; color: var(--ink-muted); }
+.workspace-row.is-active strong { color: var(--luma-accent); }
+.workspace-row.is-active { border-bottom-color: color-mix(in srgb, var(--luma-accent) 30%, var(--line)); }
+
 @container (max-width: 540px) {
     .settings-home__grid { grid-template-columns: 1fr; }
     .startup-app-row { flex-wrap: wrap; }
     .startup-app-row__order { margin-left: auto; }
+    .workspace-row { flex-wrap: wrap; }
 }
 
 @media (max-width: 760px) {

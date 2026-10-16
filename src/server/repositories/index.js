@@ -5,10 +5,12 @@ const { createSqliteSessionStoreRepository } = require('./sqlite-session-store-r
 const { createSqliteSessionRepository } = require('./sqlite-session-repository');
 const { createSqliteDocumentRepository } = require('./sqlite-document-repository');
 const { createSqlitePreferencesRepository } = require('./sqlite-preferences-repository');
+const { createSqliteWorkspaceRepository } = require('./sqlite-workspace-repository');
 const { createPgSessionStoreRepository } = require('./pg-session-store-repository');
 const { createPgSessionRepository } = require('./pg-session-repository');
 const { createPgDocumentRepository } = require('./pg-document-repository');
 const { createPgPreferencesRepository } = require('./pg-preferences-repository');
+const { createPgWorkspaceRepository } = require('./pg-workspace-repository');
 
 function createRepositories(database) {
     if (!database || typeof database.query !== 'function') {
@@ -22,7 +24,8 @@ function createRepositories(database) {
             windowSessions: createSqliteSessionRepository(database),
             documents: createSqliteDocumentRepository(database),
             settings: createSqlitePreferencesRepository(database, 'user_settings'),
-            account: createSqlitePreferencesRepository(database, 'account_preferences')
+            account: createSqlitePreferencesRepository(database, 'account_preferences'),
+            workspaces: createSqliteWorkspaceRepository(database)
         };
     }
 
@@ -33,7 +36,8 @@ function createRepositories(database) {
             windowSessions: createPgSessionRepository(database),
             documents: createPgDocumentRepository(database),
             settings: createPgPreferencesRepository(database, 'user_settings'),
-            account: createPgPreferencesRepository(database, 'account_preferences')
+            account: createPgPreferencesRepository(database, 'account_preferences'),
+            workspaces: createPgWorkspaceRepository(database)
         };
     }
 

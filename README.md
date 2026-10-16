@@ -67,6 +67,7 @@ Ajouter une entrée validée dans `data/apps.json` : c'est le registre unique, s
 ## API disponible
 
 - `GET /api/health` ;
+- `GET /api/system/metrics` (métriques du Gestionnaire des tâches avec périmètre explicite) ;
 - `GET /auth/login` ;
 - `GET /auth/callback` ;
 - `POST /api/auth/logout` ;
@@ -79,13 +80,16 @@ Ajouter une entrée validée dans `data/apps.json` : c'est le registre unique, s
 - `PATCH /api/users/me/settings`.
 - `GET` et `PATCH /api/users/me/account` ;
 - `GET /api/users/me/context` pour les modules Luma autorisés ;
-- `GET /api/documents` et `GET /api/documents/folders` ;
+- `GET /api/documents` (liste, recherche `?search=`, Corbeille `?trash`) et `GET /api/documents/folders` ;
 - `POST /api/documents/folders` et `POST /api/documents/upload` ;
 - `PATCH /api/documents/:id` et `GET /api/documents/:id/download` ;
 - `POST /api/documents/actions/trash`, `/restore`, `/delete` et `/empty-trash` ;
-- `GET /api/users/me/backup`, `POST /api/users/me/backup` et `POST /api/users/me/backup/reset` (sauvegarde, restauration et réinitialisation ciblée — voir [`docs/BACKUP.md`](docs/BACKUP.md)).
+- `GET /api/users/me/backup`, `POST /api/users/me/backup` et `POST /api/users/me/backup/reset` (sauvegarde, restauration et réinitialisation ciblée — voir [`docs/BACKUP.md`](docs/BACKUP.md)) ;
+- `GET`, `POST /api/users/me/workspaces` et `GET/PATCH/PUT/DELETE /api/users/me/workspaces/:id` avec `POST /:id/activate` (espaces de travail : dispositions nommées du bureau, bascule avec rechargement).
 
 Les routes privées utilisent exclusivement l'utilisateur de la session. Un identifiant fourni par le navigateur n'est jamais utilisé pour choisir le fichier d'un utilisateur.
+
+En conteneur (Docker, LXC), `/api/system/metrics` lit les limites CPU/RAM effectives via les cgroups (v2 puis v1, avec remontée des ancêtres) et n'expose jamais les valeurs de l'hôte comme celles du conteneur : une métrique non fiable est renvoyée « indisponible » (`null`). `LUMA_METRICS_PROBE_ROOT` peut pointer vers un collecteur en lecture seule — un dossier cgroup monté en lecture seule, ou la racine d'une machine avec `sys/fs/cgroup` et `proc/self/cgroup` — pour exposer le périmètre réel, par exemple celui d'un LXC parent hébergeant le conteneur Docker ; aucun accès privilégié à Docker ni à Proxmox n'est requis. `LUMA_METRICS_SCOPE=host|container` force le périmètre (débogage).
 
 Le profil Kyros affiché dans Paramètres est en lecture seule. Les champs modifiables appartiennent au profil Luma local : nom préféré, langue, fuseau horaire et consentements de partage. `/api/users/me/context` ne retourne le profil et l’apparence que lorsque leur synchronisation respective est activée.
 

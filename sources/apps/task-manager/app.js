@@ -17,6 +17,15 @@ function formatPercent(value) {
     return Number.isFinite(value) ? `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(value)} %` : "—";
 }
 
+// Périmètre de collecte des métriques : une valeur non déterminée affiche
+// « non déterminé » plutôt que de faire croire que l'hôte est le conteneur.
+const SCOPE_LABELS = { host: "machine hôte", container: "conteneur", probe: "collecteur (lecture seule)" };
+
+function scopeLabel(meta) {
+    if (!meta?.scope) return "non déterminé";
+    return SCOPE_LABELS[meta.scope] || meta.scope;
+}
+
 function appMark(app) {
     if (app.logo) return `<span class="task-app-mark task-app-mark--logo"><img src="${app.logo}" alt=""></span>`;
     const symbols = { settings: "settings", trash: "trash", notepad: "notepad", image: "image", activity: "activity", orbit: "orbit", chip: "chip", calculator: "calc", terminal: "terminal", calendar: "calendar" };
@@ -76,10 +85,19 @@ export async function mount(root, { apps, windowId, getWindows, closeWindow, toa
     function renderPerformance() {
         const cpu = metrics?.cpu;
         const memory = metrics?.memory;
+        const cpuCoresLabel = cpu?.logicalCores != null
+            ? `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(cpu.logicalCores)} processeurs logiques`
+            : "Processeurs logiques indisponibles";
+        const memoryHeaderLabel = memory?.totalBytes != null
+            ? `${formatBytes(memory?.usedBytes)} utilisés sur ${formatBytes(memory?.totalBytes)}`
+            : memory?.usedBytes != null
+                ? `${formatBytes(memory.usedBytes)} utilisés — limite indisponible`
+                : "Métrique indisponible";
         viewRoot.innerHTML = metricsError && !metrics ? `<div class="task-manager-empty"><h2>Métriques indisponibles</h2><p>Redémarrez le serveur Luma OS pour activer la nouvelle route système.</p><button type="button" data-task-refresh>Réessayer</button></div>` : `
             <div class="performance-panel">
-                <section><header><div><h2>Processeur</h2><p>${cpu?.logicalCores || "—"} processeurs logiques</p></div><strong>${formatPercent(cpu?.percent)}</strong></header><div class="performance-track"><i style="transform:scaleX(${(cpu?.percent || 0) / 100})"></i></div><dl><div><dt>Charge 1 min</dt><dd>${cpu?.loadAverage?.[0] ?? "—"}</dd></div><div><dt>Charge 5 min</dt><dd>${cpu?.loadAverage?.[1] ?? "—"}</dd></div><div><dt>Charge 15 min</dt><dd>${cpu?.loadAverage?.[2] ?? "—"}</dd></div></dl></section>
-                <section><header><div><h2>Mémoire</h2><p>${formatBytes(memory?.usedBytes)} utilisés sur ${formatBytes(memory?.totalBytes)}</p></div><strong>${formatPercent(memory?.percent)}</strong></header><div class="performance-track performance-track--memory"><i style="transform:scaleX(${(memory?.percent || 0) / 100})"></i></div><dl><div><dt>Disponible</dt><dd>${formatBytes(memory?.availableBytes)}</dd></div><div><dt>Serveur Luma</dt><dd>${formatBytes(metrics?.runtime?.processMemoryBytes)}</dd></div><div><dt>Disponibilité</dt><dd>${metrics?.runtime?.uptimeSeconds ? `${Math.floor(metrics.runtime.uptimeSeconds / 60)} min` : "—"}</dd></div></dl></section>
+                <section><header><div><h2>Processeur</h2><p>${cpuCoresLabel}</p></div><strong>${formatPercent(cpu?.percent)}</strong></header><div class="performance-track"><i style="transform:scaleX(${(cpu?.percent || 0) / 100})"></i></div><dl><div><dt>Charge 1 min</dt><dd>${cpu?.loadAverage?.[0] ?? "—"}</dd></div><div><dt>Charge 5 min</dt><dd>${cpu?.loadAverage?.[1] ?? "—"}</dd></div><div><dt>Charge 15 min</dt><dd>${cpu?.loadAverage?.[2] ?? "—"}</dd></div></dl></section>
+                <section><header><div><h2>Mémoire</h2><p>${memoryHeaderLabel}</p></div><strong>${formatPercent(memory?.percent)}</strong></header><div class="performance-track performance-track--memory"><i style="transform:scaleX(${(memory?.percent || 0) / 100})"></i></div><dl><div><dt>Disponible</dt><dd>${formatBytes(memory?.availableBytes)}</dd></div><div><dt>Serveur Luma</dt><dd>${formatBytes(metrics?.runtime?.processMemoryBytes)}</dd></div><div><dt>Disponibilité</dt><dd>${metrics?.runtime?.uptimeSeconds ? `${Math.floor(metrics.runtime.uptimeSeconds / 60)} min` : "—"}</dd></div></dl></section>
+                <p class="performance-scope">Périmètre des métriques : ${escapeHtml(scopeLabel(metrics?.meta))}</p>
             </div>`;
     }
 

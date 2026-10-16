@@ -1,43 +1,21 @@
 // src/server/routes/api.js
 const express = require('express');
-const os = require('node:os');
 const { sendSuccess } = require('../utils/api-response');
+const { createSystemMetricsService } = require('../services/system-metrics-service');
 
-function readCpuTimes() {
-    return os.cpus().reduce((summary, cpu) => {
-        const total = Object.values(cpu.times).reduce((sum, value) => sum + value, 0);
-        return { idle: summary.idle + cpu.times.idle, total: summary.total + total };
-    }, { idle: 0, total: 0 });
+// Instance partagée pour l'export `systemMetrics` (tests unitaires) ; les
+// applications créent explicitement leur service via `createApiRoutes`.
+let sharedMetricsService = null;
+
+function getSharedMetricsService() {
+    if (!sharedMetricsService) sharedMetricsService = createSystemMetricsService();
+    return sharedMetricsService;
 }
 
-let previousCpuTimes = readCpuTimes();
-
-function systemMetrics(user) {
-    const totalBytes = os.totalmem();
-    const availableBytes = os.freemem();
-    const logicalCores = Math.max(1, os.cpus().length);
-    const cpuTimes = readCpuTimes();
-    const idleDelta = cpuTimes.idle - previousCpuTimes.idle;
-    const totalDelta = cpuTimes.total - previousCpuTimes.total;
-    previousCpuTimes = cpuTimes;
-    const cpuPercent = totalDelta > 0 ? (1 - idleDelta / totalDelta) * 100 : 0;
+function systemMetrics(user, metricsService = getSharedMetricsService()) {
+    const snapshot = metricsService.snapshot();
     return {
-        timestamp: new Date().toISOString(),
-        cpu: {
-            percent: Math.min(100, Math.max(0, Math.round(cpuPercent * 10) / 10)),
-            logicalCores,
-            loadAverage: os.loadavg().map((value) => Math.round(value * 100) / 100)
-        },
-        memory: {
-            totalBytes,
-            usedBytes: totalBytes - availableBytes,
-            availableBytes,
-            percent: Math.round((totalBytes - availableBytes) / totalBytes * 1000) / 10
-        },
-        runtime: {
-            uptimeSeconds: Math.round(process.uptime()),
-            processMemoryBytes: process.memoryUsage().rss
-        },
+        ...snapshot,
         user: { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl || null }
     };
 }
@@ -89,7 +67,8 @@ function createBuildEventStream({ req, res, buildVersionService }) {
     res.on('error', stop);
 }
 
-function createApiRoutes({ version, requireSession, networkService, buildVersionService } = {}) {
+function createApiRoutes({ version, requireSession, networkService, buildVersionService, metricsService } = {}) {
+    const activeMetricsService = metricsService || getSharedMetricsService();
     const router = express.Router();
     router.get('/api/health', (req, res) => sendSuccess(res, {
         status: 'ok',
@@ -99,7 +78,9 @@ function createApiRoutes({ version, requireSession, networkService, buildVersion
     if (buildVersionService) {
         router.get('/api/system/build-events', (req, res) => createBuildEventStream({ req, res, buildVersionService }));
     }
-    if (requireSession) router.get('/api/system/metrics', requireSession, (req, res) => sendSuccess(res, systemMetrics(req.user)));
+    if (requireSession) {
+        router.get('/api/system/metrics', requireSession, (req, res) => sendSuccess(res, systemMetrics(req.user, activeMetricsService)));
+    }
     if (requireSession && networkService) {
         router.get('/api/system/network', requireSession, async (req, res) => sendSuccess(res, await networkService.snapshot(req)));
     }

@@ -44,3 +44,7 @@ export function putJson(url, body = {}) {
         body: JSON.stringify(body)
     });
 }
+
+export function deleteJson(url) {
+    return requestJson(url, { method: "DELETE" });
+}

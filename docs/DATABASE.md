@@ -61,7 +61,9 @@ migrations/
 ├── 0003_document_items.sqlite.sql       # Métadonnées Documents
 ├── 0003_document_items.postgresql.sql
 ├── 0004_user_preferences.sqlite.sql     # Paramètres + préférences de compte
-└── 0004_user_preferences.postgresql.sql
+├── 0004_user_preferences.postgresql.sql
+├── 0005_user_workspaces.sqlite.sql      # Espaces de travail nommés
+└── 0005_user_workspaces.postgresql.sql
 ```
 
 - Chaque migration est appliquée **une seule fois**, dans une transaction, et
@@ -94,7 +96,8 @@ src/server/repositories/
 ├── sqlite-session-store-repository.js / pg-session-store-repository.js
 ├── sqlite-session-repository.js   / pg-session-repository.js
 ├── sqlite-document-repository.js  / pg-document-repository.js
-└── sqlite-preferences-repository.js / pg-preferences-repository.js
+├── sqlite-preferences-repository.js / pg-preferences-repository.js
+└── sqlite-workspace-repository.js   / pg-workspace-repository.js
 ```
 
 - **Contrat asynchrone uniforme** : toutes les méthodes de repository retournent
